@@ -62,8 +62,7 @@ using namespace DFHack;
 using namespace tthread;
 
 // FIXME: maybe make configurable with an ini option?
-#define MAX_CONSOLE_LINES 999;
-
+#define MAX_CONSOLE_LINES 999
 namespace DFHack
 {
     class Private
@@ -167,7 +166,7 @@ namespace DFHack
             memset(tmp, ' ', inf.dwSize.X);
             output(tmp, inf.dwSize.X, 0, inf.dwCursorPosition.Y);
             free(tmp);
-            COORD coord = {0, inf.dwCursorPosition.Y}; // Windows uses 0-based coordinates
+            COORD coord = {0, inf.dwCursorPosition.Y }; // Windows uses 0-based coordinates
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
         }
         void gotoxy(int x, int y)
@@ -214,7 +213,11 @@ namespace DFHack
         {
             COORD pos = { (SHORT)x, (SHORT)y };
             DWORD count = 0;
-            WriteConsoleOutputCharacterA(console_out, str, len, pos, &count);
+
+            CONSOLE_SCREEN_BUFFER_INFO inf = { 0 };
+            GetConsoleScreenBufferInfo(console_out, &inf);
+            SetConsoleCursorPosition(console_out, pos);
+            WriteConsoleA(console_out, str, len, &count, NULL);
         }
 
         void prompt_refresh()
