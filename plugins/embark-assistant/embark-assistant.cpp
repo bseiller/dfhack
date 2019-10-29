@@ -109,7 +109,7 @@ namespace embark_assist {
 
         //===============================================================================
 
-        void find(embark_assist::defs::finders finder) {
+        void find(const embark_assist::defs::finders &finder) {
 //            color_ostream_proxy out(Core::getInstance().getConsole());
 
             state->match_iterator.x = embark_assist::survey::get_last_pos().x;

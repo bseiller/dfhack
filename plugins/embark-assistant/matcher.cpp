@@ -65,15 +65,16 @@ namespace embark_assist {
         //=======================================================================================
 
         void process_embark_incursion(matcher_info *result,
-            embark_assist::defs::world_tile_data *survey_results,
-            embark_assist::defs::mid_level_tile *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
-            embark_assist::defs::finders *finder,
-            int16_t elevation,
-            uint16_t x,
-            uint16_t y,
+            const embark_assist::defs::world_tile_data *survey_results,
+            const embark_assist::defs::mid_level_tile *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
+            const embark_assist::defs::finders *finder,
+            const int16_t elevation,
+            const uint16_t x,
+            const uint16_t y,
             bool *failed_match) {
 
-            df::world_data *world_data = world->world_data;
+            const df::world_data *world_data = world->world_data;
+            const embark_assist::defs::region_tile_datum &rtd = survey_results->at(x).at(y);
 
             // Savagery & Evilness
                 {
@@ -199,12 +200,12 @@ namespace embark_assist {
                 }
 
                 //  Freezing
-                if (result->min_temperature > survey_results->at(x).at(y).min_temperature[mlt->biome_offset]) {
-                    result->min_temperature = survey_results->at(x).at(y).min_temperature[mlt->biome_offset];
+                if (result->min_temperature > rtd.min_temperature[mlt->biome_offset]) {
+                    result->min_temperature = rtd.min_temperature[mlt->biome_offset];
                 }
 
-                if (result->max_temperature < survey_results->at(x).at(y).max_temperature[mlt->biome_offset]) {
-                    result->max_temperature = survey_results->at(x).at(y).max_temperature[mlt->biome_offset];
+                if (result->max_temperature < rtd.max_temperature[mlt->biome_offset]) {
+                    result->max_temperature = rtd.max_temperature[mlt->biome_offset];
                 }
 
                 if (result->min_temperature <= 0 &&
@@ -220,7 +221,7 @@ namespace embark_assist {
                 }
 
                 //  Blood Rain
-                if (survey_results->at(x).at(y).blood_rain[mlt->biome_offset]) {
+                if (rtd.blood_rain[mlt->biome_offset]) {
                     if (finder->blood_rain == embark_assist::defs::yes_no_ranges::No) {
                         *failed_match = true;
                         return;
@@ -229,7 +230,7 @@ namespace embark_assist {
                 }
 
                 // Syndrome Rain, Permanent
-                if (survey_results->at(x).at(y).permanent_syndrome_rain[mlt->biome_offset]) {
+                if (rtd.permanent_syndrome_rain[mlt->biome_offset]) {
                     if (finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Temporary ||
                         finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Not_Permanent ||
                         finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) {
@@ -240,7 +241,7 @@ namespace embark_assist {
                 }
 
                 // Syndrome Rain, Temporary
-                if (survey_results->at(x).at(y).temporary_syndrome_rain[mlt->biome_offset]) {
+                if (rtd.temporary_syndrome_rain[mlt->biome_offset]) {
                     if (finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Permanent ||
                         finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) {
                         *failed_match = true;
@@ -250,7 +251,7 @@ namespace embark_assist {
                 }
 
                 //  Reanmation
-                if (survey_results->at(x).at(y).reanimating[mlt->biome_offset]) {
+                if (rtd.reanimating[mlt->biome_offset]) {
                     if (finder->reanimation == embark_assist::defs::reanimation_ranges::Thralling ||
                         finder->reanimation == embark_assist::defs::reanimation_ranges::None) {
                         *failed_match = true;
@@ -260,7 +261,7 @@ namespace embark_assist {
                 }
 
                 //  Thralling
-                if (survey_results->at(x).at(y).thralling[mlt->biome_offset]) {
+                if (rtd.thralling[mlt->biome_offset]) {
                     if (finder->reanimation == embark_assist::defs::reanimation_ranges::Reanimation ||
                         finder->reanimation == embark_assist::defs::reanimation_ranges::Not_Thralling ||
                         finder->reanimation == embark_assist::defs::reanimation_ranges::None) {
@@ -274,10 +275,10 @@ namespace embark_assist {
                 //  Magma. N/A for incursions
                 //  Biomes
 
-                result->biomes[survey_results->at(x).at(y).biome[mlt->biome_offset]] = true;
+                result->biomes[rtd.biome[mlt->biome_offset]] = true;
 
                 //  Region Type
-                result->region_types[world_data->regions[survey_results->at(x).at(y).biome_index[mlt->biome_offset]]->type] = true;
+                result->region_types[world_data->regions[rtd.biome_index[mlt->biome_offset]]->type] = true;
 
                 //  Metals. N/A for incursions
                 //  Economics. N/A for incursions
@@ -293,14 +294,15 @@ namespace embark_assist {
             embark_assist::defs::finders *finder,
             uint16_t x,
             uint16_t y,
-            uint8_t i,
-            uint8_t k,
+            const uint8_t i,
+            const uint8_t k,
             bool *failed_match) {
             int8_t fetch_i = i;
             int8_t fetch_k = k;
             int16_t fetch_x = x;
             int16_t fetch_y = y;
             df::world_data *world_data = world->world_data;
+            const embark_assist::defs::mid_level_tile &mdlt = mlt->at(i).at(k);
 
             //  Logic can be implemented with modulo and division, but that's harder to read.
             switch (from_direction) {
@@ -365,7 +367,9 @@ namespace embark_assist {
                 return;  //  We're at the world edge, so no incursions from the outside.
             }
 
-            if (!&survey_results->at(fetch_x).at(fetch_y).surveyed) {
+            const embark_assist::defs::region_tile_datum &rtd = survey_results->at(fetch_x).at(fetch_y);
+
+            if (!&rtd.surveyed) {
                 *failed_match = true;
                 return;
             }
@@ -374,9 +378,9 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).south_row[15],
+                        &rtd.south_row[15],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -384,9 +388,9 @@ namespace embark_assist {
                 else if (fetch_i > 15) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).south_row[0],
+                        &rtd.south_row[0],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -394,9 +398,9 @@ namespace embark_assist {
                 else {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).south_row[i],
+                        &rtd.south_row[i],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -406,9 +410,9 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).north_row[15],
+                        &rtd.north_row[15],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -416,9 +420,9 @@ namespace embark_assist {
                 else if (fetch_i > 15) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).north_row[0],
+                        &rtd.north_row[0],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -426,9 +430,9 @@ namespace embark_assist {
                 else {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).north_row[i],
+                        &rtd.north_row[i],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -438,9 +442,9 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).east_column[k],
+                        &rtd.east_column[k],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -448,9 +452,9 @@ namespace embark_assist {
                 else if (fetch_i > 15) {
                     process_embark_incursion(result,
                         survey_results,
-                        &survey_results->at(fetch_x).at(fetch_y).west_column[k],
+                        &rtd.west_column[k],
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -460,7 +464,7 @@ namespace embark_assist {
                         survey_results,
                         &mlt->at(fetch_i).at(fetch_k),
                         finder,
-                        mlt->at(i).at(k).elevation,
+                        mdlt.elevation,
                         fetch_x,
                         fetch_y,
                         failed_match);
@@ -480,10 +484,11 @@ namespace embark_assist {
 
 //            color_ostream_proxy out(Core::getInstance().getConsole());
             df::world_data *world_data = world->world_data;
+            embark_assist::defs::region_tile_datum &rtd = survey_results->at(x).at(y);
             matcher_info result;
             result.elevation = mlt->at(start_x).at(start_y).elevation;
-            result.min_temperature = survey_results->at(x).at(y).min_temperature[mlt->at(start_x).at(start_y).biome_offset];
-            result.max_temperature = survey_results->at(x).at(y).max_temperature[mlt->at(start_x).at(start_y).biome_offset];
+            result.min_temperature = rtd.min_temperature[mlt->at(start_x).at(start_y).biome_offset];
+            result.max_temperature = rtd.max_temperature[mlt->at(start_x).at(start_y).biome_offset];
             result.metal_1 = finder->metal_1 == -1;
             result.metal_2 = finder->metal_2 == -1;
             result.metal_3 = finder->metal_3 == -1;
@@ -509,15 +514,15 @@ namespace embark_assist {
 
             for (uint16_t i = start_x; i < start_x + finder->x_dim; i++) {
                 for (uint16_t k = start_y; k < start_y + finder->y_dim; k++) {
-
+                    const embark_assist::defs::mid_level_tile &mldt = mlt->at(i).at(k);
                     // Savagery & Evilness
                     {
-                        result.savagery_found[mlt->at(i).at(k).savagery_level] = true;
-                        result.evilness_found[mlt->at(i).at(k).evilness_level] = true;
+                        result.savagery_found[mldt.savagery_level] = true;
+                        result.evilness_found[mldt.evilness_level] = true;
 
                         embark_assist::defs::evil_savagery_ranges l = embark_assist::defs::evil_savagery_ranges::Low;
                         while (true) {
-                            if (mlt->at(i).at(k).savagery_level == static_cast<uint8_t>(l)) {
+                            if (mldt.savagery_level == static_cast<uint8_t>(l)) {
                                 if (finder->savagery[static_cast <int>(l)] ==
                                     embark_assist::defs::evil_savagery_values::Absent) return false;
                             }
@@ -526,7 +531,7 @@ namespace embark_assist {
                                     embark_assist::defs::evil_savagery_values::All) return false;
                             }
 
-                            if (mlt->at(i).at(k).evilness_level == static_cast<uint8_t>(l)) {
+                            if (mldt.evilness_level == static_cast<uint8_t>(l)) {
                                 if (finder->evilness[static_cast <int>(l)] ==
                                     embark_assist::defs::evil_savagery_values::Absent) return false;
                             }
@@ -546,14 +551,14 @@ namespace embark_assist {
                         break;
 
                     case embark_assist::defs::aquifer_ranges::All:
-                        if (!mlt->at(i).at(k).aquifer) return false;
+                        if (!mldt.aquifer) return false;
                         result.aquifer_presence_found = true;
                         break;
 
                     case embark_assist::defs::aquifer_ranges::Present:
                     case embark_assist::defs::aquifer_ranges::Partial:
                     case embark_assist::defs::aquifer_ranges::Not_All:
-                        if (mlt->at(i).at(k).aquifer) {
+                        if (mldt.aquifer) {
                             result.aquifer_presence_found = true;
                         }
                         else {
@@ -562,31 +567,31 @@ namespace embark_assist {
                         break;
 
                     case embark_assist::defs::aquifer_ranges::Absent:
-                        if (mlt->at(i).at(k).aquifer) return false;
+                        if (mldt.aquifer) return false;
                         result.aquifer_presence_found = true;
                         break;
                     }
 
                     //  River & Waterfall
-                    if (mlt->at(i).at(k).river_present) {
+                    if (mldt.river_present) {
                         //  Actual size values were checked on the world tile level for min rivers
                         if (finder->max_river != embark_assist::defs::river_ranges::NA &&
-                            finder->max_river < static_cast<embark_assist::defs::river_ranges>(survey_results->at(x).at(y).river_size)) return false;
+                            finder->max_river < static_cast<embark_assist::defs::river_ranges>(rtd.river_size)) return false;
 
                         if (i < start_x + finder->x_dim - 2 &&
                             mlt->at(i + 1).at(k).river_present &&
-                            abs(mlt->at(i).at(k).river_elevation - mlt->at(i + 1).at(k).river_elevation) > result.max_waterfall) {
+                            abs(mldt.river_elevation - mlt->at(i + 1).at(k).river_elevation) > result.max_waterfall) {
                             if (finder->min_waterfall == 0) return false;  // 0 = Absent
                             result.max_waterfall =
-                                abs(mlt->at(i).at(k).river_elevation - mlt->at(i + 1).at(k).river_elevation);
+                                abs(mldt.river_elevation - mlt->at(i + 1).at(k).river_elevation);
                         }
 
                         if (k < start_y + finder->y_dim - 2 &&
                             mlt->at(i).at(k + 1).river_present &&
-                            abs(mlt->at(i).at(k).river_elevation - mlt->at(i).at(k + 1).river_elevation) > result.max_waterfall) {
+                            abs(mldt.river_elevation - mlt->at(i).at(k + 1).river_elevation) > result.max_waterfall) {
                             if (finder->min_waterfall == 0) return false;  // 0 = Absent
                             result.max_waterfall =
-                                abs(mlt->at(i).at(k).river_elevation - mlt->at(i).at(k + 1).river_elevation);
+                                abs(mldt.river_elevation - mlt->at(i).at(k + 1).river_elevation);
                         }
 
                         result.river_found = true;
@@ -594,54 +599,54 @@ namespace embark_assist {
 
                     //  Flat
                     if (finder->flat == embark_assist::defs::yes_no_ranges::Yes &&
-                        result.elevation != mlt->at(i).at(k).elevation) return false;
+                        result.elevation != mldt.elevation) return false;
 
-                    if (result.elevation != mlt->at(i).at(k).elevation) result.uneven = true;
+                    if (result.elevation != mldt.elevation) result.uneven = true;
 
                     // Clay
-                    if (mlt->at(i).at(k).clay) {
+                    if (mldt.clay) {
                         if (finder->clay == embark_assist::defs::present_absent_ranges::Absent) return false;
                         result.clay_found = true;
                     }
 
                     // Sand
-                    if (mlt->at(i).at(k).sand) {
+                    if (mldt.sand) {
                         if (finder->sand == embark_assist::defs::present_absent_ranges::Absent) return false;
                         result.sand_found = true;
                     }
 
                     // Flux
-                    if (mlt->at(i).at(k).flux) {
+                    if (mldt.flux) {
                         if (finder->flux == embark_assist::defs::present_absent_ranges::Absent) return false;
                         result.flux_found = true;
                     }
 
                     // Coal
-                    if (mlt->at(i).at(k).coal) {
+                    if (mldt.coal) {
                         if (finder->coal == embark_assist::defs::present_absent_ranges::Absent) return false;
                         result.coal_found = true;
                     }
 
                     //  Min Soil
                     if (finder->soil_min != embark_assist::defs::soil_ranges::NA &&
-                        mlt->at(i).at(k).soil_depth < static_cast<uint16_t>(finder->soil_min) &&
+                        mldt.soil_depth < static_cast<uint16_t>(finder->soil_min) &&
                         finder->soil_min_everywhere == embark_assist::defs::all_present_ranges::All) return false;
 
-                    if (result.max_soil < mlt->at(i).at(k).soil_depth) {
-                        result.max_soil = mlt->at(i).at(k).soil_depth;
+                    if (result.max_soil < mldt.soil_depth) {
+                        result.max_soil = mldt.soil_depth;
                     }
 
                     //  Max Soil
                     if (finder->soil_max != embark_assist::defs::soil_ranges::NA &&
-                        mlt->at(i).at(k).soil_depth > static_cast<uint16_t>(finder->soil_max)) return false;
+                        mldt.soil_depth > static_cast<uint16_t>(finder->soil_max)) return false;
 
                     //  Freezing
-                    if (result.min_temperature > survey_results->at(x).at(y).min_temperature[mlt->at(i).at(k).biome_offset]) {
-                        result.min_temperature = survey_results->at(x).at(y).min_temperature[mlt->at(i).at(k).biome_offset];
+                    if (result.min_temperature > rtd.min_temperature[mldt.biome_offset]) {
+                        result.min_temperature = rtd.min_temperature[mldt.biome_offset];
                     }
 
-                    if (result.max_temperature < survey_results->at(x).at(y).max_temperature[mlt->at(i).at(k).biome_offset]) {
-                        result.max_temperature = survey_results->at(x).at(y).max_temperature[mlt->at(i).at(k).biome_offset];
+                    if (result.max_temperature < rtd.max_temperature[mldt.biome_offset]) {
+                        result.max_temperature = rtd.max_temperature[mldt.biome_offset];
                     }
 
                     if (result.min_temperature <= 0 &&
@@ -651,13 +656,13 @@ namespace embark_assist {
                         finder->freezing == embark_assist::defs::freezing_ranges::Permanent) return false;
 
                     //  Blood Rain
-                    if (survey_results->at(x).at(y).blood_rain[mlt->at(i).at(k).biome_offset]) {
+                    if (rtd.blood_rain[mldt.biome_offset]) {
                         if (finder->blood_rain == embark_assist::defs::yes_no_ranges::No) return false;
                         result.blood_rain_found = true;
                     }
 
                     // Syndrome Rain, Permanent
-                    if (survey_results->at(x).at(y).permanent_syndrome_rain[mlt->at(i).at(k).biome_offset]) {
+                    if (rtd.permanent_syndrome_rain[mldt.biome_offset]) {
                         if (finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Temporary ||
                             finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Not_Permanent ||
                             finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) return false;
@@ -665,21 +670,21 @@ namespace embark_assist {
                     }
 
                     // Syndrome Rain, Temporary
-                    if (survey_results->at(x).at(y).temporary_syndrome_rain[mlt->at(i).at(k).biome_offset]) {
+                    if (rtd.temporary_syndrome_rain[mldt.biome_offset]) {
                         if (finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Permanent ||
                             finder->syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) return false;
                         result.temporary_syndrome_rain_found = true;
                     }
 
                     //  Reanmation
-                    if (survey_results->at(x).at(y).reanimating[mlt->at(i).at(k).biome_offset]) {
+                    if (rtd.reanimating[mldt.biome_offset]) {
                         if (finder->reanimation == embark_assist::defs::reanimation_ranges::Thralling ||
                             finder->reanimation == embark_assist::defs::reanimation_ranges::None) return false;
                         result.reanimation_found = true;
                     }
 
                     //  Thralling
-                    if (survey_results->at(x).at(y).thralling[mlt->at(i).at(k).biome_offset]) {
+                    if (rtd.thralling[mldt.biome_offset]) {
                         if (finder->reanimation == embark_assist::defs::reanimation_ranges::Reanimation ||
                             finder->reanimation == embark_assist::defs::reanimation_ranges::Not_Thralling ||
                             finder->reanimation == embark_assist::defs::reanimation_ranges::None) return false;
@@ -687,7 +692,7 @@ namespace embark_assist {
                     }
 
                     //  Spires
-                    if (mlt->at(i).at(k).adamantine_level != -1) {
+                    if (mldt.adamantine_level != -1) {
                         result.spire_count++;
 
                         if (finder->spire_count_max != -1 &&
@@ -695,35 +700,35 @@ namespace embark_assist {
                     }
 
                     //  Magma
-                    if (mlt->at(i).at(k).magma_level != -1) {
-                        if (mlt->at(i).at(k).magma_level > result.magma_level)
+                    if (mldt.magma_level != -1) {
+                        if (mldt.magma_level > result.magma_level)
                         {
-                            result.magma_level = mlt->at(i).at(k).magma_level;
+                            result.magma_level = mldt.magma_level;
                             if (finder->magma_max != embark_assist::defs::magma_ranges::NA &&
                                 static_cast<int8_t>(finder->magma_max) < result.magma_level) return false;
                         }
                     }
 
                     //  Biomes
-                    result.biomes[survey_results->at(x).at(y).biome[mlt->at(i).at(k).biome_offset]] = true;
+                    result.biomes[rtd.biome[mldt.biome_offset]] = true;
 
                     //  Region Type
-                    result.region_types[world_data->regions[survey_results->at(x).at(y).biome_index[mlt->at(i).at(k).biome_offset]]->type] = true;
+                    result.region_types[world_data->regions[rtd.biome_index[mldt.biome_offset]]->type] = true;
                 
                     //  Metals
-                    result.metal_1 = result.metal_1 || mlt->at(i).at(k).metals[finder->metal_1];
-                    result.metal_2 = result.metal_2 || mlt->at(i).at(k).metals[finder->metal_2];
-                    result.metal_3 = result.metal_3 || mlt->at(i).at(k).metals[finder->metal_3];
+                    result.metal_1 = result.metal_1 || mldt.metals[finder->metal_1];
+                    result.metal_2 = result.metal_2 || mldt.metals[finder->metal_2];
+                    result.metal_3 = result.metal_3 || mldt.metals[finder->metal_3];
 
                     //  Economics
-                    result.economic_1 = result.economic_1 || mlt->at(i).at(k).economics[finder->economic_1];
-                    result.economic_2 = result.economic_2 || mlt->at(i).at(k).economics[finder->economic_2];
-                    result.economic_3 = result.economic_3 || mlt->at(i).at(k).economics[finder->economic_3];
+                    result.economic_1 = result.economic_1 || mldt.economics[finder->economic_1];
+                    result.economic_2 = result.economic_2 || mldt.economics[finder->economic_2];
+                    result.economic_3 = result.economic_3 || mldt.economics[finder->economic_3];
 
                     //  Minerals
-                    result.mineral_1 = result.mineral_1 || mlt->at(i).at(k).minerals[finder->mineral_1];
-                    result.mineral_2 = result.mineral_2 || mlt->at(i).at(k).minerals[finder->mineral_2];
-                    result.mineral_3 = result.mineral_3 || mlt->at(i).at(k).minerals[finder->mineral_3];
+                    result.mineral_1 = result.mineral_1 || mldt.minerals[finder->mineral_1];
+                    result.mineral_2 = result.mineral_2 || mldt.minerals[finder->mineral_2];
+                    result.mineral_3 = result.mineral_3 || mldt.minerals[finder->mineral_3];
                 }
             }
 
@@ -1191,11 +1196,11 @@ namespace embark_assist {
 
             color_ostream_proxy out(Core::getInstance().getConsole());
             df::world_data *world_data = world->world_data;
-            embark_assist::defs::region_tile_datum *tile = &survey_results->at(x).at(y);
+            embark_assist::defs::region_tile_datum &tile = survey_results->at(x).at(y);
             const uint16_t embark_size = finder->x_dim * finder->y_dim;
             bool found;
 
-            if (tile->surveyed) {
+            if (tile.surveyed) {
                 //  Savagery
                 for (uint8_t i = 0; i < 3; i++)
                 {
@@ -1204,15 +1209,15 @@ namespace embark_assist {
                         break;  //  No restriction
 
                     case embark_assist::defs::evil_savagery_values::All:
-                        if (tile->savagery_count[i] < embark_size) return false;
+                        if (tile.savagery_count[i] < embark_size) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Present:
-                        if (tile->savagery_count[i] == 0) return false;
+                        if (tile.savagery_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Absent:
-                        if (tile->savagery_count[i] > 256 - embark_size) return false;
+                        if (tile.savagery_count[i] > 256 - embark_size) return false;
                         break;
                     }
                 }
@@ -1225,15 +1230,15 @@ namespace embark_assist {
                         break;  //  No restriction
 
                     case embark_assist::defs::evil_savagery_values::All:
-                        if (tile->evilness_count[i] < embark_size) return false;
+                        if (tile.evilness_count[i] < embark_size) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Present:
-                        if (tile->evilness_count[i] == 0) return false;
+                        if (tile.evilness_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Absent:
-                        if (tile->evilness_count[i] > 256 - embark_size) return false;
+                        if (tile.evilness_count[i] > 256 - embark_size) return false;
                         break;
                     }
                 }
@@ -1244,29 +1249,29 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::aquifer_ranges::All:
-                    if (tile->aquifer_count < 256 - embark_size) return false;
+                    if (tile.aquifer_count < 256 - embark_size) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Present:
-                    if (tile->aquifer_count == 0) return false;
+                    if (tile.aquifer_count == 0) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Partial:
-                    if (tile->aquifer_count == 0 ||
-                        tile->aquifer_count == 256) return false;
+                    if (tile.aquifer_count == 0 ||
+                        tile.aquifer_count == 256) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Not_All:
-                    if (tile->aquifer_count == 256) return false;
+                    if (tile.aquifer_count == 256) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Absent:
-                    if (tile->aquifer_count > 256 - embark_size) return false;
+                    if (tile.aquifer_count > 256 - embark_size) return false;
                     break;
                 }
 
                 // River size. Every tile has riverless tiles, so max rivers has to be checked on the detailed level.
-                switch (tile->river_size) {
+                switch (tile.river_size) {
                 case embark_assist::defs::river_sizes::None:
                     if (finder->min_river > embark_assist::defs::river_ranges::None) return false;
                     break;
@@ -1293,10 +1298,10 @@ namespace embark_assist {
                 }
 
                 //  Waterfall
-                if (finder->min_waterfall > tile->max_waterfall) return false;  //  N/A = -1 is always smaller
+                if (finder->min_waterfall > tile.max_waterfall) return false;  //  N/A = -1 is always smaller
                 if (finder->min_waterfall == 0 &&  // Absent
                     embark_size == 256 &&
-                    tile->max_waterfall > 0) return false;
+                    tile.max_waterfall > 0) return false;
 
                 //  Flat. No world tile checks. Need to look at the details
 
@@ -1306,11 +1311,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->clay_count == 0) return false;
+                    if (tile.clay_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->clay_count > 256 - embark_size) return false;
+                    if (tile.clay_count > 256 - embark_size) return false;
                     break;
                 }
 
@@ -1320,11 +1325,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->sand_count == 0) return false;
+                    if (tile.sand_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->sand_count > 256 - embark_size) return false;
+                    if (tile.sand_count > 256 - embark_size) return false;
                     break;
                 }
 
@@ -1334,11 +1339,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->flux_count == 0) return false;
+                    if (tile.flux_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->flux_count > 256 - embark_size) return false;
+                    if (tile.flux_count > 256 - embark_size) return false;
                     break;
                 }
 
@@ -1348,11 +1353,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->coal_count == 0) return false;
+                    if (tile.coal_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->coal_count > 256 - embark_size) return false;
+                    if (tile.coal_count > 256 - embark_size) return false;
                     break;
                 }
 
@@ -1363,19 +1368,19 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::soil_ranges::Very_Shallow:
-                    if (tile->max_region_soil < 1) return false;
+                    if (tile.max_region_soil < 1) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Shallow:
-                    if (tile->max_region_soil < 2) return false;
+                    if (tile.max_region_soil < 2) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Deep:
-                    if (tile->max_region_soil < 3) return false;
+                    if (tile.max_region_soil < 3) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Very_Deep:
-                    if (tile->max_region_soil < 4) return false;
+                    if (tile.max_region_soil < 4) return false;
                     break;
                 }
 
@@ -1388,47 +1393,47 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::soil_ranges::None:
-                    if (tile->min_region_soil > 0) return false;
+                    if (tile.min_region_soil > 0) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Very_Shallow:
-                    if (tile->min_region_soil > 1) return false;
+                    if (tile.min_region_soil > 1) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Shallow:
-                    if (tile->min_region_soil > 2) return false;
+                    if (tile.min_region_soil > 2) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Deep:
-                    if (tile->min_region_soil > 3) return false;
+                    if (tile.min_region_soil > 3) return false;
                     break;
                 }
 
                 //  Freezing
                 if (finder->freezing != embark_assist::defs::freezing_ranges::NA)
                 {
-                    int16_t max_max_temperature = tile->max_temperature[5];
-                    int16_t min_max_temperature = tile->max_temperature[5];
-                    int16_t max_min_temperature = tile->min_temperature[5];
-                    int16_t min_min_temperature = tile->min_temperature[5];
+                    int16_t max_max_temperature = tile.max_temperature[5];
+                    int16_t min_max_temperature = tile.max_temperature[5];
+                    int16_t max_min_temperature = tile.min_temperature[5];
+                    int16_t min_min_temperature = tile.min_temperature[5];
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->max_temperature[i] > max_max_temperature) {
-                            max_max_temperature = tile->max_temperature[i];
+                        if (tile.max_temperature[i] > max_max_temperature) {
+                            max_max_temperature = tile.max_temperature[i];
                         }
 
-                        if (tile->max_temperature[i] != - 30000 &&
-                            tile->max_temperature[i] < min_max_temperature) {
-                            min_max_temperature = tile->max_temperature[i];
+                        if (tile.max_temperature[i] != - 30000 &&
+                            tile.max_temperature[i] < min_max_temperature) {
+                            min_max_temperature = tile.max_temperature[i];
                         }
 
-                        if (tile->min_temperature[i] != -30000 &&
-                            tile->min_temperature[i] < min_min_temperature) {
-                            min_min_temperature = tile->min_temperature[i];
+                        if (tile.min_temperature[i] != -30000 &&
+                            tile.min_temperature[i] < min_min_temperature) {
+                            min_min_temperature = tile.min_temperature[i];
                         }
 
-                        if (tile->min_temperature[i] > max_min_temperature) {
-                            max_min_temperature = tile->min_temperature[i];
+                        if (tile.min_temperature[i] > max_min_temperature) {
+                            max_min_temperature = tile.min_temperature[i];
                         }
                     }
 
@@ -1465,11 +1470,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::yes_no_ranges::Yes:
-                    if (!tile->blood_rain_possible) return false;
+                    if (!tile.blood_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::yes_no_ranges::No:
-                    if (tile->blood_rain_full) return false;
+                    if (tile.blood_rain_full) return false;
                     break;
                 }
 
@@ -1479,23 +1484,23 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::syndrome_rain_ranges::Any:
-                    if (!tile->permanent_syndrome_rain_possible && !tile->temporary_syndrome_rain_possible) return false;
+                    if (!tile.permanent_syndrome_rain_possible && !tile.temporary_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Permanent:
-                    if (!tile->permanent_syndrome_rain_possible) return false;
+                    if (!tile.permanent_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Temporary:
-                    if (!tile->temporary_syndrome_rain_possible) return false;
+                    if (!tile.temporary_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Not_Permanent:
-                    if (tile->permanent_syndrome_rain_full) return false;
+                    if (tile.permanent_syndrome_rain_full) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::None:
-                    if (tile->permanent_syndrome_rain_full || tile->temporary_syndrome_rain_full) return false;
+                    if (tile.permanent_syndrome_rain_full || tile.temporary_syndrome_rain_full) return false;
                     break;
                 }
 
@@ -1505,42 +1510,42 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::reanimation_ranges::Both:
-                    if (!tile->reanimating_possible || !tile->thralling_possible) return false;
+                    if (!tile.reanimating_possible || !tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Any:
-                    if (!tile->reanimating_possible && !tile->thralling_possible) return false;
+                    if (!tile.reanimating_possible && !tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Thralling:
-                    if (!tile->thralling_possible) return false;
+                    if (!tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Reanimation:
-                    if (!tile->reanimating_possible) return false;
+                    if (!tile.reanimating_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Not_Thralling:
-                    if (tile->thralling_full) return false;
+                    if (tile.thralling_full) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::None:
-                    if (tile->reanimating_full || tile->thralling_full) return false;
+                    if (tile.reanimating_full || tile.thralling_full) return false;
                     break;
                 }
 
                 //  Spire Count Min/Max
                 //  Magma Min/Max
                 //  Biome Count Min (Can't do anything with Max at this level)
-                if (finder->biome_count_min > tile->biome_count) return false;
+                if (finder->biome_count_min > tile.biome_count) return false;
 
                 //  Region Type 1
                 if (finder->region_type_1 != -1) {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_1) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_1) {
                                 found = true;
                                 break;
                             }
@@ -1557,8 +1562,8 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_2) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_2) {
                                 found = true;
                                 break;
                             }
@@ -1575,8 +1580,8 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_3) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_3) {
                                 found = true;
                                 break;
                             }
@@ -1593,7 +1598,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_1) {
+                        if (tile.biome[i] == finder->biome_1) {
                             found = true;
                             break;
                         }
@@ -1607,7 +1612,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_2) {
+                        if (tile.biome[i] == finder->biome_2) {
                             found = true;
                             break;
                         }
@@ -1621,7 +1626,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_3) {
+                        if (tile.biome[i] == finder->biome_3) {
                             found = true;
                             break;
                         }
@@ -1649,15 +1654,15 @@ namespace embark_assist {
                     bool mineral_2 = finder->mineral_2 == -1;
                     bool mineral_3 = finder->mineral_3 == -1;
 
-                    metal_1 = metal_1 || tile->metals[finder->metal_1];
-                    metal_2 = metal_2 || tile->metals[finder->metal_2];
-                    metal_3 = metal_3 || tile->metals[finder->metal_3];
-                    economic_1 = economic_1 || tile->economics[finder->economic_1];
-                    economic_2 = economic_2 || tile->economics[finder->economic_2];
-                    economic_3 = economic_3 || tile->economics[finder->economic_3];
-                    mineral_1 = mineral_1 || tile->minerals[finder->mineral_1];
-                    mineral_2 = mineral_2 || tile->minerals[finder->mineral_2];
-                    mineral_3 = mineral_3 || tile->minerals[finder->mineral_3];
+                    metal_1 = metal_1 || tile.metals[finder->metal_1];
+                    metal_2 = metal_2 || tile.metals[finder->metal_2];
+                    metal_3 = metal_3 || tile.metals[finder->metal_3];
+                    economic_1 = economic_1 || tile.economics[finder->economic_1];
+                    economic_2 = economic_2 || tile.economics[finder->economic_2];
+                    economic_3 = economic_3 || tile.economics[finder->economic_3];
+                    mineral_1 = mineral_1 || tile.minerals[finder->mineral_1];
+                    mineral_2 = mineral_2 || tile.minerals[finder->mineral_2];
+                    mineral_3 = mineral_3 || tile.minerals[finder->mineral_3];
 
                     if (!metal_1 ||
                         !metal_2 ||
@@ -1679,15 +1684,15 @@ namespace embark_assist {
                         break;  //  No restriction
 
                     case embark_assist::defs::evil_savagery_values::All:
-                        if (tile->savagery_count[i] == 0) return false;
+                        if (tile.savagery_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Present:
-                        if (tile->savagery_count[i] == 0) return false;
+                        if (tile.savagery_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Absent:
-                        if (tile->savagery_count[i] == 256) return false;
+                        if (tile.savagery_count[i] == 256) return false;
                         break;
                     }
                 }
@@ -1700,15 +1705,15 @@ namespace embark_assist {
                         break;  //  No restriction
 
                     case embark_assist::defs::evil_savagery_values::All:
-                        if (tile->evilness_count[i] == 0) return false;
+                        if (tile.evilness_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Present:
-                        if (tile->evilness_count[i] == 0) return false;
+                        if (tile.evilness_count[i] == 0) return false;
                         break;
 
                     case embark_assist::defs::evil_savagery_values::Absent:
-                        if (tile->evilness_count[i] == 256) return false;
+                        if (tile.evilness_count[i] == 256) return false;
                         break;
                     }
                 }
@@ -1719,29 +1724,29 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::aquifer_ranges::All:
-                    if (tile->aquifer_count == 0) return false;
+                    if (tile.aquifer_count == 0) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Present:
-                    if (tile->aquifer_count == 0) return false;
+                    if (tile.aquifer_count == 0) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Partial:
-                    if (tile->aquifer_count == 0 ||
-                        tile->aquifer_count == 256) return false;
+                    if (tile.aquifer_count == 0 ||
+                        tile.aquifer_count == 256) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Not_All:
-                    if (tile->aquifer_count == 256) return false;
+                    if (tile.aquifer_count == 256) return false;
                     break;
 
                 case embark_assist::defs::aquifer_ranges::Absent:
-                    if (tile->aquifer_count == 256) return false;
+                    if (tile.aquifer_count == 256) return false;
                     break;
                 }
 
                 // River size
-                switch (tile->river_size) {
+                switch (tile.river_size) {
                 case embark_assist::defs::river_sizes::None:
                     if (finder->min_river > embark_assist::defs::river_ranges::None) return false;
                     break;
@@ -1769,7 +1774,7 @@ namespace embark_assist {
 
                 //  Waterfall
                 if (finder->min_waterfall > 0 &&
-                    tile->river_size == embark_assist::defs::river_sizes::None) return false;
+                    tile.river_size == embark_assist::defs::river_sizes::None) return false;
 
                 //  Flat. No world tile checks. Need to look at the details
 
@@ -1779,11 +1784,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->clay_count == 0) return false;
+                    if (tile.clay_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->clay_count == 256) return false;
+                    if (tile.clay_count == 256) return false;
                     break;
                 }
 
@@ -1793,11 +1798,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->sand_count == 0) return false;
+                    if (tile.sand_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->sand_count == 256) return false;
+                    if (tile.sand_count == 256) return false;
                     break;
                 }
 
@@ -1807,11 +1812,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->flux_count == 0) return false;
+                    if (tile.flux_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->flux_count == 256) return false;
+                    if (tile.flux_count == 256) return false;
                     break;
                 }
 
@@ -1821,11 +1826,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::present_absent_ranges::Present:
-                    if (tile->coal_count == 0) return false;
+                    if (tile.coal_count == 0) return false;
                     break;
 
                 case embark_assist::defs::present_absent_ranges::Absent:
-                    if (tile->coal_count == 256) return false;
+                    if (tile.coal_count == 256) return false;
                     break;
                 }
 
@@ -1836,19 +1841,19 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::soil_ranges::Very_Shallow:
-                    if (tile->max_region_soil < 1) return false;
+                    if (tile.max_region_soil < 1) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Shallow:
-                    if (tile->max_region_soil < 2) return false;
+                    if (tile.max_region_soil < 2) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Deep:
-                    if (tile->max_region_soil < 3) return false;
+                    if (tile.max_region_soil < 3) return false;
                     break;
 
                 case embark_assist::defs::soil_ranges::Very_Deep:
-                    if (tile->max_region_soil < 4) return false;
+                    if (tile.max_region_soil < 4) return false;
                     break;
                 }
 
@@ -1863,11 +1868,11 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::yes_no_ranges::Yes:
-                    if (!tile->blood_rain_possible) return false;
+                    if (!tile.blood_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::yes_no_ranges::No:
-                    if (tile->blood_rain_full) return false;
+                    if (tile.blood_rain_full) return false;
                     break;
                 }
 
@@ -1877,23 +1882,23 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::syndrome_rain_ranges::Any:
-                    if (!tile->permanent_syndrome_rain_possible && !tile->temporary_syndrome_rain_possible) return false;
+                    if (!tile.permanent_syndrome_rain_possible && !tile.temporary_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Permanent:
-                    if (!tile->permanent_syndrome_rain_possible) return false;
+                    if (!tile.permanent_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Temporary:
-                    if (!tile->temporary_syndrome_rain_possible) return false;
+                    if (!tile.temporary_syndrome_rain_possible) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::Not_Permanent:
-                    if (tile->permanent_syndrome_rain_full) return false;
+                    if (tile.permanent_syndrome_rain_full) return false;
                     break;
 
                 case embark_assist::defs::syndrome_rain_ranges::None:
-                    if (tile->permanent_syndrome_rain_full || tile->temporary_syndrome_rain_full) return false;
+                    if (tile.permanent_syndrome_rain_full || tile.temporary_syndrome_rain_full) return false;
                     break;
                 }
 
@@ -1903,42 +1908,42 @@ namespace embark_assist {
                     break;  //  No restriction
 
                 case embark_assist::defs::reanimation_ranges::Both:
-                    if (!tile->reanimating_possible || !tile->thralling_possible) return false;
+                    if (!tile.reanimating_possible || !tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Any:
-                    if (!tile->reanimating_possible && !tile->thralling_possible) return false;
+                    if (!tile.reanimating_possible && !tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Thralling:
-                    if (!tile->thralling_possible) return false;
+                    if (!tile.thralling_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Reanimation:
-                    if (!tile->reanimating_possible) return false;
+                    if (!tile.reanimating_possible) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::Not_Thralling:
-                    if (tile->thralling_full) return false;
+                    if (tile.thralling_full) return false;
                     break;
 
                 case embark_assist::defs::reanimation_ranges::None:
-                    if (tile->reanimating_full || tile->thralling_full) return false;
+                    if (tile.reanimating_full || tile.thralling_full) return false;
                     break;
                 }
 
                 //  Spire Count Min/Max
                 //  Magma Min/Max
                 //  Biome Count Min (Can't do anything with Max at this level)
-                if (finder->biome_count_min > tile->biome_count) return false;
+                if (finder->biome_count_min > tile.biome_count) return false;
 
                 //  Region Type 1
                 if (finder->region_type_1 != -1) {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_1) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_1) {
                                 found = true;
                                 break;
                             }
@@ -1955,8 +1960,8 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_2) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_2) {
                                 found = true;
                                 break;
                             }
@@ -1973,8 +1978,8 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t k = 1; k < 10; k++) {
-                        if (tile->biome_index[k] != -1) {
-                            if (world_data->regions[tile->biome_index[k]]->type == finder->region_type_3) {
+                        if (tile.biome_index[k] != -1) {
+                            if (world_data->regions[tile.biome_index[k]]->type == finder->region_type_3) {
                                 found = true;
                                 break;
                             }
@@ -1991,7 +1996,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_1) {
+                        if (tile.biome[i] == finder->biome_1) {
                             found = true;
                             break;
                         }
@@ -2005,7 +2010,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_2) {
+                        if (tile.biome[i] == finder->biome_2) {
                             found = true;
                             break;
                         }
@@ -2019,7 +2024,7 @@ namespace embark_assist {
                     found = false;
 
                     for (uint8_t i = 1; i < 10; i++) {
-                        if (tile->biome[i] == finder->biome_3) {
+                        if (tile.biome[i] == finder->biome_3) {
                             found = true;
                             break;
                         }
@@ -2047,15 +2052,15 @@ namespace embark_assist {
                     bool mineral_2 = finder->mineral_2 == -1;
                     bool mineral_3 = finder->mineral_3 == -1;
 
-                    metal_1 = metal_1 || tile->metals[finder->metal_1];
-                    metal_2 = metal_2 || tile->metals[finder->metal_2];
-                    metal_3 = metal_3 || tile->metals[finder->metal_3];
-                    economic_1 = economic_1 || tile->economics[finder->economic_1];
-                    economic_2 = economic_2 || tile->economics[finder->economic_2];
-                    economic_3 = economic_3 || tile->economics[finder->economic_3];
-                    mineral_1 = mineral_1 || tile->minerals[finder->mineral_1];
-                    mineral_2 = mineral_2 || tile->minerals[finder->mineral_2];
-                    mineral_3 = mineral_3 || tile->minerals[finder->mineral_3];
+                    metal_1 = metal_1 || tile.metals[finder->metal_1];
+                    metal_2 = metal_2 || tile.metals[finder->metal_2];
+                    metal_3 = metal_3 || tile.metals[finder->metal_3];
+                    economic_1 = economic_1 || tile.economics[finder->economic_1];
+                    economic_2 = economic_2 || tile.economics[finder->economic_2];
+                    economic_3 = economic_3 || tile.economics[finder->economic_3];
+                    mineral_1 = mineral_1 || tile.minerals[finder->mineral_1];
+                    mineral_2 = mineral_2 || tile.minerals[finder->mineral_2];
+                    mineral_3 = mineral_3 || tile.minerals[finder->mineral_3];
 
                     if (!metal_1 ||
                         !metal_2 ||

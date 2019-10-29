@@ -323,6 +323,6 @@ namespace embark_assist {
             finders finder;
         };
 
-        typedef void(*find_callbacks) (embark_assist::defs::finders finder);
+        typedef void(*find_callbacks) (const embark_assist::defs::finders &finder);
     }
 }
