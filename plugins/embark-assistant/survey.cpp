@@ -241,55 +241,55 @@ namespace embark_assist {
                     x = world_data->rivers[i]->path.x[k];
                     y = world_data->rivers[i]->path.y[k];
 
-                    embark_assist::defs::region_tile_datum &rtd = survey_results->at(x).at(y);
+                    embark_assist::defs::region_tile_datum &region_tile_datum = survey_results->at(x).at(y);
 
                     if (world_data->rivers[i]->flow[k] < 5000) {
                         if (world_data->region_map[x][y].flags.is_set(df::region_map_entry_flags::is_brook)) {
-                            rtd.river_size = embark_assist::defs::river_sizes::Brook;
+                            region_tile_datum.river_size = embark_assist::defs::river_sizes::Brook;
                         }
                         else {
-                            rtd.river_size = embark_assist::defs::river_sizes::Stream;
+                            region_tile_datum.river_size = embark_assist::defs::river_sizes::Stream;
                         }
                     }
                     else if (world_data->rivers[i]->flow[k] < 10000) {
-                        rtd.river_size = embark_assist::defs::river_sizes::Minor;
+                        region_tile_datum.river_size = embark_assist::defs::river_sizes::Minor;
                     }
                     else if (world_data->rivers[i]->flow[k] < 20000) {
-                        rtd.river_size = embark_assist::defs::river_sizes::Medium;
+                        region_tile_datum.river_size = embark_assist::defs::river_sizes::Medium;
                     }
                     else {
-                        rtd.river_size = embark_assist::defs::river_sizes::Major;
+                        region_tile_datum.river_size = embark_assist::defs::river_sizes::Major;
                     }
                 }
 
                 x = world_data->rivers[i]->end_pos.x;
                 y = world_data->rivers[i]->end_pos.y;
 
-                embark_assist::defs::region_tile_datum &rtd_river_end = survey_results->at(x).at(y);
+                embark_assist::defs::region_tile_datum &region_tile_datum_river_end = survey_results->at(x).at(y);
 
                 //  Make the guess the river size for the end is the same as the tile next to the end. Note that DF
                 //  doesn't actually recognize this tile as part of the river in the pre embark river name display.
                 //  We also assume the is_river/is_brook flags are actually set properly for the end tile.
                 //
                 if (x >= 0 && y >= 0 && x < world->worldgen.worldgen_parms.dim_x && y < world->worldgen.worldgen_parms.dim_y) {
-                    if (rtd_river_end.river_size == embark_assist::defs::river_sizes::None) {
+                    if (region_tile_datum_river_end.river_size == embark_assist::defs::river_sizes::None) {
                         if (world_data->rivers[i]->path.x.size() &&
                             world_data->rivers[i]->flow[world_data->rivers[i]->path.x.size() - 1] < 5000) {
                             if (world_data->region_map[x][y].flags.is_set(df::region_map_entry_flags::is_brook)) {
-                                rtd_river_end.river_size = embark_assist::defs::river_sizes::Brook;
+                                region_tile_datum_river_end.river_size = embark_assist::defs::river_sizes::Brook;
                             }
                             else {
-                                rtd_river_end.river_size = embark_assist::defs::river_sizes::Stream;
+                                region_tile_datum_river_end.river_size = embark_assist::defs::river_sizes::Stream;
                             }
                         }
                         else if (world_data->rivers[i]->flow[world_data->rivers[i]->path.x.size() - 1] < 10000) {
-                            rtd_river_end.river_size = embark_assist::defs::river_sizes::Minor;
+                            region_tile_datum_river_end.river_size = embark_assist::defs::river_sizes::Minor;
                         }
                         else if (world_data->rivers[i]->flow[world_data->rivers[i]->path.x.size() - 1] < 20000) {
-                            rtd_river_end.river_size = embark_assist::defs::river_sizes::Medium;
+                            region_tile_datum_river_end.river_size = embark_assist::defs::river_sizes::Medium;
                         }
                         else {
-                            rtd_river_end.river_size = embark_assist::defs::river_sizes::Major;
+                            region_tile_datum_river_end.river_size = embark_assist::defs::river_sizes::Major;
                         }
                     }
                 }
@@ -572,7 +572,7 @@ namespace embark_assist {
             int16_t fetch_x = state->x;
             int16_t fetch_y = state->y;
             df::world_data *world_data = world->world_data;
-            embark_assist::defs::mid_level_tile &mdlt = mlt->at(i).at(k);
+            embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
 
             //  Logic can be implemented with modulo and division, but that's harder to read.
             switch (from_direction) {
@@ -638,30 +638,30 @@ namespace embark_assist {
                 return;  //  We're at the world edge, so no incursions from the outside.
             }
 
-            const embark_assist::defs::region_tile_datum &rtd = survey_results->at(fetch_x).at(fetch_y);
+            const embark_assist::defs::region_tile_datum &region_tile_datum = survey_results->at(fetch_x).at(fetch_y);
 
             if (fetch_k < 0) {
                 if (fetch_i < 0) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.south_row[15],
-                        mdlt.elevation,
+                        &region_tile_datum.south_row[15],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
                 else if (fetch_i > 15) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.south_row[0],
-                        mdlt.elevation,
+                        &region_tile_datum.south_row[0],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
                 else {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.south_row[i],
-                        mdlt.elevation,
+                        &region_tile_datum.south_row[i],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
@@ -670,24 +670,24 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.north_row[15],
-                        mdlt.elevation,
+                        &region_tile_datum.north_row[15],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
                 else if (fetch_i > 15) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.north_row[0],
-                        mdlt.elevation,
+                        &region_tile_datum.north_row[0],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
                 else {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.north_row[i],
-                        mdlt.elevation,
+                        &region_tile_datum.north_row[i],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
@@ -696,16 +696,16 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.east_column[k],
-                        mdlt.elevation,
+                        &region_tile_datum.east_column[k],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
                 else if (fetch_i > 15) {
                     process_embark_incursion(site_info,
                         survey_results,
-                        &rtd.west_column[k],
-                        mdlt.elevation,
+                        &region_tile_datum.west_column[k],
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
@@ -713,7 +713,7 @@ namespace embark_assist {
                     process_embark_incursion(site_info,
                         survey_results,
                         &mlt->at(fetch_i).at(fetch_k),
-                        mdlt.elevation,
+                        mid_level_tile.elevation,
                         fetch_x,
                         fetch_y);
                 }
@@ -810,10 +810,10 @@ void embark_assist::survey::high_level_world_survey(embark_assist::defs::geo_dat
                 if (adjusted.x != i || adjusted.y != k || l == 5) {
                     offset_count++;
 
-                    const df::region_map_entry &rme = world_data->region_map[adjusted.x][adjusted.y];
-                    results.biome_index[l] = rme.region_id;
+                    const df::region_map_entry &region_map_entry = world_data->region_map[adjusted.x][adjusted.y];
+                    results.biome_index[l] = region_map_entry.region_id;
                     results.biome[l] = DFHack::Maps::GetBiomeTypeWithRef(adjusted.x, adjusted.y, k);
-                    temperature = rme.temperature;
+                    temperature = region_map_entry.temperature;
                     negative = temperature < 0;
 
                     if (negative) {
@@ -830,33 +830,33 @@ void embark_assist::survey::high_level_world_survey(embark_assist::defs::geo_dat
                     }
 
                     results.min_temperature[l] = min_temperature(results.max_temperature[l], adjusted.y);
-                    geo_index = rme.geo_index;
+                    geo_index = region_map_entry.geo_index;
 
-                    const embark_assist::defs::geo_datum &gd = geo_summary->at(geo_index);
-                    if (!gd.aquifer_absent) results.aquifer_count++;
-                    if (!gd.clay_absent) results.clay_count++;
-                    if (!gd.sand_absent) results.sand_count++;
-                    if (!gd.flux_absent) results.flux_count++;
-                    if (!gd.coal_absent) results.coal_count++;
+                    const embark_assist::defs::geo_datum &geo_datum = geo_summary->at(geo_index);
+                    if (!geo_datum.aquifer_absent) results.aquifer_count++;
+                    if (!geo_datum.clay_absent) results.clay_count++;
+                    if (!geo_datum.sand_absent) results.sand_count++;
+                    if (!geo_datum.flux_absent) results.flux_count++;
+                    if (!geo_datum.coal_absent) results.coal_count++;
 
-                    if (gd.soil_size < results.min_region_soil)
-                        results.min_region_soil = gd.soil_size;
+                    if (geo_datum.soil_size < results.min_region_soil)
+                        results.min_region_soil = geo_datum.soil_size;
 
-                    if (gd.soil_size > results.max_region_soil)
-                        results.max_region_soil = gd.soil_size;
+                    if (geo_datum.soil_size > results.max_region_soil)
+                        results.max_region_soil = geo_datum.soil_size;
 
-                    sav_ev = rme.savagery / 33;
+                    sav_ev = region_map_entry.savagery / 33;
                     if (sav_ev == 3) sav_ev = 2;
                     results.savagery_count[sav_ev]++;
 
-                    sav_ev = rme.evilness / 33;
+                    sav_ev = region_map_entry.evilness / 33;
                     if (sav_ev == 3) sav_ev = 2;
                     results.evilness_count[sav_ev]++;
 
                     for (uint16_t m = 0; m < state->max_inorganic; m++) {
-                        if (gd.possible_metals[m]) results.metals[m] = true;
-                        if (gd.possible_economics[m]) results.economics[m] = true;
-                        if (gd.possible_minerals[m]) results.minerals[m] = true;
+                        if (geo_datum.possible_metals[m]) results.metals[m] = true;
+                        if (geo_datum.possible_economics[m]) results.economics[m] = true;
+                        if (geo_datum.possible_minerals[m]) results.minerals[m] = true;
                     }
                 }
                 else {
@@ -898,7 +898,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
     int16_t x = screen->location.region_pos.x;
     int16_t y = screen->location.region_pos.y;
-    embark_assist::defs::region_tile_datum *tile = &survey_results->at(x).at(y);
+    embark_assist::defs::region_tile_datum &tile = survey_results->at(x).at(y);
     int8_t max_soil_depth;
     int8_t offset;
     int16_t elevation;
@@ -918,25 +918,25 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     uint16_t end_check_n;
 
     for (uint16_t i = 0; i < state->max_inorganic; i++) {
-        tile->metals[i] = 0;
-        tile->economics[i] = 0;
-        tile->minerals[i] = 0;
+        tile.metals[i] = 0;
+        tile.economics[i] = 0;
+        tile.minerals[i] = 0;
     }
 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
-            embark_assist::defs::mid_level_tile &mldt = mlt->at(i).at(k);
-            mldt.metals.resize(state->max_inorganic);
-            mldt.economics.resize(state->max_inorganic);
-            mldt.minerals.resize(state->max_inorganic);
+            embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
+            mid_level_tile.metals.resize(state->max_inorganic);
+            mid_level_tile.economics.resize(state->max_inorganic);
+            mid_level_tile.minerals.resize(state->max_inorganic);
         }
     }
 
-    for (uint8_t i = 1; i < 10; i++) tile->biome_index[i] = -1;
+    for (uint8_t i = 1; i < 10; i++) tile.biome_index[i] = -1;
 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
-            embark_assist::defs::mid_level_tile &mldt = mlt->at(i).at(k);
+            embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
             max_soil_depth = -1;
 
             offset = details->biome[i][k];
@@ -944,36 +944,35 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
             if (adjusted.x != x || adjusted.y != y)
             {
-                mldt.biome_offset = offset;
+                mid_level_tile.biome_offset = offset;
             }
             else
             {
-                mldt.biome_offset = 5;
+                mid_level_tile.biome_offset = 5;
             }
 
-            const df::region_map_entry &rme = world_data->region_map[adjusted.x][adjusted.y];
+            const df::region_map_entry &region_map_entry = world_data->region_map[adjusted.x][adjusted.y];
 
-            tile->biome_index[mldt.biome_offset] =
-                rme.region_id;
+            tile.biome_index[mid_level_tile.biome_offset] = region_map_entry.region_id;
 
-            mldt.savagery_level = rme.savagery / 33;
-            if (mldt.savagery_level == 3) {
-                mldt.savagery_level = 2;
+            mid_level_tile.savagery_level = region_map_entry.savagery / 33;
+            if (mid_level_tile.savagery_level == 3) {
+                mid_level_tile.savagery_level = 2;
             }
-            mldt.evilness_level = rme.evilness / 33;
-            if (mldt.evilness_level == 3) {
-                mldt.evilness_level = 2;
+            mid_level_tile.evilness_level = region_map_entry.evilness / 33;
+            if (mid_level_tile.evilness_level == 3) {
+                mid_level_tile.evilness_level = 2;
             }
 
             elevation = details->elevation[i][k];
 
             // Special biome adjustments
-            if (!rme.flags.is_set(region_map_entry_flags::is_lake)) {
-                if (rme.elevation >= 150) {  //  Mountain
+            if (!region_map_entry.flags.is_set(region_map_entry_flags::is_lake)) {
+                if (region_map_entry.elevation >= 150) {  //  Mountain
                     max_soil_depth = 0;
 
                 }
-                else if (rme.elevation < 100) {  // Ocean
+                else if (region_map_entry.elevation < 100) {  // Ocean
                     if (elevation == 99) {
                         elevation = 98;
                     }
@@ -989,8 +988,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             base_z = elevation - 1;
             features = details->features[i][k];
             std::map<int, int> layer_bottom, layer_top;
-            mldt.adamantine_level = -1;
-            mldt.magma_level = -1;
+            mid_level_tile.adamantine_level = -1;
+            mid_level_tile.magma_level = -1;
 
             end_check_l = static_cast<uint16_t>(features.size());
             for (size_t l = 0; l < end_check_l; l++) {
@@ -1000,15 +999,15 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     switch (world_data->feature_map[x / 16][y / 16].features->feature_init[x % 16][y % 16][feature->feature_idx]->getType())
                     {
                     case df::feature_type::deep_special_tube:
-                        mldt.adamantine_level = world_data->feature_map[x / 16][y / 16].features->feature_init[x % 16][y % 16][feature->feature_idx]->start_depth;
+                        mid_level_tile.adamantine_level = world_data->feature_map[x / 16][y / 16].features->feature_init[x % 16][y % 16][feature->feature_idx]->start_depth;
                         break;
 
                     case df::feature_type::magma_pool:
-                        mldt.magma_level = 2 - world_data->feature_map[x / 16][y / 16].features->feature_init[x % 16][y % 16][feature->feature_idx]->start_depth;
+                        mid_level_tile.magma_level = 2 - world_data->feature_map[x / 16][y / 16].features->feature_init[x % 16][y % 16][feature->feature_idx]->start_depth;
                         break;
 
                     case df::feature_type::volcano:
-                        mldt.magma_level = 3;
+                        mid_level_tile.magma_level = 3;
                         break;
 
                     default:
@@ -1035,50 +1034,50 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 max_soil_depth = std::max((154 - elevation) / 5, 1);
             }
 
-            soil_erosion = geo_summary->at(rme.geo_index).soil_size -
-                std::min((int)geo_summary->at(rme.geo_index).soil_size, (int)max_soil_depth);
+            soil_erosion = geo_summary->at(region_map_entry.geo_index).soil_size -
+                std::min((int)geo_summary->at(region_map_entry.geo_index).soil_size, (int)max_soil_depth);
             int16_t layer_shift[16];
             int16_t cur_shift = elevation + soil_erosion - 1;
 
-            mldt.aquifer = false;
-            mldt.clay = false;
-            mldt.sand = false;
-            mldt.flux = false;
-            mldt.coal = false;
+            mid_level_tile.aquifer = false;
+            mid_level_tile.clay = false;
+            mid_level_tile.sand = false;
+            mid_level_tile.flux = false;
+            mid_level_tile.coal = false;
 
             if (max_soil_depth == 0) {
-                mldt.soil_depth = 0;
+                mid_level_tile.soil_depth = 0;
             }
             else {
-                mldt.soil_depth = geo_summary->at(rme.geo_index).soil_size - soil_erosion;
+                mid_level_tile.soil_depth = geo_summary->at(region_map_entry.geo_index).soil_size - soil_erosion;
             }
-            mldt.offset = offset;
-            mldt.elevation = details->elevation[i][k];
-            mldt.river_present = false;
-            mldt.river_elevation = 100;
+            mid_level_tile.offset = offset;
+            mid_level_tile.elevation = details->elevation[i][k];
+            mid_level_tile.river_present = false;
+            mid_level_tile.river_elevation = 100;
 
             if (details->rivers_vertical.active[i][k] == 1) {
-                mldt.river_present = true;
-                mldt.river_elevation = details->rivers_vertical.elevation[i][k];
+                mid_level_tile.river_present = true;
+                mid_level_tile.river_elevation = details->rivers_vertical.elevation[i][k];
             }
             else if (details->rivers_horizontal.active[i][k] == 1) {
-                mldt.river_present = true;
-                mldt.river_elevation = details->rivers_horizontal.elevation[i][k];
+                mid_level_tile.river_present = true;
+                mid_level_tile.river_elevation = details->rivers_horizontal.elevation[i][k];
             }
 
-            if (tile->min_region_soil > mldt.soil_depth) {
-                tile->min_region_soil = mldt.soil_depth;
+            if (tile.min_region_soil > mid_level_tile.soil_depth) {
+                tile.min_region_soil = mid_level_tile.soil_depth;
             }
 
-            if (tile->max_region_soil < mldt.soil_depth) {
-                tile->max_region_soil = mldt.soil_depth;
+            if (tile.max_region_soil < mid_level_tile.soil_depth) {
+                tile.max_region_soil = mid_level_tile.soil_depth;
             }
 
-            end_check_l = static_cast<uint16_t>(world_data->geo_biomes[rme.geo_index]->layers.size());
+            end_check_l = static_cast<uint16_t>(world_data->geo_biomes[region_map_entry.geo_index]->layers.size());
             if (end_check_l > 16) end_check_l = 16;
 
             for (uint16_t l = 0; l < end_check_l; l++) {
-                auto layer = world_data->geo_biomes[rme.geo_index]->layers[l];
+                auto layer = world_data->geo_biomes[region_map_entry.geo_index]->layers[l];
                 layer_shift[l] = cur_shift;
 
                 if (layer->type == df::geo_layer_type::SOIL ||
@@ -1102,7 +1101,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             //  Don't have to set up the end_check as we can reuse the one above.
 
             for (uint16_t l = 0; l < end_check_l; l++) {
-                auto layer = world_data->geo_biomes[rme.geo_index]->layers[l];
+                auto layer = world_data->geo_biomes[region_map_entry.geo_index]->layers[l];
                 top_z = last_bottom - 1;
                 bottom_z = std::max((int)layer->bottom_height + layer_shift[l], (int)min_z);
 
@@ -1113,38 +1112,38 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 if (top_z >= bottom_z) {
                     last_bottom = bottom_z;
 
-                    mldt.minerals[layer->mat_index] = true;
+                    mid_level_tile.minerals[layer->mat_index] = true;
 
                     end_check_m = static_cast<uint16_t>(world->raws.inorganics[layer->mat_index]->metal_ore.mat_index.size());
 
                     for (uint16_t m = 0; m < end_check_m; m++) {
-                        mldt.metals[world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]] = true;
+                        mid_level_tile.metals[world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]] = true;
                     }
 
                     if (layer->type == df::geo_layer_type::SOIL ||
                         layer->type == df::geo_layer_type::SOIL_SAND) {
                         if (world->raws.inorganics[layer->mat_index]->flags.is_set(df::inorganic_flags::SOIL_SAND)) {
-                            mldt.sand = true;
+                            mid_level_tile.sand = true;
                         }
                     }
 
                     if (world->raws.inorganics[layer->mat_index]->economic_uses.size() > 0) {
-                        mldt.economics[layer->mat_index] = true;
+                        mid_level_tile.economics[layer->mat_index] = true;
 
                         end_check_m = static_cast<uint16_t>(world->raws.inorganics[layer->mat_index]->economic_uses.size());
                         for (uint16_t m = 0; m < end_check_m; m++) {
                             if (world->raws.inorganics[layer->mat_index]->economic_uses[m] == state->clay_reaction) {
-                                mldt.clay = true;
+                                mid_level_tile.clay = true;
                             }
 
                             else if (world->raws.inorganics[layer->mat_index]->economic_uses[m] == state->flux_reaction) {
-                                mldt.flux = true;
+                                mid_level_tile.flux = true;
                             }
                         }
 
                         for (uint16_t m = 0; m < state->coals.size(); m++) {
                             if (layer->mat_index == state->coals [m]) {
-                                mldt.coal = true;
+                                mid_level_tile.coal = true;
                                 break;
                             }
                         }
@@ -1153,31 +1152,31 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     end_check_m = static_cast<uint16_t>(layer->vein_mat.size());
 
                     for (uint16_t m = 0; m < end_check_m; m++) {
-                        mldt.minerals[layer->vein_mat[m]] = true;
+                        mid_level_tile.minerals[layer->vein_mat[m]] = true;
 
                         end_check_n = static_cast<uint16_t>(world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index.size());
 
                         for (uint16_t n = 0; n < end_check_n; n++) {
-                            mldt.metals[world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]] = true;
+                            mid_level_tile.metals[world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]] = true;
                         }
 
                         if (world->raws.inorganics[layer->vein_mat[m]]->economic_uses.size() > 0) {
-                            mldt.economics[layer->vein_mat[m]] = true;
+                            mid_level_tile.economics[layer->vein_mat[m]] = true;
 
                             end_check_n = static_cast<uint16_t>(world->raws.inorganics[layer->vein_mat[m]]->economic_uses.size());
                             for (uint16_t n = 0; n < end_check_n; n++) {
                                 if (world->raws.inorganics[layer->vein_mat[m]]->economic_uses[n] == state->clay_reaction) {
-                                    mldt.clay = true;
+                                    mid_level_tile.clay = true;
                                 }
 
                                 else if (world->raws.inorganics[layer->vein_mat[m]]->economic_uses[n] == state->flux_reaction) {
-                                    mldt.flux = true;
+                                    mid_level_tile.flux = true;
                                 }
                             }
 
                             for (uint16_t n = 0; n < state->coals.size(); n++) {
                                 if (layer->vein_mat [m] == state->coals[n]) {
-                                    mldt.coal = true;
+                                    mid_level_tile.coal = true;
                                     break;
                                 }
                             }
@@ -1186,57 +1185,57 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
                     if (bottom_z <= elevation - 3 &&
                         world->raws.inorganics[layer->mat_index]->flags.is_set(df::inorganic_flags::AQUIFER)) {
-                        mldt.aquifer = true;
+                        mid_level_tile.aquifer = true;
                     }
                 }
             }
         }
     }
 
-    tile->aquifer_count = 0;
-    tile->clay_count = 0;
-    tile->sand_count = 0;
-    tile->flux_count = 0;
-    tile->coal_count = 0;
-    tile->min_region_soil = 10;
-    tile->max_region_soil = 0;
-    tile->savagery_count[0] = 0;
-    tile->savagery_count[1] = 0;
-    tile->savagery_count[2] = 0;
-    tile->evilness_count[0] = 0;
-    tile->evilness_count[1] = 0;
-    tile->evilness_count[2] = 0;
+    tile.aquifer_count = 0;
+    tile.clay_count = 0;
+    tile.sand_count = 0;
+    tile.flux_count = 0;
+    tile.coal_count = 0;
+    tile.min_region_soil = 10;
+    tile.max_region_soil = 0;
+    tile.savagery_count[0] = 0;
+    tile.savagery_count[1] = 0;
+    tile.savagery_count[2] = 0;
+    tile.evilness_count[0] = 0;
+    tile.evilness_count[1] = 0;
+    tile.evilness_count[2] = 0;
 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
-            const embark_assist::defs::mid_level_tile &mldt = mlt->at(i).at(k);
-            if (mldt.aquifer) { tile->aquifer_count++; }
-            if (mldt.clay) { tile->clay_count++; }
-            if (mldt.sand) { tile->sand_count++; }
-            if (mldt.flux) { tile->flux_count++; }
-            if (mldt.coal) { tile->coal_count++; }
+            const embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
+            if (mid_level_tile.aquifer) { tile.aquifer_count++; }
+            if (mid_level_tile.clay) { tile.clay_count++; }
+            if (mid_level_tile.sand) { tile.sand_count++; }
+            if (mid_level_tile.flux) { tile.flux_count++; }
+            if (mid_level_tile.coal) { tile.coal_count++; }
 
-            if (mldt.soil_depth < tile->min_region_soil) {
-                tile->min_region_soil = mldt.soil_depth;
+            if (mid_level_tile.soil_depth < tile.min_region_soil) {
+                tile.min_region_soil = mid_level_tile.soil_depth;
             }
 
-            if (mldt.soil_depth > tile->max_region_soil) {
-                tile->max_region_soil = mldt.soil_depth;
+            if (mid_level_tile.soil_depth > tile.max_region_soil) {
+                tile.max_region_soil = mid_level_tile.soil_depth;
             }
 
-            if (mldt.river_present) {
+            if (mid_level_tile.river_present) {
                 if (i < 15 &&
                     mlt->at(i + 1).at(k).river_present &&
-                    abs (mldt.river_elevation - mlt->at(i + 1).at(k).river_elevation) >
-                    tile->max_waterfall) {
-                    tile->max_waterfall = abs(mldt.river_elevation - mlt->at(i + 1).at(k).river_elevation);
+                    abs (mid_level_tile.river_elevation - mlt->at(i + 1).at(k).river_elevation) >
+                    tile.max_waterfall) {
+                    tile.max_waterfall = abs(mid_level_tile.river_elevation - mlt->at(i + 1).at(k).river_elevation);
                 }
 
                 if (k < 15 &&
                     mlt->at(i).at(k + 1).river_present &&
-                    abs(mldt.river_elevation - mlt->at(i).at(k + 1).river_elevation) >
-                    tile->max_waterfall) {
-                    tile->max_waterfall = abs(mldt.river_elevation - mlt->at(i).at(k + 1).river_elevation);
+                    abs(mid_level_tile.river_elevation - mlt->at(i).at(k + 1).river_elevation) >
+                    tile.max_waterfall) {
+                    tile.max_waterfall = abs(mid_level_tile.river_elevation - mlt->at(i).at(k + 1).river_elevation);
                 }
             }
 
@@ -1247,20 +1246,20 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             // reanimating handled separately
             // thralling handled separately
 
-            tile->savagery_count[mldt.savagery_level]++;
-            tile->evilness_count[mldt.evilness_level]++;
+            tile.savagery_count[mid_level_tile.savagery_level]++;
+            tile.evilness_count[mid_level_tile.evilness_level]++;
 
             for (uint16_t l = 0; l < state->max_inorganic; l++) {
-                if (mldt.metals[l]) { tile->metals[l] = true; }
-                if (mldt.economics[l]) { tile->economics[l] = true; }
-                if (mldt.minerals[l]) { tile->minerals[l] = true; }
+                if (mid_level_tile.metals[l]) { tile.metals[l] = true; }
+                if (mid_level_tile.economics[l]) { tile.economics[l] = true; }
+                if (mid_level_tile.minerals[l]) { tile.minerals[l] = true; }
             }
         }
     }
 
     for (uint8_t i = 1; i < 10; i++) {
-        if (tile->biome_index[i] == -1) {
-            tile->biome[i] = -1;
+        if (tile.biome_index[i] == -1) {
+            tile.biome[i] = -1;
         }
     }
 
@@ -1271,8 +1270,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
     for (uint8_t i = 1; i < 10; i++)
     {
-        if (tile->biome[i] != -1) {
-            biomes[tile->biome[i]] = true;
+        if (tile.biome[i] != -1) {
+            biomes[tile.biome[i]] = true;
         }
     }
     int count = 0;
@@ -1280,120 +1279,121 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         if (biomes[i]) count++;
     }
 
-    tile->biome_count = count;
+    tile.biome_count = count;
 
     for (uint8_t i = 0; i < 16; i++) {
-        embark_assist::defs::mid_level_tile &northRow = tile->north_row[i];
-        embark_assist::defs::mid_level_tile &southRow = tile->south_row[i];
-        embark_assist::defs::mid_level_tile &westColumn = tile->west_column[i];
-        embark_assist::defs::mid_level_tile &eastColumn = tile->east_column[i];
+        embark_assist::defs::mid_level_tile &north_row = tile.north_row[i];
+        embark_assist::defs::mid_level_tile &south_row = tile.south_row[i];
+        embark_assist::defs::mid_level_tile &west_column = tile.west_column[i];
+        embark_assist::defs::mid_level_tile &east_column = tile.east_column[i];
 
-        embark_assist::defs::mid_level_tile &northTile = mlt->at(i).at(0);
-        embark_assist::defs::mid_level_tile &southTile = mlt->at(i).at(15);
-        embark_assist::defs::mid_level_tile &westTile = mlt->at(0).at(i);
-        embark_assist::defs::mid_level_tile &eastTile = mlt->at(15).at(i);
+        embark_assist::defs::mid_level_tile &north_tile = mlt->at(i).at(0);
+        embark_assist::defs::mid_level_tile &south_tile = mlt->at(i).at(15);
+        embark_assist::defs::mid_level_tile &west_tile = mlt->at(0).at(i);
+        embark_assist::defs::mid_level_tile &east_tile = mlt->at(15).at(i);
 
-        northRow.aquifer = northTile.aquifer;
-        southRow.aquifer = southTile.aquifer;
-        westColumn.aquifer = westTile.aquifer;
-        eastColumn.aquifer = eastTile.aquifer;
+        north_row.aquifer = north_tile.aquifer;
+        south_row.aquifer = south_tile.aquifer;
+        west_column.aquifer = west_tile.aquifer;
+        east_column.aquifer = east_tile.aquifer;
 
-        northRow.clay= northTile.clay;
-        southRow.clay = southTile.clay;
-        westColumn.clay = westTile.clay;
-        eastColumn.clay = eastTile.clay;
+        north_row.clay= north_tile.clay;
+        south_row.clay = south_tile.clay;
+        west_column.clay = west_tile.clay;
+        east_column.clay = east_tile.clay;
 
-        northRow.sand = northTile.sand;
-        southRow.sand = southTile.sand;
-        westColumn.sand = westTile.sand;
-        eastColumn.sand = eastTile.sand;
+        north_row.sand = north_tile.sand;
+        south_row.sand = south_tile.sand;
+        west_column.sand = west_tile.sand;
+        east_column.sand = east_tile.sand;
 
-        northRow.flux = northTile.flux;  //  Not used
-        southRow.flux = southTile.flux;
-        westColumn.flux = westTile.flux;
-        eastColumn.flux = eastTile.flux;
+        north_row.flux = north_tile.flux;  //  Not used
+        south_row.flux = south_tile.flux;
+        west_column.flux = west_tile.flux;
+        east_column.flux = east_tile.flux;
 
-        northRow.coal = northTile.coal; //  Not used
-        southRow.coal = southTile.coal;
-        westColumn.coal = westTile.coal;
-        eastColumn.coal = eastTile.coal;
+        north_row.coal = north_tile.coal; //  Not used
+        south_row.coal = south_tile.coal;
+        west_column.coal = west_tile.coal;
+        east_column.coal = east_tile.coal;
 
-        northRow.soil_depth = northTile.soil_depth;
-        southRow.soil_depth = southTile.soil_depth;
-        westColumn.soil_depth = westTile.soil_depth;
-        eastColumn.soil_depth = eastTile.soil_depth;
+        north_row.soil_depth = north_tile.soil_depth;
+        south_row.soil_depth = south_tile.soil_depth;
+        west_column.soil_depth = west_tile.soil_depth;
+        east_column.soil_depth = east_tile.soil_depth;
 
-        northRow.offset = northTile.offset; //  Not used
-        southRow.offset = southTile.offset;
-        westColumn.offset = westTile.offset;
-        eastColumn.offset = eastTile.offset;
+        north_row.offset = north_tile.offset; //  Not used
+        south_row.offset = south_tile.offset;
+        west_column.offset = west_tile.offset;
+        east_column.offset = east_tile.offset;
 
-        northRow.elevation = northTile.elevation;
-        southRow.elevation = southTile.elevation;
-        westColumn.elevation = westTile.elevation;
-        eastColumn.elevation = eastTile.elevation;
+        north_row.elevation = north_tile.elevation;
+        south_row.elevation = south_tile.elevation;
+        west_column.elevation = west_tile.elevation;
+        east_column.elevation = east_tile.elevation;
 
-        northRow.river_present = northTile.river_present; //  Not used
-        southRow.river_present = southTile.river_present;
-        westColumn.river_present = westTile.river_present;
-        eastColumn.river_present = eastTile.river_present;
+        north_row.river_present = north_tile.river_present; //  Not used
+        south_row.river_present = south_tile.river_present;
+        west_column.river_present = west_tile.river_present;
+        east_column.river_present = east_tile.river_present;
 
-        northRow.river_elevation = northTile.river_elevation; //  Not used
-        southRow.river_elevation = southTile.river_elevation;
-        westColumn.river_elevation = westTile.river_elevation;
-        eastColumn.river_elevation = eastTile.river_elevation;
+        north_row.river_elevation = north_tile.river_elevation; //  Not used
+        south_row.river_elevation = south_tile.river_elevation;
+        west_column.river_elevation = west_tile.river_elevation;
+        east_column.river_elevation = east_tile.river_elevation;
 
-        northRow.adamantine_level = northTile.adamantine_level; //  Not used
-        southRow.adamantine_level = southTile.adamantine_level;
-        westColumn.adamantine_level = westTile.adamantine_level;
-        eastColumn.adamantine_level = eastTile.adamantine_level;
+        north_row.adamantine_level = north_tile.adamantine_level; //  Not used
+        south_row.adamantine_level = south_tile.adamantine_level;
+        west_column.adamantine_level = west_tile.adamantine_level;
+        east_column.adamantine_level = east_tile.adamantine_level;
 
-        northRow.magma_level = northTile.magma_level; //  Not used
-        southRow.magma_level = southTile.magma_level;
-        westColumn.magma_level = westTile.magma_level;
-        eastColumn.magma_level = eastTile.magma_level;
+        north_row.magma_level = north_tile.magma_level; //  Not used
+        south_row.magma_level = south_tile.magma_level;
+        west_column.magma_level = west_tile.magma_level;
+        east_column.magma_level = east_tile.magma_level;
 
-        northRow.biome_offset = northTile.biome_offset;
-        southRow.biome_offset = southTile.biome_offset;
-        westColumn.biome_offset = westTile.biome_offset;
-        eastColumn.biome_offset = eastTile.biome_offset;
+        north_row.biome_offset = north_tile.biome_offset;
+        south_row.biome_offset = south_tile.biome_offset;
+        west_column.biome_offset = west_tile.biome_offset;
+        east_column.biome_offset = east_tile.biome_offset;
 
-        northRow.savagery_level = northTile.savagery_level;
-        southRow.savagery_level = southTile.savagery_level;
-        westColumn.savagery_level = westTile.savagery_level;
-        eastColumn.savagery_level = eastTile.savagery_level;
+        north_row.savagery_level = north_tile.savagery_level;
+        south_row.savagery_level = south_tile.savagery_level;
+        west_column.savagery_level = west_tile.savagery_level;
+        east_column.savagery_level = east_tile.savagery_level;
 
-        northRow.evilness_level = northTile.evilness_level;
-        southRow.evilness_level = southTile.evilness_level;
-        westColumn.evilness_level = westTile.evilness_level;
-        eastColumn.evilness_level = eastTile.evilness_level;
+        north_row.evilness_level = north_tile.evilness_level;
+        south_row.evilness_level = south_tile.evilness_level;
+        west_column.evilness_level = west_tile.evilness_level;
+        east_column.evilness_level = east_tile.evilness_level;
 
-        northRow.metals.resize(0);  //  Not used
-        southRow.metals.resize(0);
-        westColumn.metals.resize(0);
-        eastColumn.metals.resize(0);
+        north_row.metals.resize(0);  //  Not used
+        south_row.metals.resize(0);
+        west_column.metals.resize(0);
+        east_column.metals.resize(0);
 
-        northRow.economics.resize(0);  //  Not used
-        southRow.economics.resize(0);
-        westColumn.economics.resize(0);
-        eastColumn.economics.resize(0);
+        north_row.economics.resize(0);  //  Not used
+        south_row.economics.resize(0);
+        west_column.economics.resize(0);
+        east_column.economics.resize(0);
 
-        northRow.minerals.resize(0);  //  Not used
-        southRow.minerals.resize(0);
-        westColumn.minerals.resize(0);
-        eastColumn.minerals.resize(0);
+        north_row.minerals.resize(0);  //  Not used
+        south_row.minerals.resize(0);
+        west_column.minerals.resize(0);
+        east_column.minerals.resize(0);
 
-        tile->north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
-        tile->west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
+        tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
+        tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
     }
 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
-            tile->region_type[i][k] = world_data->regions[tile->biome[mlt->at(i).at(k).biome_offset]]->type;
+            //tile.region_type[i][k] = world_data->regions[tile.biome[mlt->operator(i)->operator[k].biome_offset]]->type;
+            tile.region_type[i][k] = world_data->regions[tile.biome[mlt->at(i).at(k).biome_offset]]->type;
         }
     }
 
-    tile->surveyed = true;
+    tile.surveyed = true;
 }
 
 //=================================================================================
@@ -2066,87 +2066,87 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
 
     for (uint8_t i = state->local_min_x; i <= state->local_max_x; i++) {
         for (uint8_t k = state->local_min_y; k <= state->local_max_y; k++) {
-            const embark_assist::defs::mid_level_tile &mdlt = mlt->at(i).at(k);
-            if (mdlt.aquifer) {
+            const embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
+            if (mid_level_tile.aquifer) {
                 site_info->aquifer = true;
             }
             else {
                 site_info->aquifer_full = false;
             }
 
-            if (mdlt.soil_depth < site_info->min_soil) {
-                site_info->min_soil = mdlt.soil_depth;
+            if (mid_level_tile.soil_depth < site_info->min_soil) {
+                site_info->min_soil = mid_level_tile.soil_depth;
             }
 
-            if (mdlt.soil_depth > site_info->max_soil) {
-                site_info->max_soil = mdlt.soil_depth;
+            if (mid_level_tile.soil_depth > site_info->max_soil) {
+                site_info->max_soil = mid_level_tile.soil_depth;
             }
 
             if (i == state->local_min_x && k == state->local_min_y) {
-                elevation = mdlt.elevation;
+                elevation = mid_level_tile.elevation;
             }
-            else if (elevation != mdlt.elevation) {
+            else if (elevation != mid_level_tile.elevation) {
                 site_info->flat = false;
             }
 
-            if (mdlt.river_present) {
+            if (mid_level_tile.river_present) {
                 if (i < 15 &&
                     mlt->at(i + 1).at(k).river_present &&
-                    abs(mdlt.river_elevation - mlt->at(i + 1).at(k).river_elevation) >
+                    abs(mid_level_tile.river_elevation - mlt->at(i + 1).at(k).river_elevation) >
                     site_info->max_waterfall) {
                     site_info->max_waterfall =
-                        abs(mdlt.river_elevation - mlt->at(i + 1).at(k).river_elevation);
+                        abs(mid_level_tile.river_elevation - mlt->at(i + 1).at(k).river_elevation);
                 }
 
                 if (k < 15 &&
                     mlt->at(i).at(k + 1).river_present &&
-                    abs(mdlt.river_elevation - mlt->at(i).at(k + 1).river_elevation) >
+                    abs(mid_level_tile.river_elevation - mlt->at(i).at(k + 1).river_elevation) >
                     site_info->max_waterfall) {
                     site_info->max_waterfall =
-                        abs(mdlt.river_elevation - mlt->at(i).at(k + 1).river_elevation);
+                        abs(mid_level_tile.river_elevation - mlt->at(i).at(k + 1).river_elevation);
                 }
             }
 
-            if (mdlt.clay) {
+            if (mid_level_tile.clay) {
                 site_info->clay = true;
             }
 
-            if (mdlt.sand) {
+            if (mid_level_tile.sand) {
                 site_info->sand = true;
             }
 
-            if (mdlt.flux) {
+            if (mid_level_tile.flux) {
                 site_info->flux = true;
             }
 
-            if (mdlt.coal) {
+            if (mid_level_tile.coal) {
                 site_info->coal = true;
             }
 
-            if (survey_results->at(x).at(y).blood_rain[mdlt.biome_offset]) {
+            if (survey_results->at(x).at(y).blood_rain[mid_level_tile.biome_offset]) {
                 site_info->blood_rain = true;
             }
 
-            if (survey_results->at(x).at(y).permanent_syndrome_rain[mdlt.biome_offset]) {
+            if (survey_results->at(x).at(y).permanent_syndrome_rain[mid_level_tile.biome_offset]) {
                 site_info->permanent_syndrome_rain = true;
             }
 
-            if (survey_results->at(x).at(y).temporary_syndrome_rain[mdlt.biome_offset]) {
+            if (survey_results->at(x).at(y).temporary_syndrome_rain[mid_level_tile.biome_offset]) {
                 site_info->temporary_syndrome_rain = true;
             }
 
-            if (survey_results->at(x).at(y).reanimating[mdlt.biome_offset]) {
+            if (survey_results->at(x).at(y).reanimating[mid_level_tile.biome_offset]) {
                 site_info->reanimating = true;
             }
 
-            if (survey_results->at(x).at(y).thralling[mdlt.biome_offset]) {
+            if (survey_results->at(x).at(y).thralling[mid_level_tile.biome_offset]) {
                 site_info->thralling = true;
             }
 
             for (uint16_t l = 0; l < state->max_inorganic; l++) {
-                metals[l] = metals[l] || mdlt.metals[l];
-                economics[l] = economics[l] || mdlt.economics[l];
-                minerals[l] = minerals[l] || mdlt.minerals[l];
+                metals[l] = metals[l] || mid_level_tile.metals[l];
+                economics[l] = economics[l] || mid_level_tile.economics[l];
+                minerals[l] = minerals[l] || mid_level_tile.minerals[l];
             }
         }
     }
