@@ -265,13 +265,14 @@ namespace embark_assist {
                 x = world_data->rivers[i]->end_pos.x;
                 y = world_data->rivers[i]->end_pos.y;
 
-                embark_assist::defs::region_tile_datum &region_tile_datum_river_end = survey_results->at(x).at(y);
-
                 //  Make the guess the river size for the end is the same as the tile next to the end. Note that DF
                 //  doesn't actually recognize this tile as part of the river in the pre embark river name display.
                 //  We also assume the is_river/is_brook flags are actually set properly for the end tile.
                 //
                 if (x >= 0 && y >= 0 && x < world->worldgen.worldgen_parms.dim_x && y < world->worldgen.worldgen_parms.dim_y) {
+                    
+                    embark_assist::defs::region_tile_datum &region_tile_datum_river_end = survey_results->at(x).at(y);
+                    
                     if (region_tile_datum_river_end.river_size == embark_assist::defs::river_sizes::None) {
                         if (world_data->rivers[i]->path.x.size() &&
                             world_data->rivers[i]->flow[world_data->rivers[i]->path.x.size() - 1] < 5000) {
