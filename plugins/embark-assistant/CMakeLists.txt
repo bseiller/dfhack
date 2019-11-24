@@ -20,6 +20,7 @@ SET(PROJECT_HDRS
     index.h
     matcher.h
     overlay.h
+    query.h
     roaring.h
     roaring.hh
     screen.h

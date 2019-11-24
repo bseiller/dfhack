@@ -48,7 +48,7 @@ namespace embark_assist {
             embark_assist::defs::match_results match_results;
             embark_assist::defs::match_iterators match_iterator;
             uint16_t max_inorganic;
-            embark_assist::index::Index index;
+            embark_assist::index::Index index = embark_assist::index::Index(world);
         };
 
         static states *state = nullptr;
@@ -85,13 +85,20 @@ namespace embark_assist {
         void match() {
 //            color_ostream_proxy out(Core::getInstance().getConsole());
 
-            uint16_t count = embark_assist::matcher::find(&state->match_iterator,
-                &state->geo_summary,
-                &state->survey_results,
-                state->index,
-                &state->match_results);
+            if (state->index.containsEntries()) {
+                state->index.find(state->match_iterator.finder, state->match_results);
+            } else {
+                uint16_t count = embark_assist::matcher::find(&state->match_iterator,
+                    &state->geo_summary,
+                    &state->survey_results,
+                    state->index,
+                    &state->match_results);
 
-            embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
+                if (!state->match_iterator.active) {
+                    state->index.find(state->match_iterator.finder, state->match_results);
+                }
+                embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
+            }
 
             if (!state->match_iterator.active) {
                 state->index.optimize(true);

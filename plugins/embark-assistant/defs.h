@@ -28,25 +28,38 @@ namespace embark_assist {
             Major
         };
 
-        struct mid_level_tile {
+        // only contains those attributes that are being used during incursion processing
+        // leads to a significantly smaller memory footprint
+        // also ordered members by size, which again might lead to a smaller memory footprint, by better aligenment
+        struct mid_level_tile_basic {
+            int16_t elevation;
+
             bool aquifer = false;
             bool clay = false;
             bool sand = false;
-            bool flux = false;
-            bool coal = false;
+
             int8_t soil_depth;
-            int8_t offset;
-            int16_t elevation;
-            bool river_present = false;
-            int16_t river_elevation = 100;
-            int8_t adamantine_level;  // -1 = none, 0 .. 3 = cavern 1 .. magma sea. Currently not used beyond present/absent.
-            int8_t magma_level;  // -1 = none, 0 .. 3 = cavern 3 .. surface/volcano
             int8_t biome_offset;
             uint8_t savagery_level;  // 0 - 2
             uint8_t evilness_level;  // 0 - 2
+        };
+
+        // contains all attributes, used for regular survey/matching
+        // also ordered members by size, which again might lead to a smaller memory footprint, by better aligenment
+        struct mid_level_tile : public mid_level_tile_basic {
             std::vector<bool> metals;
             std::vector<bool> economics;
             std::vector<bool> minerals;
+            int16_t river_elevation = 100;
+
+            int8_t adamantine_level;  // -1 = none, 0 .. 3 = cavern 1 .. magma sea. Currently not used beyond present/absent.
+            int8_t magma_level;  // -1 = none, 0 .. 3 = cavern 3 .. surface/volcano
+            int8_t offset;
+
+            bool flux = false;
+            bool coal = false;
+
+            bool river_present = false;
         };
 
         typedef std::array<std::array<mid_level_tile, 16>, 16> mid_level_tiles;
@@ -329,15 +342,15 @@ namespace embark_assist {
 
         class index_interface {
             public:
-                virtual const bool containsEntries() = 0;
-                virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) = 0;
+                virtual const bool containsEntries() const = 0;
+                virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) const = 0;
                 virtual void add(uint32_t key, const embark_assist::defs::mid_level_tile &data) = 0;
+                virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) = 0;
                 virtual void optimize(bool debugOutput) = 0;
-                virtual const void outputContents() = 0;
+                virtual const void outputContents() const = 0;
                 virtual const void outputSizes(const string &prefix) = 0;
+                virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
                 virtual ~index_interface(){}
         };
-
-        typedef std::array<std::array<std::vector<uint8_t>, 16>, 16> inorganics;
     }
 }

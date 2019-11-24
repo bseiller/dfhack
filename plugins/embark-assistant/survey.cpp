@@ -1058,11 +1058,11 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             mid_level_tile.river_present = false;
             mid_level_tile.river_elevation = 100;
 
-            if (details->rivers_vertical.active[i][k] == 1) {
+            if (details->rivers_vertical.active[i][k] != 0) {
                 mid_level_tile.river_present = true;
                 mid_level_tile.river_elevation = details->rivers_vertical.elevation[i][k];
             }
-            else if (details->rivers_horizontal.active[i][k] == 1) {
+            else if (details->rivers_horizontal.active[i][k] != 0) {
                 mid_level_tile.river_present = true;
                 mid_level_tile.river_elevation = details->rivers_horizontal.elevation[i][k];
             }
@@ -1193,6 +1193,52 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             }
         }
     }
+
+    //  This is messy. DF has some weird logic to leave out river bends with a South and an East connection, as well
+    //  as river sources (and presumably sinks) that are to the North or the West of the connecting river.
+    //  Experiments indicate these implicit river bends inherit their River Elevation from the lower of the two
+    //  "parents", and it's assumed river sources and sinks similarly inherit it from their sole "parent".
+    //  Two issues are known:
+    //  - Lake and Ocean tiles may be marked as having a river when DF doesn't. However, DF does allow for rivers to
+    //    exist in Ocean/Lake tiles, as well as sources/sinks.
+    //  - DF generates rivers on/under glaciers, but does not display them (as they're frozen), nor are their names
+    //    displayed.
+    //
+    for (uint8_t i = 1; i < 16; i++) {
+        for (uint8_t k = 0; k < 15; k++) {
+            if (details->rivers_horizontal.active[i][k] != 0 &&
+                details->rivers_vertical.active[i - 1][k + 1] != 0 &&
+                !mlt->at(i - 1).at(k).river_present) {  //  Probably never true
+                mlt->at(i - 1).at(k).river_present = true;
+                mlt->at(i - 1).at(k).river_elevation = mlt->at(i).at(k).river_elevation;
+
+                if (mlt->at(i - 1).at(k).river_elevation > mlt->at(i - 1).at(k + 1).river_elevation) {
+                    mlt->at(i - 1).at(k).river_elevation = mlt->at(i - 1).at(k + 1).river_elevation;
+                }
+            }
+        }
+    }
+
+    for (uint8_t i = 0; i < 16; i++) {
+        for (uint8_t k = 1; k < 16; k++) {
+            if (details->rivers_vertical.active[i][k] != 0 &&
+                !mlt->at(i).at(k - 1).river_present) {
+                mlt->at(i).at(k - 1).river_present = true;
+                mlt->at(i).at(k - 1).river_elevation = mlt->at(i).at(k).river_elevation;
+            }
+        }
+    }
+
+    for (uint8_t i = 1; i < 16; i++) {
+        for (uint8_t k = 0; k < 16; k++) {
+            if (details->rivers_horizontal.active[i][k] != 0 &&
+                !mlt->at(i - 1).at(k).river_present) {
+                mlt->at(i - 1).at(k).river_present = true;
+                mlt->at(i - 1).at(k).river_elevation = mlt->at(i).at(k).river_elevation;
+            }
+        }
+    }
+
 
     tile.aquifer_count = 0;
     tile.clay_count = 0;
@@ -1393,16 +1439,19 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
             //tile.region_type[i][k] = world_data->regions[tile.biome[mlt->operator(i)->operator[k].biome_offset]]->type;
-            tile.region_type[i][k] = world_data->regions[tile.biome[mlt->at(i).at(k).biome_offset]]->type;
+            //tile.region_type[i][k] = world_data->regions[tile.biome[mlt->at(i).at(k).biome_offset]]->type;
+            tile.region_type[i][k] = world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type;
         }
     }
 
-    for (uint8_t i = 0; i < 16; i++) {
-        for (uint8_t k = 0; k < 16; k++) {
-            const uint32_t key = index.createKey(y, x, i, k);
-            index.add(key, mlt->at(i).at(k));
-        }
-    }
+    //for (uint8_t i = 0; i < 16; i++) {
+    //    for (uint8_t k = 0; k < 16; k++) {
+    //        const uint32_t key = index.createKey(y, x, i, k);
+    //        index.add(key, mlt->at(i).at(k));
+    //    }
+    //}
+
+    index.add(x, y, tile, mlt);
 
     /*if (x == (world->worldgen.worldgen_parms.dim_x - 1) && y % 16 == 0 && index.containsEntries()) {
         index.optimize(false);
@@ -1902,12 +1951,12 @@ uint8_t embark_assist::survey::translate_ew_edge(embark_assist::defs::world_tile
     df::world_region_type east_region_type;
 
     if (own_edge) {
-        effective_edge = world_data->region_details[0]->edges.biome_x[i][k];
+        effective_edge = world_data->region_details[0]->edges.biome_y[i][k];
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i - 1, k);
     }
     else {
-        effective_edge = world_data->region_details[0]->edges.biome_x[i + 1][k];
+        effective_edge = world_data->region_details[0]->edges.biome_y[i + 1][k];
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i + 1, k);
     }
