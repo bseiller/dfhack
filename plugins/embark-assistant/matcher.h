@@ -16,6 +16,7 @@ namespace embark_assist {
         uint16_t find(embark_assist::defs::match_iterators *iterator,
             embark_assist::defs::geo_data *geo_summary,
             embark_assist::defs::world_tile_data *survey_results,
+            embark_assist::defs::index_interface &index,
             embark_assist::defs::match_results *match_results);
     }
 }

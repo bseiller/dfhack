@@ -14,6 +14,9 @@
 #include "overlay.h"
 #include "screen.h"
 
+#include <chrono>
+#include <ctime>
+
 using df::global::world;
 
 namespace embark_assist {
@@ -57,6 +60,8 @@ namespace embark_assist {
 
             bool fileresult = false;
             uint8_t fileresult_pass = 0;
+
+			std::chrono::time_point<std::chrono::system_clock> start;
         };
 
         static states *state = nullptr;
@@ -306,12 +311,19 @@ void embark_assist::overlay::set_sites(embark_assist::defs::site_lists *site_lis
 
 void embark_assist::overlay::initiate_match() {
     embark_assist::overlay::state->matching = true;
+
+    color_ostream_proxy out(Core::getInstance().getConsole());
+
+    const auto start = std::chrono::system_clock::now();
+    embark_assist::overlay::state->start = start;
+    const std::time_t start_time = std::chrono::system_clock::to_time_t(start);
+    out.print("embark_assist::overlay::initiate_match started at: %s\n", std::ctime(&start_time));
 }
 
 //====================================================================
 
 void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs::match_results *match_results, bool done) {
-//    color_ostream_proxy out(Core::getInstance().getConsole());
+    color_ostream_proxy out(Core::getInstance().getConsole());
     state->matching = !done;
     state->match_count = count;
 
@@ -328,6 +340,14 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
             }
         }
     }
+
+	if (done) {
+		const auto end = std::chrono::system_clock::now();
+		const std::chrono::duration<double> elapsed_seconds = end - state->start;
+		const std::time_t end_time = std::chrono::system_clock::to_time_t(end);		
+		
+		out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time: %f seconds\n", std::ctime(&end_time), elapsed_seconds.count());		
+	}
 
     if (done && state->fileresult) {
         state->fileresult_pass++;

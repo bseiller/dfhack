@@ -27,6 +27,7 @@
 #include "matcher.h"
 #include "overlay.h"
 #include "survey.h"
+#include "index.h"
 
 DFHACK_PLUGIN("embark-assistant");
 DFHACK_PLUGIN_IS_ENABLED(is_enabled);
@@ -47,6 +48,7 @@ namespace embark_assist {
             embark_assist::defs::match_results match_results;
             embark_assist::defs::match_iterators match_iterator;
             uint16_t max_inorganic;
+            embark_assist::index::Index index;
         };
 
         static states *state = nullptr;
@@ -63,7 +65,8 @@ namespace embark_assist {
 
             embark_assist::survey::survey_mid_level_tile(&state->geo_summary,
                 &state->survey_results,
-                &mlt);
+                &mlt,
+                state->index);
 
             embark_assist::survey::survey_embark(&mlt,
                 &state->survey_results,
@@ -85,11 +88,13 @@ namespace embark_assist {
             uint16_t count = embark_assist::matcher::find(&state->match_iterator,
                 &state->geo_summary,
                 &state->survey_results,
+                state->index,
                 &state->match_results);
 
             embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
 
             if (!state->match_iterator.active) {
+                state->index.optimize(true);
                 auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
                 embark_assist::overlay::set_mid_level_tile_match(state->match_results.at(screen->location.region_pos.x).at(screen->location.region_pos.y).mlt_match);
             }
@@ -125,6 +130,7 @@ namespace embark_assist {
             embark_assist::survey::shutdown();
             embark_assist::finder_ui::shutdown();
             embark_assist::overlay::shutdown();
+            state->index.shutdown();
             delete state;
             state = nullptr;
         }
@@ -190,6 +196,9 @@ DFhackCExport command_result plugin_init (color_ostream &out, std::vector <Plugi
 
 DFhackCExport command_result plugin_shutdown (color_ostream &out)
 {
+    if (embark_assist::main::state) {
+        embark_assist::main::shutdown();
+    }
     return CR_OK;
 }
 
@@ -253,6 +262,11 @@ DFhackCExport command_result plugin_onstatechange(color_ostream &out, state_chan
 
 command_result embark_assistant(color_ostream &out, std::vector <std::string> & parameters)
 {
+//#ifdef _MSC_VER
+//    std::cout << std::to_string(_MSC_VER) << std::endl;
+//#endif
+//    std::cout << __cplusplus << std::endl;
+
     bool fileresult = false;
 
     if (parameters.size() == 1 &&
@@ -303,6 +317,7 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
     }
 
     embark_assist::survey::setup(embark_assist::main::state->max_inorganic);
+    embark_assist::main::state->index.setup(world, embark_assist::main::state->max_inorganic);
     embark_assist::main::state->geo_summary.resize(world_data->geo_biomes.size());
     embark_assist::main::state->survey_results.resize(world->worldgen.worldgen_parms.dim_x);
 
@@ -354,7 +369,7 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
     embark_assist::overlay::set_sites(&embark_assist::main::state->region_sites);
 
     embark_assist::defs::mid_level_tiles mlt;
-    embark_assist::survey::survey_mid_level_tile(&embark_assist::main::state->geo_summary, &embark_assist::main::state->survey_results, &mlt);
+    embark_assist::survey::survey_mid_level_tile(&embark_assist::main::state->geo_summary, &embark_assist::main::state->survey_results, &mlt, embark_assist::main::state->index);
     embark_assist::survey::survey_embark(&mlt, &embark_assist::main::state->survey_results, &embark_assist::main::state->site_info, false);
     embark_assist::overlay::set_embark(&embark_assist::main::state->site_info);
 

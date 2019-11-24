@@ -23,7 +23,8 @@ namespace embark_assist {
 
         void survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
             embark_assist::defs::world_tile_data *survey_results,
-            embark_assist::defs::mid_level_tiles *mlt);
+            embark_assist::defs::mid_level_tiles *mlt,
+            embark_assist::defs::index_interface &index);
 
         df::coord2d apply_offset(uint16_t x, uint16_t y, int8_t offset);
 

@@ -4,8 +4,10 @@ SET(PROJECT_SRCS
     embark-assistant.cpp
     finder_ui.cpp
     help_ui.cpp
+    index.cpp
     matcher.cpp
     overlay.cpp
+    roaring.c
     screen.cpp
     survey.cpp
 )
@@ -15,8 +17,11 @@ SET(PROJECT_HDRS
     embark-assistant.h
     finder_ui.h
     help_ui.h
+    index.h
     matcher.h
     overlay.h
+    roaring.h
+    roaring.hh
     screen.h
     survey.h
 )

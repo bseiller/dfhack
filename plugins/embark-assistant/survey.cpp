@@ -894,7 +894,8 @@ void embark_assist::survey::high_level_world_survey(embark_assist::defs::geo_dat
 
 void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
-    embark_assist::defs::mid_level_tiles *mlt) {
+    embark_assist::defs::mid_level_tiles *mlt,
+    embark_assist::defs::index_interface &index) {
 //                color_ostream_proxy out(Core::getInstance().getConsole());
     auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
     int16_t x = screen->location.region_pos.x;
@@ -1190,8 +1191,13 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     }
                 }
             }
+            const uint32_t key = index.createKey(y, x, i, k);
+            index.add(key, mlt->at(i).at(k));
         }
     }
+    //if(x == (world->worldgen.worldgen_parms.dim_x - 1) && y % 16 == 0 && index.containsEntries()) {
+    //    index.optimize(false);
+    //}
 
     tile.aquifer_count = 0;
     tile.clay_count = 0;
@@ -1251,6 +1257,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             tile.evilness_count[mid_level_tile.evilness_level]++;
 
             for (uint16_t l = 0; l < state->max_inorganic; l++) {
+                // deactivate this and test performance
+                // replace vector<bool> with vector<std::uint8_t>
                 if (mid_level_tile.metals[l]) { tile.metals[l] = true; }
                 if (mid_level_tile.economics[l]) { tile.economics[l] = true; }
                 if (mid_level_tile.minerals[l]) { tile.minerals[l] = true; }

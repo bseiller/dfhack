@@ -12,6 +12,8 @@ using std::string;
 using std::vector;
 
 #define fileresult_file_name "./data/init/embark_assistant_fileresult.txt"
+#define index_folder_name "./data/init/embark_assistant_indexes/"
+#define index_folder_log_file_name "./data/init/embark_assistant_indexes/index.log"
 
 namespace embark_assist {
     namespace defs {
@@ -324,5 +326,18 @@ namespace embark_assist {
         };
 
         typedef void(*find_callbacks) (const embark_assist::defs::finders &finder);
+
+        class index_interface {
+            public:
+                virtual const bool containsEntries() = 0;
+                virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) = 0;
+                virtual void add(uint32_t key, const embark_assist::defs::mid_level_tile &data) = 0;
+                virtual void optimize(bool debugOutput) = 0;
+                virtual const void outputContents() = 0;
+                virtual const void outputSizes(const string &prefix) = 0;
+                virtual ~index_interface(){}
+        };
+
+        typedef std::array<std::array<std::vector<uint8_t>, 16>, 16> inorganics;
     }
 }

@@ -2100,6 +2100,7 @@ namespace embark_assist {
         void match_world_tile(embark_assist::defs::geo_data *geo_summary,
             embark_assist::defs::world_tile_data *survey_results,
             embark_assist::defs::finders *finder,
+            embark_assist::defs::index_interface &index,
             embark_assist::defs::match_results *match_results,
             uint16_t x,
             uint16_t y) {
@@ -2109,7 +2110,8 @@ namespace embark_assist {
 
             embark_assist::survey::survey_mid_level_tile(geo_summary,
                 survey_results,
-                &mlt);
+                &mlt,
+                index);
 
             mid_level_tile_match(survey_results,
                 &mlt,
@@ -2216,6 +2218,7 @@ void embark_assist::matcher::move_cursor(uint16_t x, uint16_t y) {
 uint16_t embark_assist::matcher::find(embark_assist::defs::match_iterators *iterator,
     embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
+    embark_assist::defs::index_interface &index,
     embark_assist::defs::match_results *match_results) {
 
     color_ostream_proxy out(Core::getInstance().getConsole());
@@ -2341,7 +2344,8 @@ uint16_t embark_assist::matcher::find(embark_assist::defs::match_iterators *iter
                 match_world_tile(geo_summary,
                     survey_results,
                     &iterator->finder,
-                    match_results,                    
+                    index,
+                    match_results,
                     iterator->target_location_x,
                     iterator->target_location_y);
                 if (match_results->at(iterator->target_location_x).at(iterator->target_location_y).contains_match) {
