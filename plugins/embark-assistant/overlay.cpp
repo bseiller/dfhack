@@ -341,13 +341,13 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
         }
     }
 
-	if (done) {
-		const auto end = std::chrono::system_clock::now();
-		const std::chrono::duration<double> elapsed_seconds = end - state->start;
-		const std::time_t end_time = std::chrono::system_clock::to_time_t(end);		
-		
-		out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time: %f seconds\n", std::ctime(&end_time), elapsed_seconds.count());		
-	}
+    if (done) {
+        const auto end = std::chrono::system_clock::now();
+        const std::chrono::duration<double> elapsed_seconds = end - state->start;
+        const std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+
+        out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time: %f seconds\n", std::ctime(&end_time), elapsed_seconds.count());
+    }
 
     if (done && state->fileresult) {
         state->fileresult_pass++;

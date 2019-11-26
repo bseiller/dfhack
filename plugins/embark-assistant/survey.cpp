@@ -1191,13 +1191,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     }
                 }
             }
-            const uint32_t key = index.createKey(y, x, i, k);
-            index.add(key, mlt->at(i).at(k));
         }
     }
-    //if(x == (world->worldgen.worldgen_parms.dim_x - 1) && y % 16 == 0 && index.containsEntries()) {
-    //    index.optimize(false);
-    //}
 
     tile.aquifer_count = 0;
     tile.clay_count = 0;
@@ -1401,6 +1396,17 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             tile.region_type[i][k] = world_data->regions[tile.biome[mlt->at(i).at(k).biome_offset]]->type;
         }
     }
+
+    for (uint8_t i = 0; i < 16; i++) {
+        for (uint8_t k = 0; k < 16; k++) {
+            const uint32_t key = index.createKey(y, x, i, k);
+            index.add(key, mlt->at(i).at(k));
+        }
+    }
+
+    /*if (x == (world->worldgen.worldgen_parms.dim_x - 1) && y % 16 == 0 && index.containsEntries()) {
+        index.optimize(false);
+    }*/
 
     tile.surveyed = true;
 }

@@ -15,36 +15,36 @@ using namespace DFHack;
 
 embark_assist::index::Index::Index(void) {
 
-    indexes.push_back(uniqueKeys);
-    indexes.push_back(hasAquifier);
-    indexes.push_back(hasClay);
-    indexes.push_back(hasCoal);
-    indexes.push_back(hasFlux);
-    indexes.push_back(hasRiver);
-    indexes.push_back(hasSand);
+    static_indexes.push_back(&uniqueKeys);
+    static_indexes.push_back(&hasAquifier);
+    static_indexes.push_back(&hasClay);
+    static_indexes.push_back(&hasCoal);
+    static_indexes.push_back(&hasFlux);
+    static_indexes.push_back(&hasRiver);
+    static_indexes.push_back(&hasSand);
 
     for (auto& index : soil) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 
     for (auto& index : river_size) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 
     for (auto& index : magma_level) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 
     for (auto& index : adamantine_level) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 
     for (auto& index : savagery_level) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 
     for (auto& index : evilness_level) {
-        indexes.push_back(index);
+        static_indexes.push_back(&index);
     }
 }
 
@@ -60,6 +60,8 @@ void embark_assist::index::Index::setup(df::world *world, const uint16_t max_ino
     init_inorganic_index();
     initInorganicNames();
     keys_in_order.reserve(maxKeyValue);
+
+    //hasRiver.roaring = *roaring_bitmap_create_with_capacity(201);
 }
 
 const uint32_t embark_assist::index::Index::createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) {
@@ -67,29 +69,25 @@ const uint32_t embark_assist::index::Index::createKey(int16_t x, int16_t y, uint
 }
 
 void embark_assist::index::Index::add(uint32_t key, const embark_assist::defs::mid_level_tile &mlt) {
-    color_ostream_proxy out(Core::getInstance().getConsole());
+    // color_ostream_proxy out(Core::getInstance().getConsole());
 
-    bool schedule_optimize = false;
-    if (previous_key != -1 && !(key - previous_key == 1 || key - previous_key == 511)) {
-        schedule_optimize = true;
-    }
-    previous_key = key;
+    //bool schedule_optimize = false;
+    //if (previous_key != -1 && !(key - previous_key == 1 || key - previous_key == 256)) {
+    //    schedule_optimize = true;
+    //}
+    //previous_key = key;
 
     keys_in_order.push_back(key);
 
-    if (key > maxKeyValue) {
-        out.print("key %d larger than %d \n ", key, maxKeyValue);
-    }
+    //if (key > maxKeyValue) {
+    //    out.print("key %d larger than %d \n ", key, maxKeyValue);
+    //}
 
     entryCounter++;
     if (uniqueKeys.contains(key)) {
         // out.print("key %d already processed\n ", key);
     }
     uniqueKeys.add(key);
-
-    if (mlt.adamantine_level != -1) {
-
-    }
 
     if (mlt.aquifer) {
         hasAquifier.add(key);
@@ -144,7 +142,9 @@ void embark_assist::index::Index::add(uint32_t key, const embark_assist::defs::m
     for (auto it = mlt.minerals.cbegin(); it != mlt.minerals.cend(); it++) {
         if (*it) {            
             const int mineralIndex = std::distance(mlt.minerals.cbegin(), it);
-            if (true || world->raws.inorganics[mineralIndex]->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
+            if (
+                // true || 
+                world->raws.inorganics[mineralIndex]->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
                 world->raws.inorganics[mineralIndex]->flags.is_set(df::inorganic_flags::IGNEOUS_EXTRUSIVE) ||
                 world->raws.inorganics[mineralIndex]->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
                 world->raws.inorganics[mineralIndex]->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
@@ -154,9 +154,10 @@ void embark_assist::index::Index::add(uint32_t key, const embark_assist::defs::m
         }
     }
 
-    if (schedule_optimize) {
-        this->optimize(false);
-    }
+    //if (schedule_optimize) {
+    //    out.print("optimizing after key %d\n ", key);
+    //    this->optimize(false);
+    //}
 }
 
 const bool embark_assist::index::Index::containsEntries() {
@@ -172,26 +173,10 @@ void embark_assist::index::Index::optimize(bool debugOutput) {
         this->outputSizes("before optimize");
     }
 
-    uniqueKeys.runOptimize();
-    uniqueKeys.shrinkToFit();
-
-    hasAquifier.runOptimize();
-    hasAquifier.shrinkToFit();
-
-    hasRiver.runOptimize();
-    hasRiver.shrinkToFit();
-
-    hasClay.runOptimize();
-    hasClay.shrinkToFit();
-
-    hasCoal.runOptimize();
-    hasCoal.shrinkToFit();
-
-    hasFlux.runOptimize();
-    hasFlux.shrinkToFit();
-
-    hasSand.runOptimize();
-    hasSand.shrinkToFit();
+    for (auto it = static_indexes.begin(); it != static_indexes.end(); it++) {
+        (*it)->runOptimize();
+        (*it)->shrinkToFit();
+    }
 
     for (auto it = metals.begin(); it != metals.end(); it++) {
         if (*it != nullptr) {
@@ -225,13 +210,13 @@ void embark_assist::index::Index::shutdown() {
     entryCounter = 0;
     max_inorganic = 0;
     maxKeyValue = 0;
-    roaring_bitmap_clear(&uniqueKeys.roaring);
-    roaring_bitmap_clear(&hasAquifier.roaring);
-    roaring_bitmap_clear(&hasRiver.roaring);
-    roaring_bitmap_clear(&hasClay.roaring);
-    roaring_bitmap_clear(&hasCoal.roaring);
-    roaring_bitmap_clear(&hasFlux.roaring);
-    roaring_bitmap_clear(&hasSand.roaring);
+
+    for (auto it = static_indexes.begin(); it != static_indexes.end(); it++) {
+        if (*it != nullptr) {
+            roaring_bitmap_clear(&(*it)->roaring);
+            //delete *it;
+        }
+    }
 
     for (auto it = metals.begin(); it != metals.end(); it++) {
         if (*it != nullptr) {
@@ -266,7 +251,7 @@ void embark_assist::index::Index::shutdown() {
     minerals.clear();
     minerals.resize(0);
     minerals.reserve(0);
-    mineralNames.clear();    
+    mineralNames.clear();
     mineralNames.reserve(0);
 
     inorganics.clear();
@@ -433,7 +418,9 @@ void embark_assist::index::Index::init_inorganic_index() {
 
     minerals.resize(max_inorganic, nullptr);
     for (int16_t k = 0; k < max_inorganic; k++) {
-        if (true || world->raws.inorganics[k]->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
+        if (
+            // true || 
+             world->raws.inorganics[k]->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
              world->raws.inorganics[k]->flags.is_set(df::inorganic_flags::IGNEOUS_EXTRUSIVE) ||
              world->raws.inorganics[k]->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
              world->raws.inorganics[k]->flags.is_set(df::inorganic_flags::METAMORPHIC) ||

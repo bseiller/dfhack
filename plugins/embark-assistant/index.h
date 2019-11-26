@@ -45,7 +45,7 @@ namespace embark_assist {
             std::vector<uint32_t> keys_in_order;
 
             // helper for easier reset, debug and output of over all indexes
-            std::vector<reference_wrapper<Roaring>> indexes;
+            std::vector<Roaring*> static_indexes;
 
             // Roaring& getInorganicsIndex(std::vector<Roaring*> &indexMap, uint16_t metal_index);
             void init_inorganic_index();
