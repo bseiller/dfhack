@@ -5,6 +5,7 @@ SET(PROJECT_SRCS
     finder_ui.cpp
     help_ui.cpp
     index.cpp
+    key_position_mapper.cpp
     matcher.cpp
     overlay.cpp
     roaring.c
@@ -18,6 +19,7 @@ SET(PROJECT_HDRS
     finder_ui.h
     help_ui.h
     index.h
+    key_position_mapper.h
     matcher.h
     overlay.h
     query.h

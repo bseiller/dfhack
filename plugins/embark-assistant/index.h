@@ -7,6 +7,7 @@
 //#include "df/world_region_type.h"
 
 #include "defs.h"
+#include "key_position_mapper.h"
 #include "roaring.hh"
 
 namespace embark_assist {
@@ -42,11 +43,8 @@ namespace embark_assist {
             uint16_t max_inorganic = 0;
             uint32_t capacity;
 
-            uint16_t world_last_x;
-            uint16_t world_last_y;
-            uint16_t x_tail;
-            uint16_t y_tail;
-            uint32_t total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width;
+            embark_assist::index::key_position_mapper::KeyPositionMapper *keyMapper;
+
             uint32_t entryCounter = 0;
             uint16_t feature_set_counter = 0;
             
@@ -115,12 +113,8 @@ namespace embark_assist {
             void init_inorganic_index();
             // void addInorganic(std::vector<uint16_t, Roaring*> &indexMap, uint16_t metal_index);
             void initInorganicNames();
-            void embark_assist::index::Index::get_position(uint32_t position_id, uint16_t &x, uint16_t &y, uint16_t &i, uint16_t &k) const;
-            void embark_assist::index::Index::get_position2(uint32_t position_id, uint16_t &x, uint16_t &y, uint16_t &i, uint16_t &k) const;
             std::string getInorganicName(const uint16_t index, const std::unordered_map<uint16_t, std::string> &ingorganicNames, std::string name) const;
             void embark_assist::index::Index::writeIndexToDisk(const Roaring &roaring, const std::string prefix) const;
-            const uint32_t key_of(int16_t x, int16_t y, uint8_t i, uint8_t k) const;
-            const uint32_t key_of2(int16_t x, int16_t y, uint8_t i, uint8_t k) const;
             uint16_t calculate_embark_variants(const uint32_t position_id, const uint16_t embark_size_x, const uint16_t embark_size_y, std::vector<Roaring> &embarks, uint32_t buffer[], embark_tile_tracker &tracker) const;
             const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder) const;
             const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const Roaring &index) const;
