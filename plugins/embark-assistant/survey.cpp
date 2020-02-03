@@ -1418,19 +1418,31 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         east_column.evilness_level = east_tile.evilness_level;
 
         north_row.metals.resize(0);  //  Not used
+        north_row.metals.shrink_to_fit();
         south_row.metals.resize(0);
+        south_row.metals.shrink_to_fit();
         west_column.metals.resize(0);
+        west_column.metals.shrink_to_fit();
         east_column.metals.resize(0);
+        east_column.metals.shrink_to_fit();
 
         north_row.economics.resize(0);  //  Not used
+        north_row.economics.shrink_to_fit();
         south_row.economics.resize(0);
+        south_row.economics.shrink_to_fit();
         west_column.economics.resize(0);
+        west_column.economics.shrink_to_fit();
         east_column.economics.resize(0);
+        east_column.economics.shrink_to_fit();
 
         north_row.minerals.resize(0);  //  Not used
+        north_row.minerals.shrink_to_fit();
         south_row.minerals.resize(0);
+        south_row.minerals.shrink_to_fit();
         west_column.minerals.resize(0);
+        west_column.minerals.shrink_to_fit();
         east_column.minerals.resize(0);
+        east_column.minerals.shrink_to_fit();
 
         tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
         tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
@@ -1444,18 +1456,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         }
     }
 
-    //for (uint8_t i = 0; i < 16; i++) {
-    //    for (uint8_t k = 0; k < 16; k++) {
-    //        const uint32_t key = index.createKey(y, x, i, k);
-    //        index.add(key, mlt->at(i).at(k));
-    //    }
-    //}
-
-    index.add(x, y, tile, mlt);
-
-    /*if (x == (world->worldgen.worldgen_parms.dim_x - 1) && y % 16 == 0 && index.containsEntries()) {
-        index.optimize(false);
-    }*/
+    if (!tile.surveyed) {
+        index.add(x, y, tile, mlt);
+    }
 
     tile.surveyed = true;
 }
