@@ -119,6 +119,7 @@ void embark_assist::index::Index::setup(df::world *world, const uint16_t max_ino
 
     x_tail = world->world_data->world_width % 16;
     y_tail = world->world_data->world_height % 16;
+    total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width = world->world_data->world_width * 256 * 16;
 
     // FIXME: use Roaring* for all static indices, so that we can construct them like this
     // hasAquifer = new Roaring(roaring_bitmap_create_with_capacity(260));
@@ -136,11 +137,17 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
 
     const auto innerStartTime = std::chrono::system_clock::now();
 
-    const uint32_t world_offset = this->createKey(x, y, 0, 0);
+    //const uint32_t world_offset = this->createKey(x, y, 0, 0);
     const uint32_t world_offset2 = this->key_of2(x, y, 0, 0);
     uint32_t mlt_offset = 0;
+    
+    if (previous_key == world_offset2) {
+        out.print("skipping key %d as the position was just processed\n ", previous_key);
+        return;
+    }
+    previous_key = world_offset2;
 
-    // positions.push_back({ x,y });
+    positions.push_back({ x,y });
 
     uint16_t aquifierBufferIndex = 0;
     uint16_t clayBufferIndex = 0;
@@ -163,12 +170,14 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
 
             const embark_assist::defs::mid_level_tile &mlt = mlts->at(i).at(k);
             //const uint32_t key = world_offset + mlt_offset;
+            // currently using the proper key following the iteration pattern over the world tiles
+            // FIXME: also implement the related version of key_of2
             const uint32_t key = world_offset2 + mlt_offset;
             last_key = key;
-            // keys_in_order.push_back(key);
+            keys_in_order.push_back(key);
 
             const uint32_t key2 = world_offset2 + mlt_offset;
-            // keys_in_order2.push_back(key2);
+            keys_in_order2.push_back(key2);
 
             mlt_offset++;
 
@@ -581,6 +590,84 @@ void embark_assist::index::Index::get_position(const uint32_t position_id, uint1
     }
 }
 
+void embark_assist::index::Index::get_position2(const uint32_t position_id, uint16_t &x, uint16_t &y, uint16_t &i, uint16_t &k) const {
+    const int32_t fs_y_offset = std::floor(position_id / (total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width)) * 16;
+    const int32_t y_base = std::floor(position_id / (total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width)) * total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width;
+    const bool fs_left = 0 == ((int)std::floor(position_id / total_number_of_mid_level_tiles_per_feature_shell_column_for_world_width) % 2);
+
+    int32_t fs_x_offset;
+    int32_t x_offset = 0;
+    int32_t y_offset = 0;
+    int32_t x_base;
+    int32_t index;
+
+    i = position_id % 16;
+    k = std::floor((position_id % 256) / 16);
+
+    if (fs_left) {
+        if (world_last_y - fs_y_offset >= 16) {
+            fs_x_offset = std::floor((position_id - y_base) / 65536) * 16;
+            x_base = fs_x_offset * 256 * 16;
+        }
+        else {
+            fs_x_offset = std::floor((position_id - y_base) / (y_tail * 16 * 256)) * 16;
+            x_base = fs_x_offset * 256 * y_tail;
+        }
+    }
+    else {
+        if (world_last_y - fs_y_offset >= 16) {
+            if (position_id - y_base < x_tail * 16 * 256) {
+                fs_x_offset = 0;
+                x_base = 0;
+            }
+            else {
+                fs_x_offset = std::floor((position_id - y_base - x_tail * 16 * 256) / 65536) * 16 + x_tail;
+                x_base = fs_x_offset * 256 * 16;
+            }
+        }
+        else {
+            if (position_id - y_base < x_tail * y_tail * 256) {
+                fs_x_offset = 0;
+                x_base = 0;
+            }
+            else {
+                fs_x_offset = std::floor((position_id - y_base - x_tail * y_tail * 256) / (16 * 256 * y_tail)) * 16 + x_tail;
+                    x_base = fs_x_offset * 256 * y_tail;
+            }
+        }
+    }
+
+    index = position_id - y_base - x_base;
+
+    if (world_last_y - fs_y_offset >= 16) {
+        x_offset = std::floor(index / (16 * 256));
+        y_offset = std::floor((index - x_offset * 16 * 256) / 256);
+    }
+
+    else {
+        x_offset = std::floor(index / (y_tail * 256));
+        y_offset = std::floor((index - x_offset * y_tail * 256) / 256);
+    }
+
+    x = fs_x_offset + x_offset;
+
+    if (x % 2 == 1) {//n  --  Relies on the world having an odd X dimension number and the odd ones always are reversed, regardless of traversing left or right.
+        if (world_last_y - fs_y_offset >= 16) {
+            y_offset = 15 - y_offset;
+        }
+        else {
+            y_offset = y_tail - 1 - y_offset;
+        }
+    }
+         
+    y = fs_y_offset + y_offset;
+
+    if (!fs_left) {
+        x = world_last_x - x;
+    }
+}
+
+
 const uint32_t embark_assist::index::Index::key_of(int16_t x, int16_t y, uint8_t i, uint8_t k) const {
     const int32_t world_last_x = world->world_data->world_width - 1;
     const int32_t world_last_y = world->world_data->world_height - 1;
@@ -764,8 +851,9 @@ const void embark_assist::index::Index::outputContents() const {
 
     uint32_t key_index = 0;
     for (const auto key : keys_in_order) {
-        get_position(key, x, y, i, k);
-        myfile << key << "/" << keys_in_order2[key_index] << " - x:" << x << ", y:" << y << ", i:" << i << ", k:" << k << "\n";
+        // get_position(key, x, y, i, k);
+        get_position2(key, x, y, i, k);
+        myfile << key << "/" << keys_in_order[key_index] << " - x:" << x << ", y:" << y << ", i:" << i << ", k:" << k << "\n";
         x = 0;
         y = 0;
         i = 0;
@@ -799,7 +887,8 @@ uint16_t embark_assist::index::Index::calculate_embark_variants(const uint32_t p
     uint16_t y = 0;
     uint16_t i = 0;
     uint16_t k = 0;
-    get_position(position_id, x, y, i, k);
+    // get_position(position_id, x, y, i, k);
+    get_position2(position_id, x, y, i, k);
 
     // if the previously inspected world tile is not the current one, we reset the tracker
     if (start_tile_tracker.x != x || start_tile_tracker.y != y) {
@@ -825,7 +914,8 @@ uint16_t embark_assist::index::Index::calculate_embark_variants(const uint32_t p
     const int16_t positive_offsetted_k = k + (embark_size_y - 1);
     const int16_t end_k_offset = std::min(MAX_COORD, positive_offsetted_k);
 
-    uint32_t position_id_region_offset = createKey(x, y, 0, 0);
+    // uint32_t position_id_region_offset = createKey(x, y, 0, 0);
+    uint32_t position_id_region_offset = key_of2(x, y, 0, 0);
     uint32_t start_position_id = position_id - ((i - start_i_offset) + (k - start_k_offset) * 16);
 
     uint16_t embark_counter = 0;
@@ -887,7 +977,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     if (finder.aquifer == embark_assist::defs::aquifer_ranges::Present) {
         // TODO: be aware, that there are special (corner) cases if a criteria makes assumptions about more than one tile e.g. "All", "Absent", "Partial"
         // - if this query is the most significant one we need another query as helper to verify that all the other tiles also (not) have a aquifer... 
-        // This is true for all criterias with exclusive/absolute (all/none, absent, ...) meaning
+        // This is true for all criteria with exclusive/absolute (all/none, absent, ...) meaning
         const Roaring &hasAquifer = this->hasAquifer;
         embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasAquifer](const Roaring &embark_candidate) -> bool {
             // std::cout << "hasAquifer.and_cardinality" << std::endl;
@@ -1051,19 +1141,20 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
                 // getting the key/id of the start tile
                 const uint32_t smallest_key = embarks[embark_variant_index].minimum();
                 // extracting the x,y + i,k to set the match
-                get_position(smallest_key, x, y, i, k);
+                //get_position(smallest_key, x, y, i, k);
+                get_position2(smallest_key, x, y, i, k);
 
                 match_results[x][y].contains_match = true;
-                if (match_results[x][y].mlt_match[i][k]) {
-                    //out.print("embark_assist::index::Index::find: found same match as matcher:");
-                }
-                else {
-                    out.print("embark_assist::index::Index::find: found match matcher has not found:");
-                    out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x, y, i, k);
-                }
+                //if (match_results[x][y].mlt_match[i][k]) {
+                //    out.print("embark_assist::index::Index::find: found same match as matcher:");
+                //}
+                //else {
+                //    out.print("embark_assist::index::Index::find: found match matcher has not found:");
+                //    //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x, y, i, k);
+                //}
                 match_results[x][y].mlt_match[i][k] = true;
 
-                /*out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x,y,i,k);*/
+                //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x,y,i,k);
                 number_of_matches++;
             }
         }
