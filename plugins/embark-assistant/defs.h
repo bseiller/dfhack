@@ -29,8 +29,8 @@ namespace embark_assist {
         };
 
         // only contains those attributes that are being used during incursion processing
-        // leads to a significantly smaller memory footprint
-        // also ordered members by size, which again might lead to a smaller memory footprint, by better aligenment
+        // leads to a significantly smaller memory footprint => 10 Bytes
+        // also ordered members by size, which again might lead to a smaller memory footprint, by better alignment
         struct mid_level_tile_basic {
             int16_t elevation;
 
@@ -44,8 +44,8 @@ namespace embark_assist {
             uint8_t evilness_level;  // 0 - 2
         };
 
-        // contains all attributes, used for regular survey/matching
-        // also ordered members by size, which again might lead to a smaller memory footprint, by better aligenment
+        // contains all attributes, used for regular survey/matching => 120 Bytes
+        // also ordered members by size, which again might lead to a smaller memory footprint, by better alignment
         struct mid_level_tile : public mid_level_tile_basic {
             std::vector<bool> metals;
             std::vector<bool> economics;
@@ -100,12 +100,14 @@ namespace embark_assist {
             std::vector<bool> metals;
             std::vector<bool> economics;
             std::vector<bool> minerals;
-            mid_level_tile north_row[16];
-            mid_level_tile south_row[16];
-            mid_level_tile west_column[16];
-            mid_level_tile east_column[16];
+            // using mid_level_tile_basic instead of mid_level_tile reduces the base size of region_tile_datum from 7984 Bytes to 944 Bytes
+            // for a world with 257x257 this leads to memory saving of about 450 MB
+            mid_level_tile_basic north_row[16];
+            mid_level_tile_basic south_row[16];
+            mid_level_tile_basic west_column[16];
+            mid_level_tile_basic east_column[16];
             uint8_t north_corner_selection[16]; //  0 - 3. For some reason DF stores everything needed for incursion
-            uint8_t west_corner_selection[16];  //  detection in 17:th row/colum data in the region details except
+            uint8_t west_corner_selection[16];  //  detection in 17:th row/colunm data in the region details except
                                                 //  this info, so we have to go to neighboring world tiles to fetch it.
             df::world_region_type region_type[16][16];  //  Required for incursion override detection. We could store only the
                                                 //  edges, but storing it for every tile allows for a unified fetching

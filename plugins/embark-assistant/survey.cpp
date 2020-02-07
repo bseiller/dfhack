@@ -506,7 +506,7 @@ namespace embark_assist {
 
         void process_embark_incursion(embark_assist::defs::site_infos *site_info,
             embark_assist::defs::world_tile_data *survey_results,
-            const embark_assist::defs::mid_level_tile *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
+            const embark_assist::defs::mid_level_tile_basic *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
             int16_t elevation,
             uint16_t x,
             uint16_t y) {
@@ -1332,15 +1332,15 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     tile.biome_count = count;
 
     for (uint8_t i = 0; i < 16; i++) {
-        embark_assist::defs::mid_level_tile &north_row = tile.north_row[i];
-        embark_assist::defs::mid_level_tile &south_row = tile.south_row[i];
-        embark_assist::defs::mid_level_tile &west_column = tile.west_column[i];
-        embark_assist::defs::mid_level_tile &east_column = tile.east_column[i];
+        embark_assist::defs::mid_level_tile_basic &north_row = tile.north_row[i];
+        embark_assist::defs::mid_level_tile_basic &south_row = tile.south_row[i];
+        embark_assist::defs::mid_level_tile_basic &west_column = tile.west_column[i];
+        embark_assist::defs::mid_level_tile_basic &east_column = tile.east_column[i];
 
-        embark_assist::defs::mid_level_tile &north_tile = mlt->at(i).at(0);
-        embark_assist::defs::mid_level_tile &south_tile = mlt->at(i).at(15);
-        embark_assist::defs::mid_level_tile &west_tile = mlt->at(0).at(i);
-        embark_assist::defs::mid_level_tile &east_tile = mlt->at(15).at(i);
+        embark_assist::defs::mid_level_tile_basic &north_tile = mlt->at(i).at(0);
+        embark_assist::defs::mid_level_tile_basic &south_tile = mlt->at(i).at(15);
+        embark_assist::defs::mid_level_tile_basic &west_tile = mlt->at(0).at(i);
+        embark_assist::defs::mid_level_tile_basic &east_tile = mlt->at(15).at(i);
 
         north_row.aquifer = north_tile.aquifer;
         south_row.aquifer = south_tile.aquifer;
@@ -1357,50 +1357,50 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         west_column.sand = west_tile.sand;
         east_column.sand = east_tile.sand;
 
-        north_row.flux = north_tile.flux;  //  Not used
-        south_row.flux = south_tile.flux;
-        west_column.flux = west_tile.flux;
-        east_column.flux = east_tile.flux;
+        //north_row.flux = north_tile.flux;  //  Not used
+        //south_row.flux = south_tile.flux;
+        //west_column.flux = west_tile.flux;
+        //east_column.flux = east_tile.flux;
 
-        north_row.coal = north_tile.coal; //  Not used
-        south_row.coal = south_tile.coal;
-        west_column.coal = west_tile.coal;
-        east_column.coal = east_tile.coal;
+        //north_row.coal = north_tile.coal; //  Not used
+        //south_row.coal = south_tile.coal;
+        //west_column.coal = west_tile.coal;
+        //east_column.coal = east_tile.coal;
 
         north_row.soil_depth = north_tile.soil_depth;
         south_row.soil_depth = south_tile.soil_depth;
         west_column.soil_depth = west_tile.soil_depth;
         east_column.soil_depth = east_tile.soil_depth;
 
-        north_row.offset = north_tile.offset; //  Not used
-        south_row.offset = south_tile.offset;
-        west_column.offset = west_tile.offset;
-        east_column.offset = east_tile.offset;
+        //north_row.offset = north_tile.offset; //  Not used
+        //south_row.offset = south_tile.offset;
+        //west_column.offset = west_tile.offset;
+        //east_column.offset = east_tile.offset;
 
         north_row.elevation = north_tile.elevation;
         south_row.elevation = south_tile.elevation;
         west_column.elevation = west_tile.elevation;
         east_column.elevation = east_tile.elevation;
 
-        north_row.river_present = north_tile.river_present; //  Not used
-        south_row.river_present = south_tile.river_present;
-        west_column.river_present = west_tile.river_present;
-        east_column.river_present = east_tile.river_present;
+        //north_row.river_present = north_tile.river_present; //  Not used
+        //south_row.river_present = south_tile.river_present;
+        //west_column.river_present = west_tile.river_present;
+        //east_column.river_present = east_tile.river_present;
 
-        north_row.river_elevation = north_tile.river_elevation; //  Not used
-        south_row.river_elevation = south_tile.river_elevation;
-        west_column.river_elevation = west_tile.river_elevation;
-        east_column.river_elevation = east_tile.river_elevation;
+        //north_row.river_elevation = north_tile.river_elevation; //  Not used
+        //south_row.river_elevation = south_tile.river_elevation;
+        //west_column.river_elevation = west_tile.river_elevation;
+        //east_column.river_elevation = east_tile.river_elevation;
 
-        north_row.adamantine_level = north_tile.adamantine_level; //  Not used
-        south_row.adamantine_level = south_tile.adamantine_level;
-        west_column.adamantine_level = west_tile.adamantine_level;
-        east_column.adamantine_level = east_tile.adamantine_level;
+        //north_row.adamantine_level = north_tile.adamantine_level; //  Not used
+        //south_row.adamantine_level = south_tile.adamantine_level;
+        //west_column.adamantine_level = west_tile.adamantine_level;
+        //east_column.adamantine_level = east_tile.adamantine_level;
 
-        north_row.magma_level = north_tile.magma_level; //  Not used
-        south_row.magma_level = south_tile.magma_level;
-        west_column.magma_level = west_tile.magma_level;
-        east_column.magma_level = east_tile.magma_level;
+        //north_row.magma_level = north_tile.magma_level; //  Not used
+        //south_row.magma_level = south_tile.magma_level;
+        //west_column.magma_level = west_tile.magma_level;
+        //east_column.magma_level = east_tile.magma_level;
 
         north_row.biome_offset = north_tile.biome_offset;
         south_row.biome_offset = south_tile.biome_offset;
@@ -1417,32 +1417,20 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         west_column.evilness_level = west_tile.evilness_level;
         east_column.evilness_level = east_tile.evilness_level;
 
-        north_row.metals.resize(0);  //  Not used
-        north_row.metals.shrink_to_fit();
-        south_row.metals.resize(0);
-        south_row.metals.shrink_to_fit();
-        west_column.metals.resize(0);
-        west_column.metals.shrink_to_fit();
-        east_column.metals.resize(0);
-        east_column.metals.shrink_to_fit();
+        //north_row.metals.resize(0);  //  Not used
+        //south_row.metals.resize(0);
+        //west_column.metals.resize(0);
+        //east_column.metals.resize(0);
 
-        north_row.economics.resize(0);  //  Not used
-        north_row.economics.shrink_to_fit();
-        south_row.economics.resize(0);
-        south_row.economics.shrink_to_fit();
-        west_column.economics.resize(0);
-        west_column.economics.shrink_to_fit();
-        east_column.economics.resize(0);
-        east_column.economics.shrink_to_fit();
+        //north_row.economics.resize(0);  //  Not used
+        //south_row.economics.resize(0);
+        //west_column.economics.resize(0);
+        //east_column.economics.resize(0);
 
-        north_row.minerals.resize(0);  //  Not used
-        north_row.minerals.shrink_to_fit();
-        south_row.minerals.resize(0);
-        south_row.minerals.shrink_to_fit();
-        west_column.minerals.resize(0);
-        west_column.minerals.shrink_to_fit();
-        east_column.minerals.resize(0);
-        east_column.minerals.shrink_to_fit();
+        //north_row.minerals.resize(0);  //  Not used
+        //south_row.minerals.resize(0);
+        //west_column.minerals.resize(0);
+        //east_column.minerals.resize(0);
 
         tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
         tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
@@ -1450,14 +1438,12 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
     for (uint8_t i = 0; i < 16; i++) {
         for (uint8_t k = 0; k < 16; k++) {
-            //tile.region_type[i][k] = world_data->regions[tile.biome[mlt->operator(i)->operator[k].biome_offset]]->type;
-            //tile.region_type[i][k] = world_data->regions[tile.biome[mlt->at(i).at(k).biome_offset]]->type;
             tile.region_type[i][k] = world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type;
         }
     }
 
     if (!tile.surveyed) {
-        index.add(x, y, tile, mlt);
+        //index.add(x, y, tile, mlt);
     }
 
     tile.surveyed = true;

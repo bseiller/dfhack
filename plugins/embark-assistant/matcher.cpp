@@ -66,7 +66,7 @@ namespace embark_assist {
 
         void process_embark_incursion(matcher_info *result,
             const embark_assist::defs::world_tile_data *survey_results,
-            const embark_assist::defs::mid_level_tile *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
+            const embark_assist::defs::mid_level_tile_basic *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
             const embark_assist::defs::finders *finder,
             const int16_t elevation,
             const uint16_t x,
