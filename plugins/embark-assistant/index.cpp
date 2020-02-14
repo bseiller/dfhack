@@ -23,6 +23,7 @@ using namespace DFHack;
 
 namespace embark_assist {
     namespace index {
+
         class query_plan : public query_plan_interface {
         public:
             std::vector<embark_assist::query::query_interface*> queries;
@@ -56,6 +57,45 @@ namespace embark_assist {
 
         private: 
             const std::vector<uint32_t>* most_significant_ids;
+        };
+
+        struct key_buffer_holder_basic {
+            uint32_t aquiferBuffer[256];
+            uint16_t aquifierBufferIndex = 0;
+
+            uint32_t clayBuffer[256];
+            uint16_t clayBufferIndex = 0;
+
+            uint32_t sandBuffer[256];
+            uint16_t sandBufferIndex = 0;
+
+            std::array<uint32_t[256], 3> savagery_buffer;
+            std::array<uint16_t, 3> savagery_buffer_index = { 0, 0, 0 };
+
+            std::array<uint32_t[256], 3> evilness_buffer;
+            std::array<uint16_t, 3> evilness_buffer_index = { 0, 0, 0 };
+            
+            std::array<uint32_t[256], embark_assist::index::Index::SOIL_DEPTH_LEVELS> soil_buffer;
+            std::array<uint16_t, embark_assist::index::Index::SOIL_DEPTH_LEVELS> soil_buffer_index = { 0, 0, 0, 0, 0 };
+
+            //std::array<uint32_t[256], ENUM_LAST_ITEM(biome_type) + 1> biomes_buffer;
+            //std::array<uint16_t, ENUM_LAST_ITEM(biome_type) + 1>  biomes_buffer_index = { 0, 0, 0, 0, 0 };
+        };
+
+        struct key_buffer_holder : key_buffer_holder_basic {
+            std::array<uint32_t[256], 4> magma_buffer;
+            std::array<uint16_t, 4> magma_buffer_index = { 0, 0, 0, 0 };
+
+            std::array<uint32_t[256], 4> adamantine_buffer;
+            std::array<uint16_t, 4> adamantine_buffer_index = { 0, 0, 0, 0 };
+
+            uint32_t coalBuffer[256];
+            uint32_t riverBuffer[256];
+            uint32_t fluxBuffer[256];
+
+            uint16_t coalBufferIndex = 0;
+            uint16_t fluxBufferIndex = 0;
+            uint16_t riverBufferIndex = 0;
         };
     }
 }
@@ -111,7 +151,6 @@ void embark_assist::index::Index::setup(df::world *world, const uint16_t max_ino
     init_inorganic_index();
     initInorganicNames();
     keys_in_order.reserve(maxKeyValue);
-    keys_in_order2.reserve(maxKeyValue);
     positions.reserve(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y);
 
     keyMapper = new embark_assist::index::key_position_mapper::KeyPositionMapper(world->world_data->world_width, world->world_data->world_height);
@@ -127,28 +166,49 @@ const uint32_t embark_assist::index::Index::createKey(int16_t x, int16_t y, uint
     return y * world->worldgen.worldgen_parms.dim_x * numberEmbarkTiles + (x * numberEmbarkTiles) + (k * 16) + i;
 }
 
+namespace embark_assist {
+    namespace index {
+        void add2(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, key_buffer_holder &buffer_holder) {
+            if (mlt.aquifer) {
+                buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
+            }
+
+            if (mlt.clay) {
+                buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
+            }
+
+            if (mlt.sand) {
+                buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
+            }
+
+            buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;
+            buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
+            buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
+
+            //  Biomes
+            // result.biomes[rtd.biome[mlt.biome_offset]] = true;
+            // rtd.biome[mlt.biome_offset];
+            // biomes[rtd.biome[mlt.biome_offset]].add(key);
+        }
+    }
+}
+
 void embark_assist::index::Index::add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts) {
     color_ostream_proxy out(Core::getInstance().getConsole());
 
     const auto innerStartTime = std::chrono::system_clock::now();
-
-    //const uint32_t world_offset = this->createKey(x, y, 0, 0);
-    const uint32_t world_offset2 = keyMapper->key_of(x, y, 0, 0);
+    
+    const uint32_t world_offset = keyMapper->key_of(x, y, 0, 0);
     uint32_t mlt_offset = 0;
         
-    if (previous_key == world_offset2) {
+    if (previous_key == world_offset) {
         return;
     }
-    previous_key = world_offset2;
+    previous_key = world_offset;
 
     positions.push_back({ x,y });
 
-    uint16_t aquifierBufferIndex = 0;
-    uint16_t clayBufferIndex = 0;
-    uint16_t coalBufferIndex = 0;
-    uint16_t fluxBufferIndex = 0;
-    uint16_t riverBufferIndex = 0;
-    uint16_t sandBufferIndex = 0;
+    key_buffer_holder buffer_holder;
 
     metalBufferIndex.assign(max_inorganic, 0);
     economicBufferIndex.assign(max_inorganic, 0);
@@ -163,67 +223,56 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             entryCounter++;
 
             const embark_assist::defs::mid_level_tile &mlt = mlts->at(i).at(k);
-            //const uint32_t key = world_offset + mlt_offset;
-            // currently using the proper key following the iteration pattern over the world tiles
-            // FIXME: also implement the related version of key_of2
-            const uint32_t key = world_offset2 + mlt_offset;
+            const uint32_t key = world_offset + mlt_offset;
             last_key = key;
             keys_in_order.push_back(key);
-
-            const uint32_t key2 = world_offset2 + mlt_offset;
-            keys_in_order2.push_back(key2);
 
             mlt_offset++;
 
             // uniqueKeys.add(key);
 
-            if (mlt.aquifer) {
-                aquiferBuffer[aquifierBufferIndex++] = key;
-                //hasAquifer.add(key);
-            }
+            add2(key, mlt, rtd, buffer_holder);
 
-            if (mlt.clay) {
-                clayBuffer[clayBufferIndex++] = key;
-                // hasClay.add(key);
-            }
+            //if (mlt.aquifer) {
+            //    buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
+            //}
+
+            //if (mlt.clay) {
+            //    buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
+            //}
 
             if (mlt.coal) {
-                coalBuffer[coalBufferIndex++] = key;
-                // hasCoal.add(key);
+                buffer_holder.coalBuffer[buffer_holder.coalBufferIndex++] = key;
             }
 
             if (mlt.flux) {
-                fluxBuffer[fluxBufferIndex++] = key;
-                //hasFlux.add(key);
+                buffer_holder.fluxBuffer[buffer_holder.fluxBufferIndex++] = key;
             }
 
             if (mlt.river_present) {
-                riverBuffer[riverBufferIndex++] = key;
-                // hasRiver.add(key);
+                buffer_holder.riverBuffer[buffer_holder.riverBufferIndex++] = key;
             }
 
-            if (mlt.sand) {
-                sandBuffer[sandBufferIndex++] = key;
-                //hasSand.add(key);
-            }
+            //if (mlt.sand) {
+            //    buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
+            //}
 
             if (mlt.magma_level > -1) {
-                magma_level[mlt.magma_level].add(key);
+                buffer_holder.magma_buffer[mlt.magma_level][buffer_holder.magma_buffer_index[mlt.magma_level]++] = key;
             }
 
             if (mlt.adamantine_level > -1) {
-                adamantine_level[mlt.adamantine_level].add(key);
+                buffer_holder.adamantine_buffer[mlt.adamantine_level][buffer_holder.adamantine_buffer_index[mlt.adamantine_level]++] = key;
             }
 
-            soil[mlt.soil_depth].add(key);
+            // soil[mlt.soil_depth].add(key);
+            /*buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;*/
 
-            savagery_level[mlt.savagery_level].add(key);
-            evilness_level[mlt.evilness_level].add(key);
+            //savagery_level[mlt.savagery_level].add(key);
+            //evilness_level[mlt.evilness_level].add(key);
 
-            //  Biomes
-            // result.biomes[rtd.biome[mlt.biome_offset]] = true;
-            // rtd.biome[mlt.biome_offset];
-            // biomes[rtd.biome[mlt.biome_offset]].add(key);
+            //buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
+            //buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
 
             //  Region Type
             // result.region_types[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type] = true;
@@ -278,23 +327,78 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
         }
     }
 
-    hasAquifer.addMany(aquifierBufferIndex, aquiferBuffer);
-    hasCoal.addMany(coalBufferIndex, coalBuffer);
-    hasClay.addMany(clayBufferIndex, clayBuffer);
-    hasFlux.addMany(fluxBufferIndex, fluxBuffer);
-    hasRiver.addMany(riverBufferIndex, riverBuffer);
-    hasSand.addMany(sandBufferIndex, sandBuffer);
-
-    for (auto it = metalIndexes.cbegin(); it != metalIndexes.cend(); it++) {
-        metals[*it]->addMany(metalBufferIndex[*it], metalBuffer[*it]);
+    if (buffer_holder.aquifierBufferIndex > 0) {
+        hasAquifer.addMany(buffer_holder.aquifierBufferIndex, buffer_holder.aquiferBuffer);
+    }
+    if (buffer_holder.coalBufferIndex > 0) {
+        hasCoal.addMany(buffer_holder.coalBufferIndex, buffer_holder.coalBuffer);
+    }
+    if (buffer_holder.clayBufferIndex > 0) {
+        hasClay.addMany(buffer_holder.clayBufferIndex, buffer_holder.clayBuffer);
+    }
+    if (buffer_holder.fluxBufferIndex > 0) {
+        hasFlux.addMany(buffer_holder.fluxBufferIndex, buffer_holder.fluxBuffer);
+    }
+    if (buffer_holder.riverBufferIndex > 0) {
+        hasRiver.addMany(buffer_holder.riverBufferIndex, buffer_holder.riverBuffer);
+    }
+    if (buffer_holder.sandBufferIndex > 0) {
+        hasSand.addMany(buffer_holder.sandBufferIndex, buffer_holder.sandBuffer);
     }
 
+    for (int i = 0; i < magma_level.size(); i++) {
+        if (buffer_holder.magma_buffer_index[i] > 0) {
+            magma_level[i].addMany(buffer_holder.magma_buffer_index[i], buffer_holder.magma_buffer[i]);
+        }
+    }
+
+    for (int i = 0; i < adamantine_level.size(); i++) {
+        if (buffer_holder.adamantine_buffer_index[i] > 0) {
+            adamantine_level[i].addMany(buffer_holder.adamantine_buffer_index[i], buffer_holder.adamantine_buffer[i]);
+        }
+    }
+
+    for (int i = 0; i < SOIL_DEPTH_LEVELS; i++) {
+        if (buffer_holder.soil_buffer_index[i] > 0) {
+            soil[i].addMany(buffer_holder.soil_buffer_index[i], buffer_holder.soil_buffer[i]);
+        }
+    }
+
+    for (int i = 0; i < savagery_level.size(); i++) {
+        if (buffer_holder.savagery_buffer_index[i] > 0) {
+            savagery_level[i].addMany(buffer_holder.savagery_buffer_index[i], buffer_holder.savagery_buffer[i]);
+        }
+    }
+
+    for (int i = 0; i < evilness_level.size(); i++) {
+        if (buffer_holder.evilness_buffer_index[i] > 0) {
+            evilness_level[i].addMany(buffer_holder.evilness_buffer_index[i], buffer_holder.evilness_buffer[i]);
+        }
+    }
+
+    for (auto it = metalIndexes.cbegin(); it != metalIndexes.cend(); it++) {
+        if (metalBufferIndex[*it] > 0) {
+            metals[*it]->addMany(metalBufferIndex[*it], metalBuffer[*it]);
+        }
+    }
+
+    // alternative loop structure - better performance?
+    //for (auto metalIndexOffset : metalIndexes) {
+    //    if (metalBufferIndex[metalIndexOffset] > 0) {
+    //        metals[metalIndexOffset]->addMany(metalBufferIndex[metalIndexOffset], metalBuffer[metalIndexOffset]);
+    //    }
+    //}
+
     for (auto it = economicIndexes.cbegin(); it != economicIndexes.cend(); it++) {
-        economics[*it]->addMany(economicBufferIndex[*it], economicBuffer[*it]);
+        if (economicBufferIndex[*it] > 0) {
+            economics[*it]->addMany(economicBufferIndex[*it], economicBuffer[*it]);
+        }
     }
 
     for (auto it = mineralIndexes.cbegin(); it != mineralIndexes.cend(); it++) {
-        minerals[*it]->addMany(mineralBufferIndex[*it], mineralBuffer[*it]);
+        if (mineralBufferIndex[*it] > 0) {
+            minerals[*it]->addMany(mineralBufferIndex[*it], mineralBuffer[*it]);
+        }
     }
 
     if ((last_key - feature_set_counter) % (NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL * (feature_set_counter + 1)) == 0) {
@@ -565,7 +669,6 @@ void embark_assist::index::Index::shutdown() {
     inorganics.reserve(0);
 
     keys_in_order.clear();
-    keys_in_order2.clear();
     positions.clear();
 }
 

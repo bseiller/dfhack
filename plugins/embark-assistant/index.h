@@ -35,6 +35,8 @@ namespace embark_assist {
         };
 
         class Index final : public embark_assist::defs::index_interface {
+        public:
+            static const uint8_t SOIL_DEPTH_LEVELS = 5;
         private:
             static const uint32_t numberEmbarkTiles = 16 * 16;
             static const uint32_t NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL = numberEmbarkTiles * 256 - 1;
@@ -60,8 +62,8 @@ namespace embark_assist {
             Roaring hasFlux;
             Roaring hasRiver;
             Roaring hasSand;
-            std::array<Roaring, 5> soil;
-            std::vector<Roaring> soil2 = std::vector<Roaring>(5, Roaring(roaring_bitmap_create_with_capacity(capacity)));
+            std::array<Roaring, SOIL_DEPTH_LEVELS> soil;
+            std::vector<Roaring> soil2 = std::vector<Roaring>(SOIL_DEPTH_LEVELS, Roaring(roaring_bitmap_create_with_capacity(capacity)));
             std::array<Roaring, 6> river_size;
             std::array<Roaring, 4> magma_level;
             std::array<Roaring, 4> adamantine_level;
@@ -80,22 +82,14 @@ namespace embark_assist {
             std::unordered_map<uint16_t, std::string> economicNames;
             std::unordered_map<uint16_t, std::string> mineralNames;
 
-            // following 3 are only for debugging - remove again
+            // following 2 are only for debugging - remove again
             std::vector<uint32_t> keys_in_order;
-            std::vector<uint32_t> keys_in_order2;
             std::vector <position> positions;
 
             // helper for easier reset, debug and output of over all indices
             std::vector<Roaring*> static_indices;
 
             std::chrono::duration<double> innerElapsed_seconds = std::chrono::seconds(0);
-
-            uint32_t aquiferBuffer[256];
-            uint32_t clayBuffer[256];
-            uint32_t coalBuffer[256];
-            uint32_t riverBuffer[256];
-            uint32_t sandBuffer[256];
-            uint32_t fluxBuffer[256];
 
             std::vector<uint32_t*> metalBuffer;
             std::vector<uint16_t> metalBufferIndex;
