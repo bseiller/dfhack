@@ -162,10 +162,6 @@ void embark_assist::index::Index::setup(df::world *world, const uint16_t max_ino
     }
 }
 
-const uint32_t embark_assist::index::Index::createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) const {
-    return y * world->worldgen.worldgen_parms.dim_x * numberEmbarkTiles + (x * numberEmbarkTiles) + (k * 16) + i;
-}
-
 namespace embark_assist {
     namespace index {
         void add2(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, key_buffer_holder &buffer_holder) {

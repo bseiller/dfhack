@@ -113,6 +113,8 @@ namespace embark_assist {
             const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder) const;
             const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const Roaring &index) const;
             void optimize(Roaring *index, bool shrinkToSize);
+            const void outputContents() const;
+            const void outputSizes(const string &prefix);
         public:
             Index();
             Index(df::world *world);
@@ -120,11 +122,8 @@ namespace embark_assist {
             void setup(df::world *world, uint16_t max_inorganic);
             void shutdown();
             virtual const bool containsEntries() const final override;
-            virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) const final override;
             virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) final override;
             virtual void optimize(bool debugOutput) final override;
-            virtual const void outputContents() const final override;
-            virtual const void outputSizes(const string &prefix) final override;
             virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const final override;
         };
     }
