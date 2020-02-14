@@ -93,15 +93,15 @@ namespace embark_assist {
 
             std::vector<uint32_t*> metalBuffer;
             std::vector<uint16_t> metalBufferIndex;
-            std::list<uint16_t> metalIndexes;
+            std::list<uint16_t> metalIndices;
 
             std::vector<uint32_t*> economicBuffer;
             std::vector<uint16_t> economicBufferIndex;
-            std::list<uint16_t> economicIndexes;
+            std::list<uint16_t> economicIndices;
 
             std::vector<uint32_t*> mineralBuffer;
             std::vector<uint16_t> mineralBufferIndex;
-            std::list<uint16_t> mineralIndexes;
+            std::list<uint16_t> mineralIndices;
 
             // Roaring& getInorganicsIndex(std::vector<Roaring*> &indexMap, uint16_t metal_index);
             void init_inorganic_index();
@@ -121,7 +121,6 @@ namespace embark_assist {
             void shutdown();
             virtual const bool containsEntries() const final override;
             virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) const final override;
-            virtual void add(uint32_t key, const embark_assist::defs::mid_level_tile &data) final override;
             virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) final override;
             virtual void optimize(bool debugOutput) final override;
             virtual const void outputContents() const final override;

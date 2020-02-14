@@ -346,7 +346,6 @@ namespace embark_assist {
             public:
                 virtual const bool containsEntries() const = 0;
                 virtual const uint32_t createKey(int16_t x, int16_t y, uint8_t i, uint8_t k) const = 0;
-                virtual void add(uint32_t key, const embark_assist::defs::mid_level_tile &data) = 0;
                 virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) = 0;
                 virtual void optimize(bool debugOutput) = 0;
                 virtual const void outputContents() const = 0;

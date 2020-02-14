@@ -279,7 +279,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             // world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type;
             // regions[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type].add(key);
 
-            // create indexes for metals, economics and minerals
+            // create indices for metals, economics and minerals
             //const auto begin_metals = mlt.metals.cbegin();
             uint16_t index = 0;
             for (auto it = mlt.metals.cbegin(); it != mlt.metals.cend(); it++) {
@@ -376,26 +376,26 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
         }
     }
 
-    for (auto it = metalIndexes.cbegin(); it != metalIndexes.cend(); it++) {
+    for (auto it = metalIndices.cbegin(); it != metalIndices.cend(); it++) {
         if (metalBufferIndex[*it] > 0) {
             metals[*it]->addMany(metalBufferIndex[*it], metalBuffer[*it]);
         }
     }
 
     // alternative loop structure - better performance?
-    //for (auto metalIndexOffset : metalIndexes) {
+    //for (auto metalIndexOffset : metalIndices) {
     //    if (metalBufferIndex[metalIndexOffset] > 0) {
     //        metals[metalIndexOffset]->addMany(metalBufferIndex[metalIndexOffset], metalBuffer[metalIndexOffset]);
     //    }
     //}
 
-    for (auto it = economicIndexes.cbegin(); it != economicIndexes.cend(); it++) {
+    for (auto it = economicIndices.cbegin(); it != economicIndices.cend(); it++) {
         if (economicBufferIndex[*it] > 0) {
             economics[*it]->addMany(economicBufferIndex[*it], economicBuffer[*it]);
         }
     }
 
-    for (auto it = mineralIndexes.cbegin(); it != mineralIndexes.cend(); it++) {
+    for (auto it = mineralIndices.cbegin(); it != mineralIndices.cend(); it++) {
         if (mineralBufferIndex[*it] > 0) {
             minerals[*it]->addMany(mineralBufferIndex[*it], mineralBuffer[*it]);
         }
@@ -415,103 +415,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
 
     const auto innerEnd = std::chrono::system_clock::now();
     innerElapsed_seconds += innerEnd - innerStartTime;
-}
-
-void embark_assist::index::Index::add(uint32_t key, const embark_assist::defs::mid_level_tile &mlt) {
-    // color_ostream_proxy out(Core::getInstance().getConsole());
-
-    //bool schedule_optimize = false;
-    //if (previous_key != -1 && !(key - previous_key == 1 || key - previous_key == 256)) {
-    //    schedule_optimize = true;
-    //}
-    //previous_key = key;
-
-    keys_in_order.push_back(key);
-
-    //if (key > maxKeyValue) {
-    //    out.print("key %d larger than %d \n ", key, maxKeyValue);
-    //}
-
-    entryCounter++;
-    //if (uniqueKeys.contains(key)) {
-    //    out.print("key %d already processed\n ", key);
-    //}
-    uniqueKeys.add(key);
-
-    if (mlt.aquifer) {
-        hasAquifer.add(key);
-    }
-
-    if (mlt.clay) {
-        hasClay.add(key);
-    }
-
-    if (mlt.coal) {
-        hasCoal.add(key);
-    }
-
-    if (mlt.flux) {
-        hasFlux.add(key);
-    }
-
-    if (mlt.river_present) {
-        hasRiver.add(key);
-    }
-
-    if (mlt.sand) {
-        hasSand.add(key);
-    }
-
-    if (mlt.magma_level > -1) {
-        magma_level[mlt.magma_level].add(key);
-    }
-
-    if (mlt.adamantine_level > -1) {
-        adamantine_level[mlt.adamantine_level].add(key);
-    }
-
-    soil[mlt.soil_depth].add(key);
-
-    savagery_level[mlt.savagery_level].add(key);
-    evilness_level[mlt.evilness_level].add(key);
-
-    // create indexes for metals, economics and minerals
-    for (auto it = mlt.metals.cbegin(); it != mlt.metals.cend(); it++) {
-        if (*it) {
-            const int metalIndex = std::distance(mlt.metals.cbegin(), it);
-            metals[metalIndex]->add(key);
-        }
-    }
-
-    for (auto it = mlt.economics.cbegin(); it != mlt.economics.cend(); it++) {
-        if (*it) {
-            const int economicIndex = std::distance(mlt.economics.cbegin(), it);
-            economics[economicIndex]->add(key);
-        }
-    }
-
-    for (auto it = mlt.minerals.cbegin(); it != mlt.minerals.cend(); it++) {
-        if (*it) {            
-            const int mineralIndex = std::distance(mlt.minerals.cbegin(), it);
-            const df::inorganic_raw* raw = world->raws.inorganics[mineralIndex];
-            if (
-                // true || 
-                raw->environment.location.size() != 0 ||
-                raw->environment_spec.mat_index.size() != 0 ||
-                raw->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
-                raw->flags.is_set(df::inorganic_flags::IGNEOUS_EXTRUSIVE) ||
-                raw->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
-                raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
-                raw->flags.is_set(df::inorganic_flags::SOIL)) {
-                minerals[mineralIndex]->add(key);
-            }
-        }
-    }
-
-    //if (schedule_optimize) {
-    //    out.print("optimizing after key %d\n ", key);
-    //    this->optimize(false);
-    //}
 }
 
 const bool embark_assist::index::Index::containsEntries() const {
@@ -605,8 +508,8 @@ void embark_assist::index::Index::shutdown() {
     metalBufferIndex.resize(0);
     metalBufferIndex.reserve(0);
 
-    metalIndexes.clear();
-    metalIndexes.resize(0);
+    metalIndices.clear();
+    metalIndices.resize(0);
 
     for (auto it = economics.begin(); it != economics.end(); it++) {
         if (*it != nullptr) {
@@ -633,8 +536,8 @@ void embark_assist::index::Index::shutdown() {
     economicBufferIndex.resize(0);
     economicBufferIndex.reserve(0);
 
-    economicIndexes.clear();
-    economicIndexes.resize(0);
+    economicIndices.clear();
+    economicIndices.resize(0);
 
     for (auto it = minerals.begin(); it != minerals.end(); it++) {
         if (*it != nullptr) {
@@ -661,8 +564,8 @@ void embark_assist::index::Index::shutdown() {
     mineralBufferIndex.resize(0);
     mineralBufferIndex.reserve(0);
 
-    mineralIndexes.clear();
-    mineralIndexes.resize(0);
+    mineralIndices.clear();
+    mineralIndices.resize(0);
 
     inorganics.clear();
     inorganics.resize(0);
@@ -1209,7 +1112,7 @@ void embark_assist::index::Index::init_inorganic_index() {
                 metals[metalIndex] = inorganicIndex;
 
                 metalBuffer[metalIndex] = new uint32_t[256];
-                metalIndexes.push_back(metalIndex);
+                metalIndices.push_back(metalIndex);
             }
         }
     }
@@ -1227,7 +1130,7 @@ void embark_assist::index::Index::init_inorganic_index() {
                 economics[k] = inorganicIndex;
 
                 economicBuffer[k] = new uint32_t[256];
-                economicIndexes.push_back(k);
+                economicIndices.push_back(k);
             }
         }
     }
@@ -1254,7 +1157,7 @@ void embark_assist::index::Index::init_inorganic_index() {
             minerals[k] = inorganicIndex;
 
             mineralBuffer[k] = new uint32_t[256];
-            mineralIndexes.push_back(k);
+            mineralIndices.push_back(k);
         }
         }
     }
