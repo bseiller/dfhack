@@ -43,11 +43,11 @@ namespace embark_assist {
                 return _keys_lambda();
             }
 
-            bool is_to_be_deleted_after_key_extraction() const {
+            bool is_to_be_deleted_after_key_extraction() const final{
                 return _is_to_be_deleted_after_key_extraction;
             }
 
-            void flag_for_keeping() {
+            void flag_for_keeping() final {
                 _is_to_be_deleted_after_key_extraction = false;
             }
         };
