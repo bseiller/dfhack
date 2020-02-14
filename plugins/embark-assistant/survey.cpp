@@ -1443,7 +1443,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     }
 
     if (!tile.surveyed) {
-        //index.add(x, y, tile, mlt);
+        index.add(x, y, tile, mlt);
     }
 
     tile.surveyed = true;
