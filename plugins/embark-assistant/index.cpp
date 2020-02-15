@@ -28,6 +28,7 @@ namespace embark_assist {
         public:
             std::vector<embark_assist::query::query_interface*> queries;
 
+            // TODO: make this a smart iterator instead of a vector - which would save same memory...
             const std::vector<uint32_t>& get_most_significant_ids() const final {
                 return *most_significant_ids;
             }
@@ -56,6 +57,7 @@ namespace embark_assist {
             }
 
         private: 
+            // FIXME: make this an iterator
             const std::vector<uint32_t>* most_significant_ids;
         };
 
@@ -97,74 +99,8 @@ namespace embark_assist {
             uint16_t fluxBufferIndex = 0;
             uint16_t riverBufferIndex = 0;
         };
-    }
-}
 
-
-embark_assist::index::Index::Index(void) /*: world(), capacity(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * 256 / NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL), 
-    hasAquifer(roaring_bitmap_create_with_capacity(capacity)), hasClay(roaring_bitmap_create_with_capacity(capacity)) */ {
-    static_indices.push_back(&uniqueKeys);
-    static_indices.push_back(&hasAquifer);
-    static_indices.push_back(&hasClay);
-    static_indices.push_back(&hasCoal);
-    static_indices.push_back(&hasFlux);
-    static_indices.push_back(&hasRiver);
-    static_indices.push_back(&hasSand);
-
-    for (auto& index : soil) {
-        static_indices.push_back(&index);
-    }
-
-    for (auto& index : river_size) {
-        static_indices.push_back(&index);
-    }
-
-    for (auto& index : magma_level) {
-        static_indices.push_back(&index);
-    }
-
-    for (auto& index : adamantine_level) {
-        static_indices.push_back(&index);
-    }
-
-    for (auto& index : savagery_level) {
-        static_indices.push_back(&index);
-    }
-
-    for (auto& index : evilness_level) {
-        static_indices.push_back(&index);
-    }
-}
-
-embark_assist::index::Index::Index(df::world *world): Index() /*capacity(std::ceil(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * 256 / NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL))*/ {
-    const int x = 0;
-}
-
-embark_assist::index::Index::~Index() {
-    this->world = nullptr;
-}
-
-void embark_assist::index::Index::setup(df::world *world, const uint16_t max_inorganic) {
-    this->world = world;
-    this->max_inorganic = max_inorganic;
-    maxKeyValue = world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * 16 * 16;
-    init_inorganic_index();
-    initInorganicNames();
-    keys_in_order.reserve(maxKeyValue);
-    positions.reserve(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y);
-
-    keyMapper = new embark_assist::index::key_position_mapper::KeyPositionMapper(world->world_data->world_width, world->world_data->world_height);
-
-    // FIXME: use Roaring* for all static indices, so that we can construct them like this
-    // hasAquifer = new Roaring(roaring_bitmap_create_with_capacity(260));
-    for (auto *index : static_indices) {
-        // index->roaring = *roaring_bitmap_create_with_capacity(260);
-    }
-}
-
-namespace embark_assist {
-    namespace index {
-        void add2(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, key_buffer_holder &buffer_holder) {
+        void add_to_buffers(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, key_buffer_holder &buffer_holder) {
             if (mlt.aquifer) {
                 buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
             }
@@ -186,8 +122,78 @@ namespace embark_assist {
             // rtd.biome[mlt.biome_offset];
             // biomes[rtd.biome[mlt.biome_offset]].add(key);
         }
+
+        void set_capacity_and_add_to_static_indices(Roaring& index, const uint32_t capacity, std::vector<Roaring*> static_indices) {
+            // sadly the copy constructor of Roaring does not copy the value for allocation_size, so we have to do this manually...
+            ra_init_with_capacity(&index.roaring.high_low_container, capacity);
+            static_indices.push_back(&index);
+        }
     }
 }
+
+embark_assist::index::Index::Index(df::world *world)
+    : capacity(std::ceil(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * NUMBER_OF_EMBARK_TILES / NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL)), 
+    hasAquifer(roaring_bitmap_create_with_capacity(capacity)),
+    hasClay(roaring_bitmap_create_with_capacity(capacity)),
+    hasCoal(roaring_bitmap_create_with_capacity(capacity)),
+    hasFlux(roaring_bitmap_create_with_capacity(capacity)),
+    hasRiver(roaring_bitmap_create_with_capacity(capacity)),
+    hasSand(roaring_bitmap_create_with_capacity(capacity)),
+    uniqueKeys(roaring_bitmap_create_with_capacity(capacity)) {
+
+    this->world = world;
+
+    maxKeyValue = world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * NUMBER_OF_EMBARK_TILES;
+
+    keys_in_order.reserve(maxKeyValue);
+    positions.reserve(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y);
+
+    keyMapper = new embark_assist::index::key_position_mapper::KeyPositionMapper(world->world_data->world_width, world->world_data->world_height);
+
+    static_indices.push_back(&uniqueKeys);
+    static_indices.push_back(&hasAquifer);
+    static_indices.push_back(&hasClay);
+    static_indices.push_back(&hasCoal);
+    static_indices.push_back(&hasFlux);
+    static_indices.push_back(&hasRiver);
+    static_indices.push_back(&hasSand);
+
+    for (auto& index : soil) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : river_size) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : magma_level) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : adamantine_level) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : savagery_level) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : evilness_level) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+}
+
+embark_assist::index::Index::~Index() {
+    this->world = nullptr;
+}
+
+void embark_assist::index::Index::setup(const uint16_t max_inorganic) {
+    this->max_inorganic = max_inorganic;
+
+    init_inorganic_index();
+    initInorganicNames();
+}
+
 
 void embark_assist::index::Index::add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts) {
     color_ostream_proxy out(Core::getInstance().getConsole());
@@ -227,7 +233,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
 
             // uniqueKeys.add(key);
 
-            add2(key, mlt, rtd, buffer_holder);
+            add_to_buffers(key, mlt, rtd, buffer_holder);
 
             //if (mlt.aquifer) {
             //    buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
@@ -280,8 +286,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             uint16_t index = 0;
             for (auto it = mlt.metals.cbegin(); it != mlt.metals.cend(); it++) {
                 if (*it) {
-                    //const int metalIndex = std::distance(begin_metals, it);
-                    //metals[index]->add(key);
                     metalBuffer[index][metalBufferIndex[index]++] = key;
                 }
                 index++;
@@ -291,8 +295,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             index = 0;
             for (auto it = mlt.economics.cbegin(); it != mlt.economics.cend(); it++) {
                 if (*it) {
-                    //const int economicIndex = std::distance(begin_economics, it);
-                    //economics[index]->add(key);
                     economicBuffer[index][economicBufferIndex[index]++] = key;
                 }
                 index++;
@@ -302,7 +304,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             index = 0;
             for (auto it = mlt.minerals.cbegin(); it != mlt.minerals.cend(); it++) {
                 if (*it) {
-                   //  const int mineralIndex = std::distance(begin_minerals, it);
                     const df::inorganic_raw* raw = world->raws.inorganics[index];
                     if (
                         // true || 
@@ -313,7 +314,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
                         raw->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
                         raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
                         raw->flags.is_set(df::inorganic_flags::SOIL)) {
-                        //minerals[index]->add(key);
 
                         mineralBuffer[index][mineralBufferIndex[index]++] = key;
                     }
@@ -763,18 +763,6 @@ uint16_t embark_assist::index::Index::calculate_embark_variants(const uint32_t p
     return embark_counter;
 }
 
-//void query_index() {
-//    //const uint32_t position_id = 0;
-//    // const uint32_t position_id = 255;
-//    const uint32_t position_id = 254;
-//    const uint16_t embark_size_x = 4;
-//    const uint16_t embark_size_y = 4;
-//    std::vector<Roaring> embarks(16);
-//    uint32_t buffer[256];
-//    const int number_of_embark_variants = calculate_embark_variants(position_id, embark_size_x, embark_size_y, embarks, buffer);
-//}
-
-
 /**
 TODO: optimize this memory-wise and return a (smart) iterator - which should be interesting especially in the sister method where more than one index is being processed....
 **/
@@ -787,6 +775,7 @@ const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const Roaring
     return dest;
 }
 
+// FIXME: move this into own class => query_plan_factory
 const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder) const {
     const Index &scope = *this;
     
@@ -805,12 +794,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return hasAquifer.cardinality();
         }, [&hasAquifer, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(hasAquifer);
-            //uint32_t* most_significant_ids = new uint32_t[hasAquifer.cardinality()];
-            //hasAquifer.toUint32Array(most_significant_ids);
-            //const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + hasAquifer.cardinality());
-
-            //delete most_significant_ids;
-            //return dest;
         });
         result->queries.push_back(q);
     }
@@ -826,12 +809,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return magma_level.cardinality();
         }, [&magma_level, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(magma_level);
-            //uint32_t* most_significant_ids = new uint32_t[magma_level.cardinality()];
-            //magma_level.toUint32Array(most_significant_ids);
-            //const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + magma_level.cardinality());
-
-            //delete most_significant_ids;
-            //return dest;
         });
         result->queries.push_back(q);
     }
@@ -847,12 +824,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return evilness_level.cardinality();
         }, [&evilness_level, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(evilness_level);
-            //uint32_t* most_significant_ids = new uint32_t[evilness_level.cardinality()];
-            //evilness_level.toUint32Array(most_significant_ids);
-            //const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + evilness_level.cardinality());
-
-            //delete most_significant_ids;
-            //return dest;
         });
         result->queries.push_back(q);
     }
@@ -867,12 +838,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return metal.cardinality();
         }, [&metal, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(metal);
-            //uint32_t* most_significant_ids = new uint32_t[metal.cardinality()];
-            //metal.toUint32Array(most_significant_ids);
-            //const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + metal.cardinality());
-
-            //delete most_significant_ids;
-            //return dest;
         });
         result->queries.push_back(q);
     }
@@ -887,27 +852,19 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return metal.cardinality();
         }, [&metal, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(metal);
-            //uint32_t* most_significant_ids = new uint32_t[metal.cardinality()];
-            //metal.toUint32Array(most_significant_ids);
-            //const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + metal.cardinality());
-
-            //delete most_significant_ids;
-            //return dest;
         });
         result->queries.push_back(q);
     }
 
+    // move this into the class query_plan to allow for resort during survey iteration phase
     std::sort(result->queries.begin(), result->queries.end(), [](const embark_assist::query::query_interface* a, const embark_assist::query::query_interface* b) -> bool {
         return a->get_number_of_entries() < b->get_number_of_entries();
     });
 
-    //uint32_t* most_significant_ids = new uint32_t[magma_level.cardinality()];
-    //magma_level.toUint32Array(most_significant_ids);
-    //const std::vector<uint32_t> dest(most_significant_ids, most_significant_ids + magma_level.cardinality());
-
     const embark_assist::query::query_interface* first_query = result->queries[0];
     result->set_most_significant_ids(first_query->get_keys());
 
+    // FIXME: keep the query in any case, but move it to an extra "holding place" to be able to move it back if during survey iteration phase queries another query becomes more significant.
     if (first_query->is_to_be_deleted_after_key_extraction()) {
         // remove the first query - as it is being used directly for its keys
         result->queries.erase(result->queries.begin());
@@ -1082,19 +1039,7 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     fclose(outfile);
 }
 
-//Roaring& embark_assist::index::Index::getInorganicsIndex(std::unordered_map<uint16_t, Roaring*> &indexMap, uint16_t metal_index) {
-//    const unordered_map<uint16_t, Roaring*>::iterator it = indexMap.find(metal_index);
-//    if (it != indexMap.end()) {
-//        return *(it->second);
-//    }
-//    Roaring* inorganicIndex = new Roaring();
-//    indexMap.insert(std::pair<uint16_t, Roaring*>(metal_index, inorganicIndex));
-//    // indexMap.at(metal_index) = inorganicIndex;
-//    return *inorganicIndex;
-//}
-
 void embark_assist::index::Index::init_inorganic_index() {
-    const uint32_t starting_capacity = 0;
     metals.resize(max_inorganic, nullptr);
     metalBuffer.resize(max_inorganic, nullptr);
     metalBufferIndex.resize(max_inorganic);
@@ -1102,8 +1047,7 @@ void embark_assist::index::Index::init_inorganic_index() {
         for (uint16_t l = 0; l < world->raws.inorganics[k]->metal_ore.mat_index.size(); l++) {
             const int metalIndex = world->raws.inorganics[k]->metal_ore.mat_index[l];
             if (metals[metalIndex] == nullptr) {
-                //Roaring* inorganicIndex = new Roaring();
-                roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(starting_capacity);
+                roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
                 Roaring* inorganicIndex = new Roaring(rr);
                 metals[metalIndex] = inorganicIndex;
 
@@ -1112,7 +1056,7 @@ void embark_assist::index::Index::init_inorganic_index() {
             }
         }
     }
-    //metals.shrink_to_fit();
+    metals.shrink_to_fit();
 
     economics.resize(max_inorganic, nullptr);
     economicBuffer.resize(max_inorganic, nullptr);
@@ -1120,8 +1064,7 @@ void embark_assist::index::Index::init_inorganic_index() {
     for (int16_t k = 0; k < max_inorganic; k++) {
         if (world->raws.inorganics[k]->economic_uses.size() != 0 && !world->raws.inorganics[k]->material.flags.is_set(df::material_flags::IS_METAL)) {
             if (economics[k] == nullptr) {
-                //Roaring* inorganicIndex = new Roaring();
-                roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(starting_capacity);
+                roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
                 Roaring* inorganicIndex = new Roaring(rr);
                 economics[k] = inorganicIndex;
 
@@ -1130,7 +1073,7 @@ void embark_assist::index::Index::init_inorganic_index() {
             }
         }
     }
-    //economics.shrink_to_fit();
+    economics.shrink_to_fit();
 
     minerals.resize(max_inorganic, nullptr);
     mineralBuffer.resize(max_inorganic, nullptr);
@@ -1147,8 +1090,7 @@ void embark_assist::index::Index::init_inorganic_index() {
              raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
              raw->flags.is_set(df::inorganic_flags::SOIL)) {
         if (minerals[k] == nullptr) {
-            //Roaring* inorganicIndex = new Roaring();
-            roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(starting_capacity);
+            roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
             Roaring* inorganicIndex = new Roaring(rr);
             minerals[k] = inorganicIndex;
 
@@ -1157,11 +1099,10 @@ void embark_assist::index::Index::init_inorganic_index() {
         }
         }
     }
-    //minerals.shrink_to_fit();
+    minerals.shrink_to_fit();
 }
 
 void embark_assist::index::Index::initInorganicNames() {
-    // std::unordered_map<uint16_t, std::string> metalNames
     for (uint16_t k = 0; k < max_inorganic; k++) {
         for (uint16_t l = 0; l < world->raws.inorganics[k]->metal_ore.mat_index.size(); l++) {
             metalNames.insert(std::pair<uint16_t, std::string>(world->raws.inorganics[k]->metal_ore.mat_index[l],

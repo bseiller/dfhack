@@ -9,9 +9,15 @@ namespace embark_assist {
         public:
             virtual bool run(const Roaring &embark_candidate) const = 0;
             virtual uint32_t get_number_of_entries() const = 0;
+            // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
             virtual const std::vector<uint32_t>* get_keys() const = 0;
+            // FIXME: add method to query for significant keys within the key range of a world tile
+            // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
+            // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
+            // FIXME: call this is_to_be_deactivated_after_key_extraction
             virtual bool is_to_be_deleted_after_key_extraction() const = 0;
             virtual void flag_for_keeping() = 0;
+            
         };
 
         template<class Lambda, class Lambda2, class Lambda3>
@@ -39,6 +45,7 @@ namespace embark_assist {
                 return _cardinality_lambda();
             }
 
+            // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
             const std::vector<uint32_t>* get_keys() const {
                 return _keys_lambda();
             }

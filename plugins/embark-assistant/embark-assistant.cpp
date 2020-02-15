@@ -324,7 +324,7 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
     }
 
     embark_assist::survey::setup(embark_assist::main::state->max_inorganic);
-    embark_assist::main::state->index.setup(world, embark_assist::main::state->max_inorganic);
+    embark_assist::main::state->index.setup(embark_assist::main::state->max_inorganic);
     embark_assist::main::state->geo_summary.resize(world_data->geo_biomes.size());
     embark_assist::main::state->survey_results.resize(world->worldgen.worldgen_parms.dim_x);
 

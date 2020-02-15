@@ -32,14 +32,16 @@ namespace embark_assist {
                 // TODO: make this a smart iterator instead of a vector - which would save same memory...
                 virtual const std::vector<uint32_t>& get_most_significant_ids() const = 0;
                 virtual void set_most_significant_ids(const std::vector<uint32_t>* ids) = 0;
+
+                // FIXME: add method to query for a whole world tile...
         };
 
         class Index final : public embark_assist::defs::index_interface {
         public:
             static const uint8_t SOIL_DEPTH_LEVELS = 5;
         private:
-            static const uint32_t numberEmbarkTiles = 16 * 16;
-            static const uint32_t NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL = numberEmbarkTiles * 256 - 1;
+            static const uint32_t NUMBER_OF_EMBARK_TILES = 16 * 16;
+            static const uint32_t NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL = NUMBER_OF_EMBARK_TILES * 256 - 1;
             bool was_optimized_in_current_feature_shell = false;
             df::world *world;
             uint16_t max_inorganic = 0;
@@ -63,7 +65,6 @@ namespace embark_assist {
             Roaring hasRiver;
             Roaring hasSand;
             std::array<Roaring, SOIL_DEPTH_LEVELS> soil;
-            std::vector<Roaring> soil2 = std::vector<Roaring>(SOIL_DEPTH_LEVELS, Roaring(roaring_bitmap_create_with_capacity(capacity)));
             std::array<Roaring, 6> river_size;
             std::array<Roaring, 4> magma_level;
             std::array<Roaring, 4> adamantine_level;
@@ -116,14 +117,14 @@ namespace embark_assist {
             const void outputContents() const;
             const void outputSizes(const string &prefix);
         public:
-            Index();
             Index(df::world *world);
             ~Index();
-            void setup(df::world *world, uint16_t max_inorganic);
+            void setup(uint16_t max_inorganic);
             void shutdown();
             virtual const bool containsEntries() const final override;
             virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) final override;
             virtual void optimize(bool debugOutput) final override;
+            // FIXME: add find variant that allows for a search only in a specific world tile which is needed during survey iteration phase
             virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const final override;
         };
     }
