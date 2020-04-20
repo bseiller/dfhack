@@ -129,6 +129,7 @@ probe
 Can be used to determine tile properties like temperature.
 
 .. _prospect:
+.. _prospector:
 
 prospect
 ========
@@ -311,7 +312,7 @@ Subcommands that persist until disabled or DF quits:
 :import-priority-category:
                         Allows changing the priority of all goods in a
                         category when discussing an import agreement with the liaison
-:kitchen-keys:          Fixes DF kitchen meal keybindings (:bug:`614`)
+:kitchen-prefs-all:     Adds an option to toggle cook/brew for all visible items in kitchen preferences
 :kitchen-prefs-color:   Changes color of enabled items to green in kitchen preferences
 :kitchen-prefs-empty:   Fixes a layout issue with empty kitchen tabs (:bug:`9000`)
 :max-wheelbarrow:       Allows assigning more than 3 wheelbarrows to a stockpile
@@ -328,6 +329,7 @@ Subcommands that persist until disabled or DF quits:
 :nestbox-color:         Fixes the color of built nestboxes
 :shift-8-scroll:        Gives Shift-8 (or :kbd:`*`) priority when scrolling menus, instead of scrolling the map
 :stable-cursor:         Saves the exact cursor position between t/q/k/d/b/etc menus of fortress mode.
+:stone-status-all:      Adds an option to toggle the economic status of all stones
 :title-start-rename:    Adds a safe rename option to the title screen "Start Playing" menu
 :tradereq-pet-gender:   Displays pet genders on the trade request screen
 
@@ -389,6 +391,98 @@ Otherwise somewhat similar to `gui/quickcmd`.
 
 .. image:: images/command-prompt.png
 
+
+.. _debug:
+
+debug
+=====
+Manager for DFHack runtime debug prints. Debug prints are grouped by plugin name,
+category name and print level. Levels are ``trace``, ``debug``, ``info``,
+``warning`` and ``error``.
+
+The runtime message printing is controlled using filters. Filters set the
+visible messages of all matching categories. Matching uses regular expression syntax,
+which allows listing multiple alternative matches or partial name matches.
+This syntax is a C++ version of the ECMA-262 grammar (Javascript regular expressions).
+Details of differences can be found at
+https://en.cppreference.com/w/cpp/regex/ecmascript
+
+Persistent filters are stored in ``dfhack-config/runtime-debug.json``.
+Oldest filters are applied first. That means a newer filter can override the
+older printing level selection.
+
+Usage: ``debugfilter [subcommand] [parameters...]``
+
+The following subcommands are supported:
+
+help
+----
+Give overall help or a detailed help for a subcommand.
+
+Usage: ``debugfilter help [subcommand]``
+
+category
+--------
+List available debug plugin and category names.
+
+Usage: ``debugfilter category [plugin regex] [category regex]``
+
+The list can be filtered using optional regex parameters. If filters aren't
+given then the it uses ``"."`` regex which matches any character. The regex
+parameters are good way to test regex before passing them to ``set``.
+
+filter
+------
+List active and passive debug print level changes.
+
+Usage: ``debugfilter filter [id]``
+
+Optional ``id`` parameter is the id listed as first column in the filter list.
+If id is given then the command shows information for the given filter only in
+multi line format that is better format if filter has long regex.
+
+set
+---
+Creates a new debug filter to set category printing levels.
+
+Usage: ``debugfilter set [level] [plugin regex] [category regex]``
+
+Adds a filter that will be deleted when DF process exists or plugin is unloaded.
+
+Usage: ``debugfilter set persistent [level] [plugin regex] [category regex]``
+
+Stores the filter in the configuration file to until ``unset`` is used to remove
+it.
+
+Level is the minimum debug printing level to show in log.
+
+* ``trace``: Possibly very noisy messages which can be printed many times per second
+
+* ``debug``: Messages that happen often but they should happen only a couple of times per second
+
+* ``info``: Important state changes that happen rarely during normal execution
+
+* ``warning``: Enabled by default. Shows warnings about unexpected events which code managed to handle correctly.
+
+* ``error``: Enabled by default. Shows errors which code can't handle without user intervention.
+
+unset
+-----
+Delete a space separated list of filters
+
+Usage: ``debugfilter unset [id...]``
+
+disable
+-------
+Disable a space separated list of filters but keep it in the filter list
+
+Usage: ``debugfilter disable [id...]``
+
+enable
+------
+Enable a space sperate list of filters
+
+Usage: ``debugfilter enable [id...]``
 
 .. _hotkeys:
 
@@ -467,16 +561,19 @@ directly to the main dwarf mode screen.
 Professions
 -----------
 
-The manipulator plugin supports saving Professions: a named set of Labors labors that can be
-quickly applied to one or multiple Dwarves.
+The manipulator plugin supports saving professions: a named set of labors that can be
+quickly applied to one or multiple dwarves.
 
-To save a Profession highlight a Dwarf and press :kbd:`P`. The Profession will be saved using
-the Custom Profession Name of the Dwarf, or the default for that Dwarf if no Custom Profession
-Name has been set.
+To save a profession, highlight a dwarf and press :kbd:`P`. The profession will be saved using
+the custom profession name of the dwarf, or the default for that dwarf if no custom profession
+name has been set.
 
-To apply a Profession either highlight a single Dwarf, or select multiple with :kbd:`x`, and press
-:kbd:`p` to select the Profession to apply. All labors for the selected Dwarves will be reset to
-the labors of the chosen Profession.
+To apply a profession, either highlight a single dwarf or select multiple with
+:kbd:`x`, and press :kbd:`p` to select the profession to apply. All labors for
+the selected dwarves will be reset to the labors of the chosen profession.
+
+Professions are saved as human-readable text files in the "professions" folder
+within the DF folder, and can be edited or deleted there.
 
 .. comment - the link target "search" is reserved for the Sphinx search page
 .. _search-plugin:
@@ -526,6 +623,18 @@ nopause
 =======
 Disables pausing (both manual and automatic) with the exception of pause forced
 by `reveal` ``hell``. This is nice for digging under rivers.
+
+.. _embark-assistant:
+
+embark-assistant
+================
+
+This plugin provides embark site selection help. It has to be run with the
+``embark-assistant`` command while the pre-embark screen is displayed and shows
+extended (and correct(?)) resource information for the embark rectangle as well
+as normally undisplayed sites in the current embark region. It also has a site
+selection tool with more options than DF's vanilla search tool. For detailed
+help invoke the in game info screen.
 
 .. _embark-tools:
 
@@ -710,8 +819,8 @@ Replaces the DF stocks screen with an improved version.
 .. _stocksettings:
 .. _stockpiles:
 
-stocksettings
-=============
+stockpiles
+==========
 Offers the following commands to save and load stockpile settings.
 See `gui/stockpiles` for an in-game interface.
 
@@ -1046,6 +1155,9 @@ autogems
 Creates a new Workshop Order setting, automatically cutting rough gems
 when `enabled <enable>`.
 
+See `gui/autogems` for a configuration UI. If necessary, the ``autogems-reload``
+command reloads the configuration file produced by that script.
+
 .. _stockflow:
 
 stockflow
@@ -1368,7 +1480,7 @@ Some widgets support additional options:
 .. _dwarfvet:
 
 dwarfvet
-============
+========
 Enables Animal Caretaker functionality
 
 Always annoyed your dragons become useless after a minor injury? Well, with
@@ -1711,6 +1823,70 @@ Subcommands:
 :import NAME: Imports manager orders from a file named ``dfhack-config/orders/NAME.json``.
 :clear: Deletes all manager orders in the current embark.
 
+.. _nestboxes:
+
+nestboxes
+=========
+
+Automatically scan for and forbid fertile eggs incubating in a nestbox.
+Toggle status with `enable` or `disable <disable>`.
+
+.. _tailor:
+
+tailor
+======
+
+Whenever the bookkeeper updates stockpile records, this plugin will scan every unit in the fort,
+count up the number that are worn, and then order enough more made to replace all worn items.
+If there are enough replacement items in inventory to replace all worn items, the units wearing them
+will have the worn items confiscated (in the same manner as the `cleanowned` plugin) so that they'll
+reeequip with replacement items.
+
+Use the `enable` and `disable <disable>` commands to toggle this plugin's status, or run
+``tailor status`` to check its current status.
+
+.. _autoclothing:
+
+autoclothing
+============
+
+Automatically manage clothing work orders, allowing the user to set how many of
+each clothing type every citizen should have. Usage::
+
+    autoclothing <material> <item> [number]
+
+Examples:
+
+* ``autoclothing cloth "short skirt" 10``:
+    Sets the desired number of cloth short skirts available per citizen to 10.
+* ``autoclothing cloth dress``:
+    Displays the currently set number of cloth dresses chosen per citizen.
+
+.. _autofarm:
+
+autofarm
+========
+
+Automatically handles crop selection in farm plots based on current plant
+stocks, and selects crops for planting if current stock is below a threshold.
+Selected crops are dispatched on all farmplots. (Note that this plugin replaces
+an older Ruby script of the same name.)
+
+Use the `enable` or `disable <disable>` commands to change whether this plugin is
+enabled.
+
+Usage:
+
+* ``autofarm runonce``:
+    Updates all farm plots once, without enabling the plugin
+* ``autofarm status``:
+    Prints status information, including any applied limits
+* ``autofarm default 30``:
+    Sets the default threshold
+* ``autofarm threshold 150 helmet_plump tail_pig``:
+    Sets thresholds of individual plants
+
+
 ================
 Map modification
 ================
@@ -1916,6 +2092,10 @@ all 'down ramps' that can remain after a cave-in (you don't have to designate
 anything for that to happen).
 
 .. _dig:
+.. _digv:
+.. _digvx:
+.. _digl:
+.. _diglx:
 
 dig
 ===
@@ -1930,6 +2110,13 @@ Basic commands:
 :diglx:     Also cross z-levels, digging stairs as needed.  Alias for ``digl x``.
 
 :dfhack-keybind:`digv`
+
+.. note::
+
+    All commands implemented by the `dig` plugin (listed by ``ls dig``) support
+    specifying the designation priority with ``-p#``, ``-p #``, or ``p=#``,
+    where ``#`` is a number from 1 to 7. If a priority is not specified, the
+    priority selected in-game is used as the default.
 
 .. _digexp:
 
@@ -2111,15 +2298,26 @@ by spaces.
 
 Options:
 
-:-t: Select trees only (exclude shrubs)
-:-s: Select shrubs only (exclude trees)
-:-c: Clear designations instead of setting them
-:-x: Apply selected action to all plants except those specified (invert
+:``-t``: Select trees only (exclude shrubs)
+:``-s``: Select shrubs only (exclude trees)
+:``-c``: Clear designations instead of setting them
+:``-x``: Apply selected action to all plants except those specified (invert
      selection)
-:-a: Select every type of plant (obeys ``-t``/``-s``)
+:``-a``: Select every type of plant (obeys ``-t``/``-s``)
+:``-v``: Lists the number of (un)designations per plant
 
 Specifying both ``-t`` and ``-s`` will have no effect. If no plant IDs are specified,
 all valid plant IDs will be listed.
+
+.. note::
+
+    DF is capable of determining that a shrub has already been picked, leaving
+    an unusable structure part behind. This plugin does not perform such a check
+    (as the location of the required information has not yet been identified).
+    This leads to some shrubs being designated when they shouldn't be, causing a
+    plant gatherer to walk there and do nothing (except clearing the
+    designation). See :issue:`1479` for details.
+
 
 .. _infiniteSky:
 
@@ -2135,8 +2333,10 @@ Usage:
 ``infiniteSky enable/disable``
   Enables/disables monitoring of constructions. If you build anything in the second to highest z-level, it will allocate one more sky level. This is so you can continue to build stairs upward.
 
-:issue:`Sometimes <254>` new z-levels disappear and cause cave-ins.
-Saving and loading after creating new z-levels should fix the problem.
+.. warning::
+
+    :issue:`Sometimes <254>` new z-levels disappear and cause cave-ins.
+    Saving and loading after creating new z-levels should fix the problem.
 
 .. _liquids:
 
@@ -2707,3 +2907,15 @@ can easily result in inconsistent state once this plugin is
 available again. The effects may be as weird as negative power
 being generated.
 
+=======
+Lua API
+=======
+
+Some plugins consist solely of native libraries exposed to Lua. They are listed
+in the `lua-api` file under `lua-plugins`:
+
+* `eventful`
+* `building-hacks`
+* `luasocket`
+* `map-render`
+* `cxxrandom`

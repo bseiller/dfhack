@@ -49,7 +49,6 @@ using namespace DFHack;
 using namespace std;
 
 #include "tinythread.h"
-using namespace tthread;
 
 #include <assert.h>
 
@@ -83,8 +82,8 @@ struct Plugin::RefLock
     RefLock()
     {
         refcount = 0;
-        wakeup = new condition_variable();
-        mut = new mutex();
+        wakeup = new tthread::condition_variable();
+        mut = new tthread::mutex();
     }
     ~RefLock()
     {
@@ -119,8 +118,8 @@ struct Plugin::RefLock
             wakeup->wait(*mut);
         }
     }
-    condition_variable * wakeup;
-    mutex * mut;
+    tthread::condition_variable * wakeup;
+    tthread::mutex * mut;
     int refcount;
 };
 
@@ -198,6 +197,9 @@ Plugin::Plugin(Core * core, const std::string & path,
     plugin_rpcconnect = 0;
     plugin_enable = 0;
     plugin_is_enabled = 0;
+    plugin_save_data = 0;
+    plugin_load_data = 0;
+    plugin_eval_ruby = 0;
     state = PS_UNLOADED;
     access = new RefLock();
 }
@@ -276,6 +278,7 @@ bool Plugin::load(color_ostream &con)
 
     plugin_check_symbol("plugin_name")
     plugin_check_symbol("plugin_version")
+    plugin_check_symbol("plugin_abi_version")
     plugin_check_symbol("plugin_self")
     plugin_check_symbol("plugin_init")
     plugin_check_symbol("plugin_globals")
@@ -287,11 +290,19 @@ bool Plugin::load(color_ostream &con)
         return false;
     }
     const char ** plug_version =(const char ** ) LookupPlugin(plug, "plugin_version");
+    const int *plugin_abi_version = (int*) LookupPlugin(plug, "plugin_abi_version");
     const char ** plug_git_desc_ptr = (const char**) LookupPlugin(plug, "plugin_git_description");
     Plugin **plug_self = (Plugin**)LookupPlugin(plug, "plugin_self");
     const char *dfhack_version = Version::dfhack_version();
     const char *dfhack_git_desc = Version::git_description();
     const char *plug_git_desc = plug_git_desc_ptr ? *plug_git_desc_ptr : "unknown";
+    if (*plugin_abi_version != Version::dfhack_abi_version())
+    {
+        con.printerr("Plugin %s: ABI version mismatch (Plugin: %i, DFHack: %i)\n",
+            *plug_name, *plugin_abi_version, Version::dfhack_abi_version());
+        plugin_abort_load;
+        return false;
+    }
     if (strcmp(dfhack_version, *plug_version) != 0)
     {
         con.printerr("Plugin %s was not built for this version of DFHack.\n"
@@ -340,6 +351,8 @@ bool Plugin::load(color_ostream &con)
     plugin_rpcconnect = (RPCService* (*)(color_ostream &)) LookupPlugin(plug, "plugin_rpcconnect");
     plugin_enable = (command_result (*)(color_ostream &,bool)) LookupPlugin(plug, "plugin_enable");
     plugin_is_enabled = (bool*) LookupPlugin(plug, "plugin_is_enabled");
+    plugin_save_data = (command_result (*)(color_ostream &)) LookupPlugin(plug, "plugin_save_data");
+    plugin_load_data = (command_result (*)(color_ostream &)) LookupPlugin(plug, "plugin_load_data");
     plugin_eval_ruby = (command_result (*)(color_ostream &, const char*)) LookupPlugin(plug, "plugin_eval_ruby");
     index_lua(plug);
     plugin_lib = plug;
@@ -351,6 +364,8 @@ bool Plugin::load(color_ostream &con)
         parent->registerCommands(this);
         if ((plugin_onupdate || plugin_enable) && !plugin_is_enabled)
             con.printerr("Plugin %s has no enabled var!\n", name.c_str());
+        if (Core::getInstance().isWorldLoaded() && plugin_load_data && plugin_load_data(con) != CR_OK)
+            con.printerr("Plugin %s has failed to load saved data.\n", name.c_str());
         fprintf(stderr, "loaded plugin %s; DFHack build %s\n", name.c_str(), plug_git_desc);
         fflush(stderr);
         return true;
@@ -395,6 +410,8 @@ bool Plugin::unload(color_ostream &con)
         // enter suspend
         CoreSuspender suspend;
         access->lock();
+        if (Core::getInstance().isWorldLoaded() && plugin_save_data && plugin_save_data(con) != CR_OK)
+            con.printerr("Plugin %s has failed to save data.\n", name.c_str());
         // notify plugin about shutdown, if it has a shutdown function
         command_result cr = CR_OK;
         if(plugin_shutdown)
@@ -402,6 +419,8 @@ bool Plugin::unload(color_ostream &con)
         // cleanup...
         plugin_is_enabled = 0;
         plugin_onupdate = 0;
+        plugin_save_data = 0;
+        plugin_load_data = 0;
         reset_lua();
         parent->unregisterCommands(this);
         commands.clear();
@@ -557,6 +576,32 @@ command_result Plugin::on_state_change(color_ostream &out, state_change_event ev
     {
         cr = plugin_onstatechange(out, event);
         Lua::Core::Reset(out, "plugin_onstatechange");
+    }
+    access->lock_sub();
+    return cr;
+}
+
+command_result Plugin::save_data(color_ostream &out)
+{
+    command_result cr = CR_NOT_IMPLEMENTED;
+    access->lock_add();
+    if(state == PS_LOADED && plugin_save_data)
+    {
+        cr = plugin_save_data(out);
+        Lua::Core::Reset(out, "plugin_save_data");
+    }
+    access->lock_sub();
+    return cr;
+}
+
+command_result Plugin::load_data(color_ostream &out)
+{
+    command_result cr = CR_NOT_IMPLEMENTED;
+    access->lock_add();
+    if(state == PS_LOADED && plugin_load_data)
+    {
+        cr = plugin_load_data(out);
+        Lua::Core::Reset(out, "plugin_load_data");
     }
     access->lock_sub();
     return cr;
@@ -777,8 +822,8 @@ void Plugin::push_function(lua_State *state, LuaFunction *fn)
 
 PluginManager::PluginManager(Core * core) : core(core)
 {
-    plugin_mutex = new recursive_mutex();
-    cmdlist_mutex = new mutex();
+    plugin_mutex = new tthread::recursive_mutex();
+    cmdlist_mutex = new tthread::mutex();
     ruby = NULL;
 }
 
@@ -797,6 +842,25 @@ PluginManager::~PluginManager()
 void PluginManager::init()
 {
     loadAll();
+
+    bool any_loaded = false;
+    for (auto p : all_plugins)
+    {
+        if (p.second->getState() == Plugin::PS_LOADED)
+        {
+            any_loaded = true;
+            break;
+        }
+    }
+    if (!any_loaded && !listPlugins().empty())
+    {
+        Core::printerr("\n"
+"All plugins present failed to load.\n"
+"If you are using Windows XP, this is probably due to a Visual Studio 2015 bug.\n"
+"Windows XP is unsupported by Microsoft as of 2014, so we do not support it.\n\n"
+"If this was unexpected and you are not using Windows XP, please report this.\n\n"
+        );
+    }
 }
 
 bool PluginManager::addPlugin(string name)
@@ -985,6 +1049,28 @@ void PluginManager::unregisterCommands( Plugin * p )
     if (p->plugin_eval_ruby)
         ruby = NULL;
     cmdlist_mutex->unlock();
+}
+
+void PluginManager::doSaveData(color_ostream &out)
+{
+    for (auto it = begin(); it != end(); ++it)
+    {
+        command_result cr = it->second->save_data(out);
+
+        if (cr != CR_OK && cr != CR_NOT_IMPLEMENTED)
+            out.printerr("Plugin %s has failed to save data.\n", it->first.c_str());
+    }
+}
+
+void PluginManager::doLoadData(color_ostream &out)
+{
+    for (auto it = begin(); it != end(); ++it)
+    {
+        command_result cr = it->second->load_data(out);
+
+        if (cr != CR_OK && cr != CR_NOT_IMPLEMENTED)
+            out.printerr("Plugin %s has failed to load saved data.\n", it->first.c_str());
+    }
 }
 
 Plugin *PluginManager::operator[] (std::string name)

@@ -592,11 +592,10 @@ bool DFHack::isStoneInorganic(int material)
     return true;
 }
 
-Module* DFHack::createMaterials()
+std::unique_ptr<Module> DFHack::createMaterials()
 {
-    return new Materials();
+    return dts::make_unique<Materials>();
 }
-
 
 Materials::Materials()
 {
@@ -733,7 +732,7 @@ bool Materials::ReadOthers(void)
 
 bool Materials::ReadDescriptorColors (void)
 {
-    size_t size = world->raws.language.colors.size();
+    size_t size = world->raws.descriptors.colors.size();
 
     color.clear();
     if(size == 0)
@@ -741,7 +740,7 @@ bool Materials::ReadDescriptorColors (void)
     color.reserve(size);
     for (size_t i = 0; i < size;i++)
     {
-        df::descriptor_color *c = world->raws.language.colors[i];
+        df::descriptor_color *c = world->raws.descriptors.colors[i];
         t_descriptor_color col;
         col.id = c->id;
         col.name = c->name;
@@ -751,13 +750,13 @@ bool Materials::ReadDescriptorColors (void)
         color.push_back(col);
     }
 
-    size = world->raws.language.patterns.size();
+    size = world->raws.descriptors.patterns.size();
     alldesc.clear();
     alldesc.reserve(size);
     for (size_t i = 0; i < size;i++)
     {
         t_matgloss mat;
-        mat.id = world->raws.language.patterns[i]->id;
+        mat.id = world->raws.descriptors.patterns[i]->id;
         alldesc.push_back(mat);
     }
     return true;

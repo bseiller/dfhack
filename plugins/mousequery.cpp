@@ -46,7 +46,10 @@ static bool live_view = true;
 static bool skip_tracking_once = false;
 static bool mouse_moved = false;
 
-static int scroll_delay = 100;
+static uint32_t scroll_delay = 100;
+
+static bool awaiting_lbut_up, awaiting_rbut_up;
+static enum { None, Left, Right } drag_mode;
 
 static df::coord get_mouse_pos(int32_t &mx, int32_t &my)
 {
@@ -92,7 +95,7 @@ static vector<df::unit *> get_units_at(const df::coord pos, bool only_one)
 
     df::unit_flags1 bad_flags;
     bad_flags.whole = 0;
-    bad_flags.bits.dead = true;
+    bad_flags.bits.inactive = true;
     bad_flags.bits.hidden_ambusher = true;
     bad_flags.bits.hidden_in_ambush = true;
 
@@ -231,9 +234,10 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
 
         case Burrows:
             return ui->burrows.in_define_mode;
-        };
 
-        return false;
+        default:
+            return false;
+        }
     }
 
     bool isInTrackableMode()
@@ -292,6 +296,157 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
         return false;
     }
 
+    bool handleLeft(df::coord &mpos, int32_t mx, int32_t my)
+    {
+        if (!(Core::getInstance().getModstate() & DFH_MOD_SHIFT))
+            mpos.z += Gui::getDepthAt(mx, my);
+
+        bool cursor_still_here = (last_clicked_x == mpos.x && last_clicked_y == mpos.y && last_clicked_z == mpos.z);
+        last_clicked_x = mpos.x;
+        last_clicked_y = mpos.y;
+        last_clicked_z = mpos.z;
+
+        df::interface_key key = interface_key::NONE;
+        bool designationMode = false;
+        bool skipRefresh = false;
+
+        if (isInTrackableMode())
+        {
+            designationMode = true;
+            key = df::interface_key::SELECT;
+        }
+        else
+        {
+            switch (ui->main.mode)
+            {
+            case QueryBuilding:
+                if (cursor_still_here)
+                    key = df::interface_key::D_BUILDITEM;
+                break;
+
+            case BuildingItems:
+                if (cursor_still_here)
+                    key = df::interface_key::D_VIEWUNIT;
+                break;
+
+            case ViewUnits:
+                if (cursor_still_here)
+                    key = df::interface_key::D_LOOK;
+                break;
+
+            case LookAround:
+                if (cursor_still_here)
+                    key = df::interface_key::D_BUILDJOB;
+                break;
+
+            case Build:
+                if (ui_build_selector)
+                {
+                    if (ui_build_selector->stage < 2)
+                    {
+                        designationMode = true;
+                        key = df::interface_key::SELECT;
+                    }
+                    else
+                    {
+                        designationMode = true;
+                        skipRefresh = true;
+                        key = df::interface_key::SELECT_ALL;
+                    }
+                }
+                break;
+
+            case Default:
+                break;
+
+            default:
+                return false;
+            }
+        }
+
+        enabler->mouse_lbut = 0;
+
+        // Can't check limits earlier as we must be sure we are in query or default mode
+        // (so we can clear the button down flag)
+        auto dims = Gui::getDwarfmodeViewDims();
+        if (mx < 1 || mx > dims.map_x2 || my < 1 || my > dims.map_y2)
+            return false;
+
+        if (ui->main.mode == df::ui_sidebar_mode::Zones ||
+            ui->main.mode == df::ui_sidebar_mode::Stockpiles)
+        {
+            int32_t x, y, z;
+            if (Gui::getDesignationCoords(x, y, z))
+            {
+                auto dX = abs(x - mpos.x);
+                if (dX > 30)
+                    return false;
+
+                auto dY = abs(y - mpos.y);
+                if (dY > 30)
+                    return false;
+            }
+        }
+
+        if (!designationMode)
+        {
+            Gui::resetDwarfmodeView();
+
+            if (key == interface_key::NONE)
+                key = get_default_query_mode(mpos);
+
+            sendKey(key);
+        }
+
+        if (!skipRefresh)
+        {
+            // Force UI refresh
+            moveCursor(mpos, true);
+        }
+
+        if (designationMode)
+            sendKey(key);
+
+        return true;
+    }
+
+    bool handleRight(df::coord &mpos, int32_t mx, int32_t my)
+    {
+        if (isInDesignationMenu() && !box_designation_enabled)
+            return false;
+
+        // Escape out of query mode
+        enabler->mouse_rbut_down = 0;
+        enabler->mouse_rbut = 0;
+
+        using namespace df::enums::ui_sidebar_mode;
+        if ((ui->main.mode == QueryBuilding || ui->main.mode == BuildingItems ||
+            ui->main.mode == ViewUnits || ui->main.mode == LookAround) ||
+            (isInTrackableMode() && tracking_enabled))
+        {
+            sendKey(df::interface_key::LEAVESCREEN);
+        }
+        else
+        {
+            auto dims = Gui::getDwarfmodeViewDims();
+            int scroll_trigger_x = dims.menu_x1 / 3;
+            int scroll_trigger_y = gps->dimy / 3;
+            if (mx < scroll_trigger_x)
+                sendKey(interface_key::CURSOR_LEFT_FAST);
+
+            if (mx > dims.map_x2 - scroll_trigger_x)
+                sendKey(interface_key::CURSOR_RIGHT_FAST);
+
+            if (my < scroll_trigger_y)
+                sendKey(interface_key::CURSOR_UP_FAST);
+
+            if (my > dims.map_y2 - scroll_trigger_y)
+                sendKey(interface_key::CURSOR_DOWN_FAST);
+        }
+
+        return false;
+    }
+
     bool handleMouse(const set<df::interface_key> *input)
     {
         int32_t mx, my;
@@ -299,152 +454,27 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
         if (mpos.x == -30000)
             return false;
 
-        auto dims = Gui::getDwarfmodeViewDims();
         if (enabler->mouse_lbut)
         {
-            bool cursor_still_here = (last_clicked_x == mpos.x && last_clicked_y == mpos.y && last_clicked_z == mpos.z);
-            last_clicked_x = mpos.x;
-            last_clicked_y = mpos.y;
-            last_clicked_z = mpos.z;
-
-            df::interface_key key = interface_key::NONE;
-            bool designationMode = false;
-            bool skipRefresh = false;
-
-            if (isInTrackableMode())
+            if (drag_mode == Left)
             {
-                designationMode = true;
-                key = df::interface_key::SELECT;
+                awaiting_lbut_up = true;
+                enabler->mouse_lbut = false;
+                last_move_pos = mpos;
             }
             else
-            {
-                switch (ui->main.mode)
-                {
-                case QueryBuilding:
-                    if (cursor_still_here)
-                        key = df::interface_key::D_BUILDITEM;
-                    break;
-
-                case BuildingItems:
-                    if (cursor_still_here)
-                        key = df::interface_key::D_VIEWUNIT;
-                    break;
-
-                case ViewUnits:
-                    if (cursor_still_here)
-                        key = df::interface_key::D_LOOK;
-                    break;
-
-                case LookAround:
-                    if (cursor_still_here)
-                        key = df::interface_key::D_BUILDJOB;
-                    break;
-
-                case Build:
-                    if (ui_build_selector)
-                    {
-                        if (ui_build_selector->stage < 2)
-                        {
-                            designationMode = true;
-                            key = df::interface_key::SELECT;
-                        }
-                        else
-                        {
-                            designationMode = true;
-                            skipRefresh = true;
-                            key = df::interface_key::SELECT_ALL;
-                        }
-                    }
-                    break;
-
-                case Default:
-                    break;
-
-                default:
-                    return false;
-                }
-            }
-
-            enabler->mouse_lbut = 0;
-
-            // Can't check limits earlier as we must be sure we are in query or default mode
-            // (so we can clear the button down flag)
-            int right_bound = (dims.menu_x1 > 0) ? dims.menu_x1 - 2 : gps->dimx - 2;
-            if (mx < 1 || mx > right_bound || my < 1 || my > gps->dimy - 2)
-                return false;
-
-            if (ui->main.mode == df::ui_sidebar_mode::Zones ||
-                ui->main.mode == df::ui_sidebar_mode::Stockpiles)
-            {
-                int32_t x, y, z;
-                if (Gui::getDesignationCoords(x, y, z))
-                {
-                    auto dX = abs(x - mpos.x);
-                    if (dX > 30)
-                        return false;
-
-                    auto dY = abs(y - mpos.y);
-                    if (dY > 30)
-                        return false;
-                }
-            }
-
-            if (!designationMode)
-            {
-                while (ui->main.mode != Default)
-                {
-                    sendKey(df::interface_key::LEAVESCREEN);
-                }
-
-                if (key == interface_key::NONE)
-                    key = get_default_query_mode(mpos);
-
-                sendKey(key);
-            }
-
-            if (!skipRefresh)
-            {
-                // Force UI refresh
-                moveCursor(mpos, true);
-            }
-
-            if (designationMode)
-                sendKey(key);
-
-            return true;
+                return handleLeft(mpos, mx, my);
         }
-        else if (rbutton_enabled && enabler->mouse_rbut)
+        else if (enabler->mouse_rbut)
         {
-            if (isInDesignationMenu() && !box_designation_enabled)
-                return false;
-
-            // Escape out of query mode
-            enabler->mouse_rbut_down = 0;
-            enabler->mouse_rbut = 0;
-
-            using namespace df::enums::ui_sidebar_mode;
-            if ((ui->main.mode == QueryBuilding || ui->main.mode == BuildingItems ||
-                ui->main.mode == ViewUnits || ui->main.mode == LookAround) ||
-                (isInTrackableMode() && tracking_enabled))
+            if (drag_mode == Right)
             {
-                sendKey(df::interface_key::LEAVESCREEN);
+                awaiting_rbut_up = true;
+                enabler->mouse_rbut = false;
+                last_move_pos = mpos;
             }
-            else
-            {
-                int scroll_trigger_x = dims.menu_x1 / 3;
-                int scroll_trigger_y = gps->dimy / 3;
-                if (mx < scroll_trigger_x)
-                    sendKey(interface_key::CURSOR_LEFT_FAST);
-
-                if (mx > ((dims.menu_x1 > 0) ? dims.menu_x1 : gps->dimx) - scroll_trigger_x)
-                    sendKey(interface_key::CURSOR_RIGHT_FAST);
-
-                if (my < scroll_trigger_y)
-                    sendKey(interface_key::CURSOR_UP_FAST);
-
-                if (my > gps->dimy - scroll_trigger_y)
-                    sendKey(interface_key::CURSOR_DOWN_FAST);
-            }
+            else if (rbutton_enabled)
+                return handleRight(mpos, mx, my);
         }
         else if (input->count(interface_key::CUSTOM_ALT_M) && isInDesignationMenu())
         {
@@ -541,12 +571,11 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
         static decltype(enabler->clock) last_t = 0;
 
         auto dims = Gui::getDwarfmodeViewDims();
-        auto right_margin = (dims.menu_x1 > 0) ? dims.menu_x1 : gps->dimx;
 
         int32_t mx, my;
         auto mpos = get_mouse_pos(mx, my);
         bool mpos_valid = mpos.x != -30000 && mpos.y != -30000 && mpos.z != -30000;
-        if (mx < 1 || mx > right_margin - 2 || my < 1 || my > gps->dimy - 2)
+        if (mx < 1 || mx > dims.map_x2 || my < 1 || my > dims.map_y2)
             mpos_valid = false;
 
         // Check if in lever binding mode
@@ -556,10 +585,39 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
             return;
         }
 
+        if (awaiting_lbut_up && !enabler->mouse_lbut_down)
+        {
+            awaiting_lbut_up = false;
+            handleLeft(mpos, mx, my);
+        }
+
+        if (awaiting_rbut_up && !enabler->mouse_rbut_down)
+        {
+            awaiting_rbut_up = false;
+            if (rbutton_enabled)
+                handleRight(mpos, mx, my);
+        }
+
         if (mpos_valid)
         {
             if (mpos.x != last_move_pos.x || mpos.y != last_move_pos.y || mpos.z != last_move_pos.z)
             {
+                awaiting_lbut_up = false;
+                awaiting_rbut_up = false;
+
+                if ((enabler->mouse_lbut_down && drag_mode == Left) || (enabler->mouse_rbut_down && drag_mode == Right))
+                {
+                    int newx = (*df::global::window_x) - (mpos.x - last_move_pos.x);
+                    int newy = (*df::global::window_y) - (mpos.y - last_move_pos.y);
+
+                    newx = std::max(0, std::min(newx, world->map.x_count - dims.map_x2+1));
+                    newy = std::max(0, std::min(newy, world->map.y_count - dims.map_y2+1));
+
+                    (*df::global::window_x) = newx;
+                    (*df::global::window_y) = newy;
+                    return;
+                }
+
                 mouse_moved = true;
                 last_move_pos = mpos;
             }
@@ -623,7 +681,7 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
                 return;
             }
 
-            if (mx > right_margin - scroll_buffer)
+            if (mx > dims.map_x2 - scroll_buffer)
             {
                 sendKey(interface_key::CURSOR_RIGHT);
                 return;
@@ -635,7 +693,7 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
                 return;
             }
 
-            if (my > gps->dimy - scroll_buffer)
+            if (my > dims.map_y2 - scroll_buffer)
             {
                 sendKey(interface_key::CURSOR_DOWN);
                 return;
@@ -672,12 +730,16 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
         if (shouldTrack())
         {
             if (delta_t <= scroll_delay && (mx < scroll_buffer ||
-                mx > dims.menu_x1 - scroll_buffer ||
+                mx > dims.map_x2 - scroll_buffer ||
                 my < scroll_buffer ||
-                my > gps->dimy - scroll_buffer))
+                my > dims.map_y2 - scroll_buffer))
             {
                 return;
             }
+
+            // Don't change levels
+            if (mpos.z != *df::global::window_z)
+                return;
 
             last_t = enabler->clock;
             moveCursor(mpos, false);
@@ -700,6 +762,14 @@ struct mousequery_hook : public df::viewscreen_dwarfmodest
         int look_list = ulist.size() + ((bld) ? 1 : 0) + ilist.size() + 1;
         set_to_limit(look_list, 8);
         int disp_y = gps->dimy - look_list - 2;
+
+        if (mpos.z != *df::global::window_z)
+        {
+            int y = gps->dimy - 2;
+            char buf[6];
+            sprintf(buf, "@%d", mpos.z - *df::global::window_z);
+            OutputString(COLOR_GREY, disp_x, y, buf, true, left_margin);
+        }
 
         int c = 0;
         for (auto it = ulist.begin(); it != ulist.end() && c < 8; it++, c++)
@@ -764,26 +834,44 @@ static command_result mousequery_cmd(color_ostream &out, vector <string> & param
         else if (cmd[0] == 'p')
         {
             plugin_enabled = (state == "enable");
+            out << "mousequery: plugin " << (plugin_enabled ? "enabled" : "disabled") << endl;
         }
         else if (cmd[0] == 'r')
         {
             rbutton_enabled = (state == "enable");
+            out << "mousequery: rbutton " << (rbutton_enabled ? "enabled" : "disabled") << endl;
         }
         else if (cmd[0] == 't')
         {
             tracking_enabled = (state == "enable");
-            if (!tracking_enabled)
+            if (!tracking_enabled) {
+                out << "mousequery: edge scrolling disabled" << endl;
                 active_scrolling = false;
+            }
+            out << "mousequery: tracking " << (tracking_enabled ? "enabled" : "disabled") << endl;
         }
         else if (cmd[0] == 'e')
         {
             active_scrolling = (state == "enable");
-            if (active_scrolling)
+            if (active_scrolling) {
+                out << "mousequery: tracking enabled" << endl;
                 tracking_enabled = true;
+            }
+            out << "mousequery: edge scrolling " << (active_scrolling ? "enabled" : "disabled") << endl;
         }
         else if (cmd[0] == 'l')
         {
             live_view = (state == "enable");
+            out << "mousequery: live view " << (live_view ? "enabled" : "disabled") << endl;
+        }
+        else if (cmd == "drag")
+        {
+            if (state == "left")
+                drag_mode = Left;
+            else if (state == "right")
+                drag_mode = Right;
+            else if (state == "disable")
+                drag_mode = None;
         }
         else if (cmd[0] == 'd')
         {
@@ -830,12 +918,14 @@ DFhackCExport command_result plugin_init ( color_ostream &out, std::vector <Plug
         PluginCommand(
         "mousequery", "Add mouse functionality to Dwarf Fortress",
         mousequery_cmd, false,
-        "mousequery [plugin|rbutton|track|edge|live] [enabled|disabled]\n"
+        "mousequery [plugin|rbutton|track|edge|live] [enable|disable]\n"
         "  plugin: enable/disable the entire plugin\n"
         "  rbutton: enable/disable right mouse button\n"
         "  track: enable/disable moving cursor in build and designation mode\n"
         "  edge: enable/disable active edge scrolling (when on, will also enable tracking)\n"
         "  live: enable/disable query view when unpaused\n\n"
+        "mousequery drag [left|right|disable]\n"
+        "  Enable/disable map dragging with the specified mouse button\n\n"
         "mousequery delay <amount>\n"
         "  Set delay when edge scrolling in tracking mode. Omit amount to display current setting.\n"
         ));

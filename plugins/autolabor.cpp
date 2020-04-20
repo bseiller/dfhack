@@ -373,7 +373,8 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* MakeRing */,
     BUSY /* MakeEarring */,
     BUSY /* MakeBracelet */,
-    BUSY /* MakeGem */
+    BUSY /* MakeGem */,
+    BUSY /* PutItemOnDisplay */,
 };
 
 struct labor_info
@@ -605,7 +606,7 @@ static void init_state()
     {
         string key = p->key();
         df::unit_labor labor = (df::unit_labor) atoi(key.substr(strlen("autolabor/labors/")).c_str());
-        if (labor >= 0 && labor <= labor_infos.size())
+        if (labor >= 0 && size_t(labor) < labor_infos.size())
         {
             labor_infos[labor].config = *p;
             labor_infos[labor].is_exclusive = default_labor_infos[labor].is_exclusive;
@@ -614,7 +615,7 @@ static void init_state()
     }
 
     // Add default labors for those not in save
-    for (int i = 0; i < ARRAY_COUNT(default_labor_infos); i++) {
+    for (size_t i = 0; i < ARRAY_COUNT(default_labor_infos); i++) {
         if (labor_infos[i].config.isValid())
             continue;
 
@@ -959,7 +960,7 @@ static void assign_labor(unit_labor::unit_labor labor,
          * Military and children/nobles will not have labors assigned.
          * Dwarfs with the "health management" responsibility are always assigned DIAGNOSIS.
          */
-        for (int i = 0; i < candidates.size() && labor_infos[labor].active_dwarfs < max_dwarfs; i++)
+        for (size_t i = 0; i < candidates.size() && labor_infos[labor].active_dwarfs < max_dwarfs; i++)
         {
             int dwarf = candidates[i];
 
@@ -1047,7 +1048,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     bool has_fishery = false;
     bool trader_requested = false;
 
-    for (int i = 0; i < world->buildings.all.size(); ++i)
+    for (size_t i = 0; i < world->buildings.all.size(); ++i)
     {
         df::building *build = world->buildings.all[i];
         auto type = build->getType();
@@ -1073,7 +1074,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
         }
     }
 
-    for (int i = 0; i < world->units.active.size(); ++i)
+    for (size_t i = 0; i < world->units.active.size(); ++i)
     {
         df::unit* cre = world->units.active[i];
         if (Units::isCitizen(cre))
@@ -1104,7 +1105,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
         df::historical_figure* hf = df::historical_figure::find(dwarfs[dwarf]->hist_figure_id);
         if(hf!=NULL) //can be NULL. E.g. script created citizens
-        for (int i = 0; i < hf->entity_links.size(); i++)
+        for (size_t i = 0; i < hf->entity_links.size(); i++)
         {
             df::histfig_entity_link* hfelink = hf->entity_links.at(i);
             if (hfelink->getType() == df::histfig_entity_link_type::POSITION)
@@ -1139,7 +1140,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
         // identify dwarfs who are needed for meetings and mark them for exclusion
 
-        for (int i = 0; i < ui->activities.size(); ++i)
+        for (size_t i = 0; i < ui->activities.size(); ++i)
         {
             df::activity_info *act = ui->activities[i];
             if (!act) continue;
@@ -1201,14 +1202,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
     for (int dwarf = 0; dwarf < n_dwarfs; dwarf++)
     {
-        bool is_on_break = false;
-
-        for (auto p = dwarfs[dwarf]->status.misc_traits.begin(); p < dwarfs[dwarf]->status.misc_traits.end(); p++)
-        {
-            if ((*p)->id == misc_trait_type::Migrant || (*p)->id == misc_trait_type::OnBreak)
-                is_on_break = true;
-        }
-
         if (Units::isBaby(dwarfs[dwarf]) ||
             Units::isChild(dwarfs[dwarf]) ||
             dwarfs[dwarf]->profession == profession::DRUNK)
@@ -1219,7 +1212,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
             dwarf_info[dwarf].state = MILITARY;
         else if (dwarfs[dwarf]->job.current_job == NULL)
         {
-            if (is_on_break)
+            if (Units::getMiscTrait(dwarfs[dwarf], misc_trait_type::Migrant))
                 dwarf_info[dwarf].state = OTHER;
             else if (dwarfs[dwarf]->specific_refs.size() > 0)
                 dwarf_info[dwarf].state = OTHER;
@@ -1229,7 +1222,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
         else
         {
             int job = dwarfs[dwarf]->job.current_job->job_type;
-            if (job >= 0 && job < ARRAY_COUNT(dwarf_states))
+            if (job >= 0 && size_t(job) < ARRAY_COUNT(dwarf_states))
                 dwarf_info[dwarf].state = dwarf_states[job];
             else
             {
@@ -1340,7 +1333,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
         for (int i = 0; i < num_haulers; i++)
         {
-            assert(i < hauler_ids.size());
+            assert(size_t(i) < hauler_ids.size());
 
             int dwarf = hauler_ids[i];
 
@@ -1356,7 +1349,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
                 out.print("Dwarf %i \"%s\" assigned %s: hauler\n", dwarf, dwarfs[dwarf]->name.first_name.c_str(), ENUM_KEY_STR(unit_labor, labor).c_str());
         }
 
-        for (int i = num_haulers; i < hauler_ids.size(); i++)
+        for (size_t i = num_haulers; i < hauler_ids.size(); i++)
         {
             assert(i < hauler_ids.size());
 
@@ -1496,7 +1489,7 @@ command_result autolabor (color_ostream &out, std::vector <std::string> & parame
 
         if (maximum < minimum || maximum < 0 || minimum < 0)
         {
-            out.printerr("Syntax: autolabor <labor> <minimum> [<maximum>] [<talent pool>]\n", maximum, minimum);
+            out.printerr("Syntax: autolabor <labor> <minimum> [<maximum>] [<talent pool>], %d > %d\n", maximum, minimum);
             return CR_WRONG_USAGE;
         }
 
@@ -1516,7 +1509,7 @@ command_result autolabor (color_ostream &out, std::vector <std::string> & parame
             return CR_FAILURE;
         }
 
-        for (int i = 0; i < labor_infos.size(); i++)
+        for (size_t i = 0; i < labor_infos.size(); i++)
         {
             reset_labor((df::unit_labor) i);
         }

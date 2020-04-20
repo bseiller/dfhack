@@ -46,6 +46,7 @@ using namespace std;
 #include "modules/MapCache.h"
 #include "modules/Maps.h"
 
+#include "df/biome_type.h"
 #include "df/block_burrow.h"
 #include "df/block_burrow_link.h"
 #include "df/block_square_event_grassst.h"
@@ -402,7 +403,8 @@ bool Maps::SortBlockEvents(df::map_block *block,
     vector <df::block_square_event_grassst *> *grasses,
     vector <df::block_square_event_world_constructionst *> *constructions,
     vector <df::block_square_event_spoorst *> *spoors,
-    vector <df::block_square_event_item_spatterst *> *items)
+    vector <df::block_square_event_item_spatterst *> *items,
+    vector <df::block_square_event_designation_priorityst *> *priorities)
 {
     if (veins)
         veins->clear();
@@ -456,6 +458,10 @@ bool Maps::SortBlockEvents(df::map_block *block,
             if (items)
                 items->push_back((df::block_square_event_item_spatterst *)evt);
             break;
+        case block_square_event_type::designation_priority:
+            if (priorities)
+                priorities->push_back((df::block_square_event_designation_priorityst *)evt);
+            break;
         }
     }
     return true;
@@ -499,7 +505,7 @@ df::coord2d Maps::getBlockTileBiomeRgn(df::map_block *block, df::coord2d pos)
     if (!block || !world->world_data)
         return df::coord2d();
 
-    auto des = index_tile<df::tile_designation>(block->designation,pos);
+    auto des = index_tile(block->designation,pos);
     unsigned idx = des.bits.biome;
     if (idx < 9)
     {
@@ -574,8 +580,8 @@ bool Maps::canWalkBetween(df::coord pos1, df::coord pos2)
     if (!block1 || !block2)
         return false;
 
-    auto tile1 = index_tile<uint16_t>(block1->walkable, pos1);
-    auto tile2 = index_tile<uint16_t>(block2->walkable, pos2);
+    auto tile1 = index_tile(block1->walkable, pos1);
+    auto tile2 = index_tile(block2->walkable, pos2);
 
     return tile1 && tile1 == tile2;
 }
@@ -602,7 +608,7 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
     if ( !block1 || !block2 )
         return false;
 
-    if ( !index_tile<uint16_t>(block1->walkable,pos1) || !index_tile<uint16_t>(block2->walkable,pos2) ) {
+    if ( !index_tile(block1->walkable,pos1) || !index_tile(block2->walkable,pos2) ) {
         return false;
     }
 
@@ -621,7 +627,7 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
 
     if ( dx == 0 && dy == 0 ) {
         //check for forbidden hatches and floors and such
-        df::tile_building_occ upOcc = index_tile<df::tile_occupancy>(block2->occupancy,pos2).bits.building;
+        df::tile_building_occ upOcc = index_tile(block2->occupancy,pos2).bits.building;
         if ( upOcc == tile_building_occ::Impassable || upOcc == tile_building_occ::Obstacle || upOcc == tile_building_occ::Floored )
             return false;
 
@@ -654,7 +660,7 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
                 return false; //unusable ramp
 
             //there has to be an unforbidden hatch above the ramp
-            if ( index_tile<df::tile_occupancy>(block2->occupancy,pos2).bits.building != tile_building_occ::Dynamic )
+            if ( index_tile(block2->occupancy,pos2).bits.building != tile_building_occ::Dynamic )
                 return false;
             //note that forbidden hatches have Floored occupancy. unforbidden ones have dynamic occupancy
             df::building* building = Buildings::findAtTile(pos2);
@@ -698,7 +704,7 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
         if ( !blockUp )
             return false;
 
-        df::tile_building_occ occupancy = index_tile<df::tile_occupancy>(blockUp->occupancy,up).bits.building;
+        df::tile_building_occ occupancy = index_tile(blockUp->occupancy,up).bits.building;
         if ( occupancy == tile_building_occ::Obstacle || occupancy == tile_building_occ::Floored || occupancy == tile_building_occ::Impassable )
             return false;
         return true;
@@ -706,3 +712,393 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
 
     return false;
 }
+
+/* The code below is a heavily refactored version of code found at
+   https://github.com/ragundo/exportmaps/blob/master/cpp/df_utils/biome_type.cpp.
+*/
+
+/*
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+1. The origin of this software must not be misrepresented; you must not
+claim that you wrote the original software. If you use this software
+in a product, an acknowledgment in the product documentation would be
+appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+*/
+
+namespace {
+    //----------------------------------------------------------------------------//
+    // Utility function
+    //
+    //----------------------------------------------------------------------------//
+    std::pair<bool, bool> check_tropicality(df::region_map_entry& region,
+        int y_pos
+    )
+    {
+        int flip_latitude = df::global::world->world_data->flip_latitude;
+
+        bool is_possible_tropical_area_by_latitude = false;
+        bool is_tropical_area_by_latitude = false;
+
+        if (flip_latitude == -1)  // NO POLES
+        {
+            // If there're no poles, tropical area is determined by temperature
+            is_possible_tropical_area_by_latitude = region.temperature >= 75;
+            is_tropical_area_by_latitude = region.temperature >= 85;
+        }
+
+        else
+        {
+            int v6 = 0;
+
+            df::world_data* wdata = df::global::world->world_data;
+
+            if (flip_latitude == 0) // NORTH POLE ONLY
+            {
+                v6 = y_pos;
+            }
+
+            else if (flip_latitude == 1) // SOUTH_POLE ONLY
+            {
+                v6 = df::global::world->world_data->world_height - y_pos - 1;
+            }
+
+            else if (flip_latitude == 2) // BOTH POLES
+            {
+                if (y_pos < wdata->world_height / 2)
+                    v6 = 2 * y_pos;
+                else
+                {
+                    v6 = wdata->world_height + 2 * (wdata->world_height / 2 - y_pos) - 1;
+                    if (v6 < 0)
+                        v6 = 0;
+                    if (v6 >= wdata->world_height)
+                        v6 = wdata->world_height - 1;
+                }
+            }
+
+            if (wdata->world_height == 17)
+                v6 *= 16;
+            else if (wdata->world_height == 33)
+                v6 *= 8;
+            else if (wdata->world_height == 65)
+                v6 *= 4;
+            else if (wdata->world_height == 129)
+                v6 *= 2;
+
+            is_possible_tropical_area_by_latitude = v6 > 170;
+            is_tropical_area_by_latitude = v6 >= 200;
+        }
+
+        return std::pair<bool, bool>(is_possible_tropical_area_by_latitude,
+            is_tropical_area_by_latitude
+            );
+    }
+
+
+    //----------------------------------------------------------------------------//
+    // Utility function
+    //
+    // return some unknow parameter as a percentage
+    //----------------------------------------------------------------------------//
+    int get_region_parameter(int y,
+        int x
+    )
+    {
+        int world_height = df::global::world->world_data->world_height;
+        if (world_height > 65) // Medium and large worlds
+        {
+            // access to region 2D array
+            df::region_map_entry& region = df::global::world->world_data->region_map[x][y];
+            int flip_latitude = df::global::world->world_data->flip_latitude;
+            int rainfall = region.rainfall;
+            int result;
+            int y_pos = y;
+            int ypos = y_pos;
+
+            if (flip_latitude == -1) // NO POLES
+                return 100;
+
+            else if (flip_latitude == 1) // SOUTH POLE
+                ypos = world_height - y_pos - 1;
+            else if (flip_latitude == 2) // NORTH & SOUTH POLE
+            {
+                if (ypos < world_height / 2)
+                    ypos *= 2;
+                else
+                {
+                    ypos = world_height + 2 * (world_height / 2 - ypos) - 1;
+                    if (ypos < 0)
+                        ypos = 0;
+                    if (ypos >= world_height)
+                        ypos = world_height - 1;
+                }
+            }
+
+            int latitude; // 0 - 256 (size of a large world)
+            switch (world_height)
+            {
+            case 17:                                    // Pocket world
+                latitude = 16 * ypos;
+                break;
+            case 33:                                    // Smaller world
+                latitude = 8 * ypos;
+                break;
+            case 65:                                    // Small world
+                latitude = 4 * ypos;
+                break;
+            case 129:                                  // Medium world
+                latitude = 2 * ypos;
+                break;
+            default:                                  // Large world
+                latitude = ypos;
+                break;
+            }
+
+            // latitude > 220
+            if ((latitude - 171) > 49)
+                return 100;
+
+
+            // Latitude between 191 and 200
+            if ((latitude > 190) && (latitude < 201))
+                return 0;
+
+            // Latitude between 201 and 220
+            if ((latitude > 190) && (latitude >= 201))
+                result = rainfall + 16 * (latitude - 207);
+            else
+                // Latitude between 0 and 190
+                result = (16 * (184 - latitude) - rainfall);
+
+            if (result < 0)
+                return 0;
+
+            if (result > 100)
+                return 100;
+
+            return result;
+        }
+
+        return 100;
+    }
+}
+
+
+/*****************************************************************************
+Module main function.
+Return the biome type, given a position coordinate expressed in world_tiles
+The world ref coordinates are used for tropicality determination and may refer
+to a tile neighboring the "official" one.
+*****************************************************************************/
+df::enums::biome_type::biome_type Maps::GetBiomeTypeWithRef(int world_coord_x,
+    int world_coord_y,
+    int world_ref_coord_y
+)
+{
+    // Biome is per region, so get the region where this biome exists
+    df::region_map_entry& region = df::global::world->world_data->region_map[world_coord_x][world_coord_y];
+
+    // Check if the y reference position coordinate belongs to a tropical area
+    std::pair<bool, bool> p = check_tropicality(region,
+        world_ref_coord_y
+    );
+    bool is_possible_tropical_area_by_latitude = p.first;
+    bool is_tropical_area_by_latitude = p.second;
+
+    int parameter = get_region_parameter(world_coord_y, world_coord_x);
+
+    // Begin the discrimination
+    if (region.flags.is_set(df::region_map_entry_flags::is_lake)) // is it a lake?
+    {
+        // salinity values tell us the lake type
+        // greater than 66 is a salt water lake
+        // between 33 and 65 is a brackish water lake
+        // less than 33 is a fresh water lake
+        if (region.salinity < 33)
+            if (is_possible_tropical_area_by_latitude)
+                return df::enums::biome_type::biome_type::LAKE_TROPICAL_FRESHWATER; // 39
+            else
+                return df::enums::biome_type::biome_type::LAKE_TEMPERATE_FRESHWATER; // 36
+        else if (region.salinity < 66)
+            if (is_possible_tropical_area_by_latitude)
+                return df::enums::biome_type::biome_type::LAKE_TROPICAL_BRACKISHWATER; // 40
+            else
+                return df::enums::biome_type::biome_type::LAKE_TEMPERATE_BRACKISHWATER; // 37
+        else // salinity >= 66
+            if (is_possible_tropical_area_by_latitude)
+                return df::enums::biome_type::biome_type::LAKE_TROPICAL_SALTWATER;// 41
+            else
+                return df::enums::biome_type::biome_type::LAKE_TEMPERATE_SALTWATER; // 38
+    }
+
+    // Not a lake. Check elevation
+    // Elevation greater then 149 means a mountain biome
+    // Elevation below 100 means a ocean biome
+    // Elevation between 100 and 149 are land biomes
+
+    if (region.elevation >= 150) // is it a mountain?
+        return df::enums::biome_type::biome_type::MOUNTAIN; // 0
+
+    if (region.elevation < 100) // is it a ocean?
+    {
+        if (is_tropical_area_by_latitude)
+            return df::enums::biome_type::biome_type::OCEAN_TROPICAL; // 27
+        else if (region.temperature <= -5)
+            return df::enums::biome_type::biome_type::OCEAN_ARCTIC; // 29
+        else
+            return df::enums::biome_type::biome_type::OCEAN_TEMPERATE; // 28
+    }
+
+    // land biome. Elevation between 100 and 149
+
+    if (region.temperature <= -5)
+    {
+        if (region.drainage < 75)
+            return df::enums::biome_type::biome_type::TUNDRA; // 2
+        else
+            return df::enums::biome_type::biome_type::GLACIER; // 1
+    }
+
+    // Not a lake, mountain, ocean, glacier or tundra
+    // Vegetation determines the biome type
+
+    if (region.vegetation < 10)
+    {
+        if (region.drainage < 33)
+            return df::enums::biome_type::biome_type::DESERT_SAND; // 26
+        else if (region.drainage < 66)
+            return df::enums::biome_type::biome_type::DESERT_ROCK; // 25
+        else // drainage >= 66
+            return df::enums::biome_type::biome_type::DESERT_BADLAND; // 24
+    }
+    else if (region.vegetation < 20)
+    {
+        if ((is_possible_tropical_area_by_latitude && (parameter < 66)) || is_tropical_area_by_latitude)
+            return df::enums::biome_type::biome_type::GRASSLAND_TROPICAL; // 21
+        else
+            return df::enums::biome_type::biome_type::GRASSLAND_TEMPERATE; //18;
+    }
+    else if (region.vegetation < 33)
+    {
+        // vegetation between 20 and 32
+        if ((is_possible_tropical_area_by_latitude && (parameter <= 6)) || is_tropical_area_by_latitude)
+            return df::enums::biome_type::biome_type::SAVANNA_TROPICAL; // 22
+        else
+            return df::enums::biome_type::biome_type::SAVANNA_TEMPERATE; //19;
+    }
+    else if (region.vegetation < 66)
+    {
+        if (region.drainage >= 33)
+        {
+            if (is_possible_tropical_area_by_latitude && (parameter < 66 || is_tropical_area_by_latitude))
+                return df::enums::biome_type::biome_type::SHRUBLAND_TROPICAL; // 23
+            else
+                return df::enums::biome_type::biome_type::SHRUBLAND_TEMPERATE; // 20
+        }
+        // drainage < 33
+        {
+            if (region.salinity < 66)
+            {
+                if ((is_possible_tropical_area_by_latitude && (parameter < 66)) || is_tropical_area_by_latitude)
+                    return df::enums::biome_type::biome_type::MARSH_TROPICAL_FRESHWATER; // 10
+                else
+                    return df::enums::biome_type::biome_type::MARSH_TEMPERATE_FRESHWATER; // 5
+            }
+            else // drainage < 33, salinity >= 66
+            {
+                if ((is_possible_tropical_area_by_latitude && (parameter < 66)) || is_tropical_area_by_latitude)
+                    return df::enums::biome_type::biome_type::MARSH_TROPICAL_SALTWATER; // 11
+                else
+                    return df::enums::biome_type::biome_type::MARSH_TEMPERATE_SALTWATER; // 6
+            }
+        }
+    }
+
+    // Not a lake, mountain, ocean, glacier, tundra, desert, grassland or savanna
+    // vegetation >= 66
+    else if (region.drainage >= 33)
+    {
+        // drainage >= 33, not tropical area
+        if (!is_possible_tropical_area_by_latitude)
+        {
+            if ((region.rainfall < 75) || (region.temperature < 65))
+            {
+                if (region.temperature >= 10)
+                    return df::enums::biome_type::biome_type::FOREST_TEMPERATE_CONIFER; // 13
+                else
+                    return df::enums::biome_type::biome_type::FOREST_TAIGA; // 12
+            }
+            else
+                return df::enums::biome_type::biome_type::FOREST_TEMPERATE_BROADLEAF; // 14
+        }
+        else // drainage >= 33, tropical area
+        {
+            if (((parameter < 66) || is_tropical_area_by_latitude) && (region.rainfall < 75))
+                return df::enums::biome_type::biome_type::FOREST_TROPICAL_CONIFER; // 15
+            if (parameter < 66)
+                return df::enums::biome_type::biome_type::FOREST_TROPICAL_DRY_BROADLEAF; // 16
+            if (is_tropical_area_by_latitude)
+                return df::enums::biome_type::biome_type::FOREST_TROPICAL_MOIST_BROADLEAF; // 17
+            else
+            {
+                if ((region.rainfall < 75) || (region.temperature < 65))
+                {
+                    if (region.temperature >= 10)
+                        return df::enums::biome_type::biome_type::FOREST_TEMPERATE_CONIFER; // 13
+                    else
+                        return df::enums::biome_type::biome_type::FOREST_TAIGA; // 12
+                }
+                else
+                    return df::enums::biome_type::biome_type::FOREST_TEMPERATE_BROADLEAF; // 14
+            }
+        }
+    }
+
+    // Not a lake, mountain, ocean, glacier, tundra, desert, grassland, savanna or forest
+    // vegetation >= 66, drainage < 33
+
+    else if (is_possible_tropical_area_by_latitude)
+    {
+        if (region.salinity < 66)
+        {
+            if ((parameter < 66) || is_tropical_area_by_latitude)
+                return df::enums::biome_type::biome_type::SWAMP_TROPICAL_FRESHWATER; // 7
+            else
+                return df::enums::biome_type::biome_type::SWAMP_TEMPERATE_FRESHWATER;// 3
+        }
+        else // elevation between 100 and 149, vegetation >= 66, drainage < 33, salinity >= 66
+        {
+            if ((parameter < 66) || is_tropical_area_by_latitude)
+                if (region.drainage < 10)
+                    return df::enums::biome_type::biome_type::SWAMP_MANGROVE; //9
+                else // drainage >= 10
+                    return df::enums::biome_type::biome_type::SWAMP_TROPICAL_SALTWATER; // 8
+            else
+                return df::enums::biome_type::biome_type::SWAMP_TEMPERATE_SALTWATER; // 4
+        }
+    }
+
+    else if (region.salinity >= 66)
+        // elevation between 100 and 149, vegetation >= 66, drainage < 33, not tropical area
+        return df::enums::biome_type::biome_type::SWAMP_TEMPERATE_SALTWATER; // 4
+    else
+        return df::enums::biome_type::biome_type::SWAMP_TEMPERATE_FRESHWATER; // 3
+}
+
+/*****************************************************************************
+Module main function.
+Return the biome type, given a position coordinate expressed in world_tiles
+*****************************************************************************/
+df::enums::biome_type::biome_type Maps::GetBiomeType(int world_coord_x, int world_coord_y)
+{
+    return Maps::GetBiomeTypeWithRef(world_coord_x, world_coord_y, world_coord_y);
+}
+

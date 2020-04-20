@@ -78,7 +78,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
         bld->mutable_building_type()->set_building_subtype(-1);
         bld->mutable_building_type()->set_building_custom(-1);
         bld->set_id(ENUM_KEY_STR(building_type, bt));
-
+        bld->set_name(ENUM_ATTR_STR(building_type, name, bt));
         switch (bt)
         {
         case df::enums::building_type::NONE:
@@ -101,10 +101,11 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(furnace_type, st));
+                bld->set_name(ENUM_ATTR_STR(furnace_type, name, st));
 
                 if (st == furnace_type::Custom)
                 {
-                    for (int i = 0; i < df::global::world->raws.buildings.furnaces.size(); i++)
+                    for (size_t i = 0; i < df::global::world->raws.buildings.furnaces.size(); i++)
                     {
                         auto cust = df::global::world->raws.buildings.furnaces[i];
 
@@ -128,7 +129,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(shop_type, st));
-
+                bld->set_name(ENUM_KEY_STR(shop_type, st));
             }
             break;
         case df::enums::building_type::Door:
@@ -149,10 +150,11 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(workshop_type, st));
+                bld->set_name(ENUM_ATTR_STR(workshop_type, name, st));
 
                 if (st == workshop_type::Custom)
                 {
-                    for (int i = 0; i < df::global::world->raws.buildings.workshops.size(); i++)
+                    for (size_t i = 0; i < df::global::world->raws.buildings.workshops.size(); i++)
                     {
                         auto cust = df::global::world->raws.buildings.workshops[i];
 
@@ -190,7 +192,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(siegeengine_type, st));
-
+                bld->set_name(ENUM_KEY_STR(siegeengine_type, st));
             }
             break;
         case df::enums::building_type::Trap:
@@ -201,7 +203,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(trap_type, st));
-
+                bld->set_name(ENUM_KEY_STR(trap_type, st));
             }
             break;
         case df::enums::building_type::AnimalTrap:
@@ -224,7 +226,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(civzone_type, st));
-
+                bld->set_name(ENUM_KEY_STR(civzone_type, st));
             }
             break;
         case df::enums::building_type::Weapon:
@@ -241,7 +243,7 @@ DFHack::command_result GetBuildingDefList(DFHack::color_ostream &stream, const D
                 bld->mutable_building_type()->set_building_subtype(st);
                 bld->mutable_building_type()->set_building_custom(-1);
                 bld->set_id(ENUM_KEY_STR(building_type, bt) + "/" + ENUM_KEY_STR(construction_type, st));
-
+                bld->set_name(ENUM_KEY_STR(construction_type, st));
             }
             break;
         case df::enums::building_type::Hatch:

@@ -36,6 +36,7 @@ distribution.
 #include "BitArray.h"
 #include "modules/Materials.h"
 
+#include "df/biome_type.h"
 #include "df/block_flags.h"
 #include "df/feature_type.h"
 #include "df/flow_type.h"
@@ -46,6 +47,7 @@ distribution.
 
 namespace df {
     struct block_square_event;
+    struct block_square_event_designation_priorityst;
     struct block_square_event_frozen_liquidst;
     struct block_square_event_grassst;
     struct block_square_event_item_spatterst;
@@ -166,7 +168,9 @@ typedef uint16_t t_temperatures [16][16];
 /**
  * Index a tile array by a 2D coordinate, clipping it to mod 16
  */
-template<class R, class T> inline R index_tile(T &v, df::coord2d p) {
+template<class T> inline auto index_tile(T &v, df::coord2d p)
+    -> typename std::add_rvalue_reference<decltype(v[0][0])>::type
+{
     return v[p.x&15][p.y&15];
 }
 
@@ -321,7 +325,8 @@ extern DFHACK_EXPORT bool SortBlockEvents(df::map_block *block,
     std::vector<df::block_square_event_grassst *>* grass = 0,
     std::vector<df::block_square_event_world_constructionst *>* constructions = 0,
     std::vector<df::block_square_event_spoorst *>* spoors = 0,
-    std::vector<df::block_square_event_item_spatterst *>* items = 0
+    std::vector<df::block_square_event_item_spatterst *>* items = 0,
+    std::vector<df::block_square_event_designation_priorityst *>* priorities = 0
 );
 
 /// remove a block event from the block by address
@@ -329,6 +334,12 @@ extern DFHACK_EXPORT bool RemoveBlockEvent(uint32_t x, uint32_t y, uint32_t z, d
 
 DFHACK_EXPORT bool canWalkBetween(df::coord pos1, df::coord pos2);
 DFHACK_EXPORT bool canStepBetween(df::coord pos1, df::coord pos2);
+
+DFHACK_EXPORT df::enums::biome_type::biome_type GetBiomeType(int world_coord_x, int world_coord_y);
+DFHACK_EXPORT df::enums::biome_type::biome_type GetBiomeTypeWithRef(int world_coord_x, int world_coord_y, int world_ref_y_coord);
+
 }
+
+
 }
 #endif

@@ -120,6 +120,7 @@ DFHACK_EXPORT bool isVisible(df::unit* unit);
 
 DFHACK_EXPORT std::string getRaceNameById(int32_t race_id);
 DFHACK_EXPORT std::string getRaceName(df::unit* unit);
+DFHACK_EXPORT std::string getPhysicalDescription(df::unit* unit);
 DFHACK_EXPORT std::string getRaceNamePluralById(int32_t race_id);
 DFHACK_EXPORT std::string getRaceNamePlural(df::unit* unit);
 DFHACK_EXPORT std::string getRaceBabyNameById(int32_t race_id);
@@ -139,6 +140,7 @@ DFHACK_EXPORT bool isTamable(df::unit* unit);
 DFHACK_EXPORT bool isMale(df::unit* unit);
 DFHACK_EXPORT bool isFemale(df::unit* unit);
 DFHACK_EXPORT bool isMerchant(df::unit* unit);
+DFHACK_EXPORT bool isDiplomat(df::unit* unit);
 DFHACK_EXPORT bool isForest(df::unit* unit);
 DFHACK_EXPORT bool isMarkedForSlaughter(df::unit* unit);
 DFHACK_EXPORT bool isTame(df::unit* unit);
@@ -146,6 +148,9 @@ DFHACK_EXPORT bool isTrained(df::unit* unit);
 DFHACK_EXPORT bool isGay(df::unit* unit);
 DFHACK_EXPORT bool isNaked(df::unit* unit);
 DFHACK_EXPORT bool isUndead(df::unit* unit);
+DFHACK_EXPORT bool isGhost(df::unit *unit);
+DFHACK_EXPORT bool isActive(df::unit *unit);
+DFHACK_EXPORT bool isKilled(df::unit *unit);
 DFHACK_EXPORT bool isGelded(df::unit* unit);
 DFHACK_EXPORT bool isDomesticated(df::unit* unit);
 
@@ -179,6 +184,11 @@ DFHACK_EXPORT std::string getSquadName(df::unit *unit);
 
 DFHACK_EXPORT df::activity_entry *getMainSocialActivity(df::unit *unit);
 DFHACK_EXPORT df::activity_event *getMainSocialEvent(df::unit *unit);
+
+// stress categories - 0 is highest stress
+DFHACK_EXPORT extern const std::vector<int32_t> stress_cutoffs;
+DFHACK_EXPORT int getStressCategory(df::unit *unit);
+DFHACK_EXPORT int getStressCategoryRaw(int32_t stress_level);
 
 }
 }

@@ -226,7 +226,7 @@ MOVEMENT_KEYS = {
     CURSOR_UP_Z_AUX = { 0, 0, 1 }, CURSOR_DOWN_Z_AUX = { 0, 0, -1 },
 }
 
-local function get_movement_delta(key, delta, big_step)
+function get_movement_delta(key, delta, big_step)
     local info = MOVEMENT_KEYS[key]
     if info then
         if info[4] then
@@ -243,7 +243,7 @@ for i,v in ipairs(df.global.ui.main.hotkeys) do
     HOTKEY_KEYS['D_HOTKEY'..(i+1)] = v
 end
 
-local function get_hotkey_target(key)
+function get_hotkey_target(key)
     local hk = HOTKEY_KEYS[key]
     if hk and hk.cmd == df.ui_hotkey.T_cmd.Zoom then
         return xyz2pos(hk.x, hk.y, hk.z)
@@ -431,8 +431,8 @@ function WorkshopOverlay:onAboutToShow(below)
 end
 function WorkshopOverlay:onInput(keys)
     local allowedKeys={ --TODO add options: job management, profile, etc...
-        "CURSOR_RIGHT","CURSOR_LEFT","CURSOR_UP","CURSOR_DOWN",
-        "CURSOR_UPRIGHT","CURSOR_UPLEFT","CURSOR_DOWNRIGHT","CURSOR_DOWNLEFT",
+        "CURSOR_RIGHT","CURSOR_RIGHT_FAST","CURSOR_LEFT","CURSOR_LEFT_FAST","CURSOR_UP","CURSOR_UP_FAST","CURSOR_DOWN","CURSOR_DOWN_FAST",
+        "CURSOR_UPRIGHT","CURSOR_UPRIGHT_FAST","CURSOR_UPLEFT","CURSOR_UPLEFT_FAST","CURSOR_DOWNRIGHT","CURSOR_DOWNRIGHT_FAST","CURSOR_DOWNLEFT","CURSOR_DOWNLEFT_FAST",
         "CURSOR_UP_Z","CURSOR_DOWN_Z","DESTROYBUILDING","CHANGETAB","SUSPENDBUILDING"}
 
     if keys.LEAVESCREEN then

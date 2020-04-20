@@ -219,15 +219,9 @@ df::language_name *Units::getVisibleName(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
+    // as of 0.44.11, identity names take precedence over associated histfig names
     if (auto identity = getIdentity(unit))
-    {
-        auto id_hfig = df::historical_figure::find(identity->histfig_id);
-
-        if (id_hfig)
-            return &id_hfig->name;
-
         return &identity->name;
-    }
 
     return &unit->name;
 }
@@ -388,7 +382,7 @@ bool Units::isDead(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    return unit->flags1.bits.dead ||
+    return unit->flags2.bits.killed ||
            unit->flags3.bits.ghostly;
 }
 
@@ -396,7 +390,7 @@ bool Units::isAlive(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    return !unit->flags1.bits.dead &&
+    return !unit->flags2.bits.killed &&
            !unit->flags3.bits.ghostly &&
            !unit->curse.add_tags1.bits.NOT_LIVING;
 }
@@ -545,6 +539,25 @@ string Units::getRaceName(df::unit* unit)
 {
     CHECK_NULL_POINTER(unit);
     return getRaceNameById(unit->race);
+}
+
+void df_unit_get_physical_description(df::unit* unit, string* out_str)
+{
+    static auto* const fn =
+        reinterpret_cast<void(THISCALL *)(df::unit*, string*)>(
+            Core::getInstance().vinfo->getAddress("unit_get_physical_description"));
+    if (fn)
+        fn(unit, out_str);
+    else
+        *out_str = "";
+}
+
+string Units::getPhysicalDescription(df::unit* unit)
+{
+    CHECK_NULL_POINTER(unit);
+    string str;
+    df_unit_get_physical_description(unit, &str);
+    return str;
 }
 
 // get plural of race name (used for display in autobutcher UI and for sorting the watchlist)
@@ -1476,6 +1489,13 @@ bool Units::isMerchant(df::unit* unit)
     return unit->flags1.bits.merchant == 1;
 }
 
+bool Units::isDiplomat(df::unit* unit)
+{
+    CHECK_NULL_POINTER(unit);
+
+    return unit->flags1.bits.diplomat == 1;
+}
+
 bool Units::isForest(df::unit* unit)
 {
     CHECK_NULL_POINTER(unit);
@@ -1548,8 +1568,8 @@ bool Units::isGay(df::unit* unit)
     if (!unit->status.current_soul)
         return false;
     df::orientation_flags orientation = unit->status.current_soul->orientation_flags;
-    return (Units::isFemale(unit) && ! (orientation.whole & (orientation.mask_marry_male | orientation.mask_romance_male)))
-        || (!Units::isFemale(unit) && ! (orientation.whole & (orientation.mask_marry_female | orientation.mask_romance_female)));
+    return (!Units::isFemale(unit) || !(orientation.whole & (orientation.mask_marry_male | orientation.mask_romance_male)))
+        && (!Units::isMale(unit) || !(orientation.whole & (orientation.mask_marry_female | orientation.mask_romance_female)));
 }
 
 bool Units::isNaked(df::unit* unit)
@@ -1566,6 +1586,27 @@ bool Units::isUndead(df::unit* unit)
     return (unit->flags3.bits.ghostly ||
             ( (unit->curse.add_tags1.bits.OPPOSED_TO_LIFE || unit->curse.add_tags1.bits.NOT_LIVING)
              && !unit->curse.add_tags1.bits.BLOODSUCKER ));
+}
+
+bool Units::isGhost(df::unit *unit)
+{
+    CHECK_NULL_POINTER(unit);
+
+    return unit->flags3.bits.ghostly;
+}
+
+bool Units::isActive(df::unit *unit)
+{
+    CHECK_NULL_POINTER(unit);
+
+    return !unit->flags1.bits.inactive;
+}
+
+bool Units::isKilled(df::unit *unit)
+{
+    CHECK_NULL_POINTER(unit);
+
+    return unit->flags2.bits.killed;
 }
 
 bool Units::isGelded(df::unit* unit)
@@ -1603,4 +1644,31 @@ bool Units::isDomesticated(df::unit* unit)
         }
     }
     return tame;
+}
+
+// 50000 and up is level 0, 25000 and up is level 1, etc.
+const vector<int32_t> Units::stress_cutoffs {50000, 25000, 10000, -10000, -25000, -50000, -100000};
+
+int Units::getStressCategory(df::unit *unit)
+{
+    CHECK_NULL_POINTER(unit);
+
+    if (!unit->status.current_soul)
+        return int(stress_cutoffs.size()) / 2;
+
+    return getStressCategoryRaw(unit->status.current_soul->personality.stress_level);
+}
+
+int Units::getStressCategoryRaw(int32_t stress_level)
+{
+    int max_level = int(stress_cutoffs.size()) - 1;
+    int level = max_level;
+    for (int i = max_level; i >= 0; i--)
+    {
+        if (stress_level >= stress_cutoffs[i])
+        {
+            level = i;
+        }
+    }
+    return level;
 }

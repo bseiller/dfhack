@@ -57,8 +57,9 @@ module DFHack
         def unit_category(u)
             return if u.flags1.left or u.flags1.incoming
             # return if hostile & unit_invisible(u) (hidden_in_ambush or caged+mapblock.hidden or caged+holder.ambush
-            return :Dead if u.flags1.dead
+            return :Dead if u.flags2.killed
             return :Dead if u.flags3.ghostly # hostile ?
+            return if u.flags1.inactive
             return :Others if !unit_isfortmember(u)
             casteflags = u.race_tg.caste[u.caste].flags if u.caste >= 0
             return :Livestock if casteflags and (casteflags[:PET] or casteflags[:PET_EXOTIC])
@@ -132,8 +133,8 @@ module DFHack
         # returns if an unit is openly hostile
         # does not include ghosts / wildlife
         def unit_ishostile(u)
-            # return true if u.flags3.ghostly and not u.flags1.dead
-            return unless unit_category(u) == :Others
+            # return true if u.flags3.ghostly and not u.flags1.inactive
+            return false unless unit_category(u) == :Others
 
             case unit_other_category(u)
             when :Berserk, :Undead, :Hostile, :Invader, :Underworld
@@ -151,6 +152,8 @@ module DFHack
                     case unit_checkdiplomacy_hf_ent(histfig, group)
                     when 4, 5
                         true
+                    else
+                        false
                     end
 
                 elsif diplo = u.civ_tg.unknown1b.diplomacy.binsearch(df.ui.group_id, :group_id)
@@ -251,8 +254,8 @@ module DFHack
             not u.specific_refs.find { |s| s.type == :ACTIVITY } and
             # filter soldiers (TODO check schedule)
             u.military.squad_id == -1 and
-            # filter 'on break'
-            not u.status.misc_traits.find { |t| t.id == :OnBreak }
+            # filter incoming migrants
+            not u.status.misc_traits.find { |t| t.id == :Migrant }
         end
 
         def unit_entitypositions(unit)

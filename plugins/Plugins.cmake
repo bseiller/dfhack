@@ -1,124 +1,156 @@
-IF(UNIX)
-  add_definitions(-DLINUX_BUILD)
-  SET(CMAKE_CXX_FLAGS_DEBUG "-g -Wall")
-  SET(CMAKE_CXX_FLAGS "-fvisibility=hidden -std=c++0x")
-  SET(CMAKE_C_FLAGS "-fvisibility=hidden")
-  IF(DFHACK_BUILD_64)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -mno-avx")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -mno-avx")
-  ELSE()
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
-  ENDIF()
-ENDIF()
+if(UNIX)
+    if(NOT APPLE)
+        # Linux: Check for unresolved symbols at link time
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-z,defs")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-z,defs")
+    endif()
+endif()
 
 include_directories("${dfhack_SOURCE_DIR}/library/include")
 include_directories("${dfhack_SOURCE_DIR}/library/proto")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/proto")
 include_directories("${dfhack_SOURCE_DIR}/library/depends/xgetopt")
 
-MACRO(CAR var)
-  SET(${var} ${ARGV1})
-ENDMACRO()
+macro(car var)
+    set(${var} ${ARGV1})
+endmacro()
 
-MACRO(CDR var junk)
-  SET(${var} ${ARGN})
-ENDMACRO()
+macro(cdr var junk)
+    set(${var} ${ARGN})
+endmacro()
 
-MACRO(LIST_CONTAINS var value)
-  SET(${var})
-  FOREACH (value2 ${ARGN})
-    IF (${value} STREQUAL ${value2})
-      SET(${var} TRUE)
-    ENDIF()
-  ENDFOREACH()
-ENDMACRO()
+macro(list_contains var value)
+    set(${var})
+    foreach(value2 ${ARGN})
+        if(${value} STREQUAL ${value2})
+            set(${var} TRUE)
+        endif()
+    endforeach()
+endmacro()
 
-MACRO(PARSE_ARGUMENTS prefix arg_names option_names)
-  SET(DEFAULT_ARGS)
-  FOREACH(arg_name ${arg_names})
-    SET(${prefix}_${arg_name})
-  ENDFOREACH()
+macro(parse_arguments prefix arg_names option_names)
+    set(DEFAULT_ARGS)
+    foreach(arg_name ${arg_names})
+        set(${prefix}_${arg_name})
+    endforeach()
 
-  FOREACH(option ${option_names})
-    SET(${prefix}_${option} FALSE)
-  ENDFOREACH()
+    foreach(option ${option_names})
+        set(${prefix}_${option} FALSE)
+    endforeach()
 
-  SET(current_arg_name DEFAULT_ARGS)
-  SET(current_arg_list)
-  FOREACH(arg ${ARGN})
-    LIST_CONTAINS(is_arg_name ${arg} ${arg_names})
-    IF (is_arg_name)
-      SET(${prefix}_${current_arg_name} ${current_arg_list})
-      SET(current_arg_name ${arg})
-      SET(current_arg_list)
-    ELSE()
-      LIST_CONTAINS(is_option ${arg} ${option_names})
-      IF(is_option)
-        SET(${prefix}_${arg} TRUE)
-      ELSE()
-        SET(current_arg_list ${current_arg_list} ${arg})
-      ENDIF()
-    ENDIF()
-  ENDFOREACH()
-  SET(${prefix}_${current_arg_name} ${current_arg_list})
-ENDMACRO()
+    set(current_arg_name DEFAULT_ARGS)
+    set(current_arg_list)
+    foreach(arg ${ARGN})
+        list_contains(is_arg_name ${arg} ${arg_names})
+        if(is_arg_name)
+            set(${prefix}_${current_arg_name} ${current_arg_list})
+            set(current_arg_name ${arg})
+            set(current_arg_list)
+        else()
+            list_contains(is_option ${arg} ${option_names})
+            if(is_option)
+                set(${prefix}_${arg} TRUE)
+            else()
+                set(current_arg_list ${current_arg_list} ${arg})
+            endif()
+        endif()
+    endforeach()
+    set(${prefix}_${current_arg_name} ${current_arg_list})
+endmacro()
 
-MACRO(DFHACK_PLUGIN)
-  PARSE_ARGUMENTS(PLUGIN
-    "LINK_LIBRARIES;DEPENDS;PROTOBUFS;COMPILE_FLAGS;COMPILE_FLAGS_GCC;COMPILE_FLAGS_MSVC"
-    "SOME_OPT"
-    ${ARGN}
+macro(dfhack_plugin)
+    parse_arguments(PLUGIN
+        "LINK_LIBRARIES;DEPENDS;PROTOBUFS;COMPILE_FLAGS;COMPILE_FLAGS_GCC;COMPILE_FLAGS_MSVC"
+        "SOME_OPT"
+        ${ARGN}
     )
-  CAR(PLUGIN_NAME ${PLUGIN_DEFAULT_ARGS})
-  CDR(PLUGIN_SOURCES ${PLUGIN_DEFAULT_ARGS})
+    car(PLUGIN_NAME ${PLUGIN_DEFAULT_ARGS})
+    cdr(PLUGIN_SOURCES ${PLUGIN_DEFAULT_ARGS})
 
-  SET(PLUGIN_PROTOCPP)
-  FOREACH(pbuf ${PLUGIN_PROTOBUFS})
-    SET(PLUGIN_SOURCES ${PLUGIN_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/proto/${pbuf}.pb.cc)
-    SET(PLUGIN_SOURCES ${PLUGIN_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/proto/${pbuf}.proto)
-    SET(PLUGIN_PROTOCPP ${PLUGIN_PROTOCPP} ${CMAKE_CURRENT_SOURCE_DIR}/proto/${pbuf}.pb.cc)
-  ENDFOREACH()
+    set(PLUGIN_PROTOS)
+    foreach(pbuf ${PLUGIN_PROTOBUFS})
+        list(APPEND PLUGIN_PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/${pbuf}.proto)
+    endforeach()
 
-  # Tell CMake the source won't be available until build time.
-  SET_SOURCE_FILES_PROPERTIES(${PLUGIN_PROTOCPP} PROPERTIES GENERATED 1)
+    list(LENGTH PLUGIN_PROTOS NUM_PROTO)
+    if(NUM_PROTO)
+        string(REPLACE ".proto" ".pb.cc" PLUGIN_PROTO_SRCS "${PLUGIN_PROTOS}")
+        string(REPLACE ".proto" ".pb.h" PLUGIN_PROTO_HDRS "${PLUGIN_PROTOS}")
+        string(REPLACE "/proto/" "/proto/tmp/" PLUGIN_PROTO_TMP_FILES "${PLUGIN_PROTO_SRCS};${PLUGIN_PROTO_HDRS}")
+        set_source_files_properties(${PLUGIN_PROTO_SRCS} ${PLUGIN_PROTO_HDRS} PROPERTIES GENERATED TRUE)
 
-  ADD_LIBRARY(${PLUGIN_NAME} MODULE ${PLUGIN_SOURCES})
-  IDE_FOLDER(${PLUGIN_NAME} "Plugins")
+        # Force a re-gen if any *.pb.* files are missing
+        # (only runs when cmake is run, but better than nothing)
+        foreach(file IN LISTS PLUGIN_PROTO_SRCS PLUGIN_PROTO_HDRS)
+            if(NOT EXISTS ${file})
+                # MESSAGE("Resetting generate_proto_${PLUGIN_NAME} because '${file}' is missing")
+                file(REMOVE ${PLUGIN_PROTO_TMP_FILES})
+                break()
+            endif()
+        endforeach()
 
-  ADD_DEPENDENCIES(${PLUGIN_NAME} dfhack-version)
+        add_custom_command(
+            OUTPUT ${PLUGIN_PROTO_TMP_FILES}
+            COMMAND protoc-bin -I=${CMAKE_CURRENT_SOURCE_DIR}/proto/
+                --cpp_out=${CMAKE_CURRENT_SOURCE_DIR}/proto/tmp/
+                ${PLUGIN_PROTOS}
+            COMMAND ${PERL_EXECUTABLE} ${CMAKE_SOURCE_DIR}/depends/copy-if-different.pl
+                ${PLUGIN_PROTO_TMP_FILES}
+                ${CMAKE_CURRENT_SOURCE_DIR}/proto/
+            COMMENT "Generating plugin ${PLUGIN_NAME} protobufs"
+            DEPENDS protoc-bin ${PLUGIN_PROTOS}
+        )
 
-  # Make sure the source is generated before the executable builds.
-  ADD_DEPENDENCIES(${PLUGIN_NAME} generate_proto)
+        if(UNIX)
+            set_source_files_properties(${PLUGIN_PROTO_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-misleading-indentation")
+        endif()
 
-  LIST(LENGTH PLUGIN_PROTOBUFS NUM_PROTO)
-  IF(NUM_PROTO)
-    TARGET_LINK_LIBRARIES(${PLUGIN_NAME} dfhack protobuf-lite dfhack-version ${PLUGIN_LINK_LIBRARIES})
-    IF(UNIX)
-      SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "-include Export.h")
-    ELSE()
-      SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "/FI\"Export.h\"")
-    ENDIF()
-  ELSE()
-    TARGET_LINK_LIBRARIES(${PLUGIN_NAME} dfhack dfhack-version ${PLUGIN_LINK_LIBRARIES})
-  ENDIF()
+        add_custom_target(generate_proto_${PLUGIN_NAME} DEPENDS ${PLUGIN_PROTO_TMP_FILES})
 
-  SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS}")
-  IF(UNIX)
-    SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS_GCC}")
-  ELSE()
-    SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS_MSVC}")
-  ENDIF()
+        # Merge headers into sources
+        set_source_files_properties( ${PLUGIN_PROTO_HDRS} PROPERTIES HEADER_FILE_ONLY TRUE )
+        list(APPEND PLUGIN_SOURCES ${PLUGIN_PROTO_HDRS})
+        list(APPEND PLUGIN_SOURCES ${PLUGIN_PROTO_SRCS})
+        list(APPEND PLUGIN_SOURCES ${PLUGIN_PROTOS})
 
-  IF(APPLE)
-    SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.dylib PREFIX "")
-  ELSEIF(UNIX)
-    SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.so PREFIX "")
-  ELSE()
-    SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.dll)
-  ENDIF()
+        if(UNIX)
+            set(PLUGIN_COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS} -include Export.h")
+        else()
+            set(PLUGIN_COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS} /FI\"Export.h\"")
+        endif()
+    endif()
 
-  install(TARGETS ${PLUGIN_NAME}
-          LIBRARY DESTINATION ${DFHACK_PLUGIN_DESTINATION}
-          RUNTIME DESTINATION ${DFHACK_PLUGIN_DESTINATION})
-ENDMACRO(DFHACK_PLUGIN)
+    add_library(${PLUGIN_NAME} MODULE ${PLUGIN_SOURCES})
+    ide_folder(${PLUGIN_NAME} "Plugins")
+
+    if(NUM_PROTO)
+        add_dependencies(${PLUGIN_NAME} generate_proto_${PLUGIN_NAME})
+        target_link_libraries(${PLUGIN_NAME} dfhack protobuf-lite dfhack-version ${PLUGIN_LINK_LIBRARIES})
+    else()
+        target_link_libraries(${PLUGIN_NAME} dfhack dfhack-version ${PLUGIN_LINK_LIBRARIES})
+    endif()
+
+    add_dependencies(${PLUGIN_NAME} dfhack-version)
+
+    # Make sure the source is generated before the executable builds.
+    add_dependencies(${PLUGIN_NAME} generate_proto)
+
+    if(UNIX)
+        set(PLUGIN_COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS} ${PLUGIN_COMPILE_FLAGS_GCC}")
+    else()
+        set(PLUGIN_COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS} ${PLUGIN_COMPILE_FLAGS_MSVC}")
+    endif()
+    set_target_properties(${PLUGIN_NAME} PROPERTIES COMPILE_FLAGS "${PLUGIN_COMPILE_FLAGS}")
+
+    if(APPLE)
+        set_target_properties(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.dylib PREFIX "")
+    elseif(UNIX)
+        set_target_properties(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.so PREFIX "")
+    else()
+        set_target_properties(${PLUGIN_NAME} PROPERTIES SUFFIX .plug.dll)
+    endif()
+
+    install(TARGETS ${PLUGIN_NAME}
+        LIBRARY DESTINATION ${DFHACK_PLUGIN_DESTINATION}
+        RUNTIME DESTINATION ${DFHACK_PLUGIN_DESTINATION})
+endmacro()

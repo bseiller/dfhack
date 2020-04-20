@@ -13,22 +13,30 @@ Name                    Github                  Other
 acwatkins               acwatkins
 Alexander Gavrilov      angavrilov              ag
 Amostubal               Amostubal
+Andrea Cattaneo         acattaneo88
 AndreasPK               AndreasPK
 Angus Mezick            amezick
 Antalia                 tamarakorr
 Anuradha Dissanayake    falconne
+Atkana                  Atkana
 AtomicChicken           AtomicChicken
+Bearskie                Bearskie
 belal                   jimhester
 Ben Lubar               BenLubar
 Ben Rosser              TC01
-brndd                   brndd
+billw2012               billw2012
+brndd                   brndd                   burneddi
+Bumber                  Bumber64
 Caldfir                 caldfir
 Carter Bray             Qartar
 Chris Dombroski         cdombroski
 Clayton Hughes
 Clément Vuchener        cvuchener
+Dan Amlund              danamlund
+Daniel Brooks           db48x
 David Corbett           dscorbett
 David Seguin            dseguin
+David Timm              dtimm
 Deon
 DoctorVanGogh           DoctorVanGogh
 Donald Ruegsegger       hashaash
@@ -41,23 +49,35 @@ expwnent                expwnent
 Feng
 figment                 figment
 gchristopher            gchristopher
+grubsteak               grubsteak
 Harlan Playford         playfordh
 Hayati Ayguen           hayguen
+Herwig Hochleitner      bendlas
 IndigoFenix
 James Logsdon           jlogsdon
 Japa                    JapaMala
 Jared Adams
+Jeremy Apthorp          nornagon
 Jim Lisi                stonetoad
+Jimbo Whales            jimbowhales
+jimcarreer              jimcarreer
 jj                      jjyg                    jj``
+Joel Meador             janxious
 John Beisley            huin
 John Shade              gsvslto
 Jonas Ask
+Josh Cooper             cppcooper               coope
 kane-t                  kane-t
 Kelly Kinkade           ab9rf
+KlonZK                  KlonZK
 Kris Parker             kaypy
+Kromtec                 Kromtec
 Kurik Amudnil
 Lethosor                lethosor
+LordGolias              LordGolias
+Mark Nielson            pseudodragon
 Mason11987              Mason11987
+Matt Regul              mattregul
 Matthew Cline
 Matthew Lindner         mlindner
 Max                     maxthyme                Max^TM
@@ -74,6 +94,7 @@ Milo Christiansen       milochristiansen
 MithrilTuxedo           MithrilTuxedo
 mizipzor                mizipzor
 moversti                moversti
+napagokc                napagokc
 Neil Little             nmlittle
 Nick Rart               nickrart                comestible
 Nikolay Amiantov        abbradar
@@ -112,26 +133,35 @@ RusAnon                 RusAnon
 sami
 scamtank                scamtank
 Sebastian Wolfertz      Enkrod
+seishuuu                seishuuu
 Seth Woodworth          sethwoodworth
 simon
 Simon Jackson           sizeak
 stolencatkarma
+Stoyan Gaydarov         sgayda2
+suokko                  suokko                  shrieker
 sv-esk                  sv-esk
 Tacomagic
+thefriendlyhacker       thefriendlyhacker
 TheHologram             TheHologram
+therahedwig             therahedwig
+ThiagoLira              ThiagoLira
 Tim Walberg             twalberg
 Timothy Collett         danaris
 Tom Jobbins             TheBloke
 Tom Prince
+TotallyGatsby           TotallyGatsby
 Travis Hoppe            thoppe                  orthographic-pedant
 txtsd                   txtsd
 U-glouglou\\simon
 Valentin Ochs           Cat-Ion
+Vitaly Pronkin          pronvit                 mifki
 ViTuRaS                 ViTuRaS
 Vjek
 Warmist                 warmist
 Wes Malone              wesQ3
 Will Rogers             wjrogers
+ZechyW                  ZechyW
 Zhentar                 Zhentar
 zilpin                  zilpin
 ======================= ======================= ===========================

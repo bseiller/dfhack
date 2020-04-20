@@ -1343,12 +1343,12 @@ static bool canTargetUnit(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    if (unit->flags1.bits.dead ||
+    if (!Units::isActive(unit) ||
         unit->flags1.bits.caged ||
         unit->flags1.bits.left ||
         unit->flags1.bits.incoming ||
         unit->flags1.bits.hidden_in_ambush ||
-        unit->flags3.bits.ghostly)
+        Units::isGhost(unit))
         return false;
 
     return true;
@@ -1492,7 +1492,7 @@ static void releaseTiredWorker(EngineInfo *engine, df::job *job, df::unit *worke
 
         if (unit == worker ||
             unit->job.current_job || !unit->status.labors[unit_labor::SIEGEOPERATE] ||
-            !Units::isCitizen(unit) || Units::getMiscTrait(unit, misc_trait_type::OnBreak) ||
+            !Units::isCitizen(unit) || Units::getMiscTrait(unit, misc_trait_type::Migrant) ||
             isTired(unit) || !Maps::canWalkBetween(job->pos, unit->pos))
             continue;
 

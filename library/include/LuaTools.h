@@ -30,6 +30,7 @@ distribution.
 #include <map>
 #include <type_traits>
 
+#include "ColorText.h"
 #include "DataDefs.h"
 
 #include <lua.h>
@@ -395,7 +396,7 @@ namespace DFHack {namespace Lua {
 
         // Not exported; for use by the Core class
         bool Init(color_ostream &out);
-        void Reset(color_ostream &out, const char *where);
+        DFHACK_EXPORT void Reset(color_ostream &out, const char *where);
 
         // Events signalled by the core
         void onStateChange(color_ostream &out, int code);

@@ -49,7 +49,8 @@ Other Contents
 
    /docs/Authors
    /LICENSE
-   /NEWS
+   /docs/NEWS
+   /docs/Scripts-removed
 
 For Developers
 ==============

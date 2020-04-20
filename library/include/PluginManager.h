@@ -61,11 +61,14 @@ namespace DFHack
     namespace Version {
         const char *dfhack_version();
         const char *git_description();
+        int dfhack_abi_version();
     }
 
     // anon type, pretty much
     struct DFLibrary;
 
+    // DFLibrary* that can be used to resolve global names
+    extern DFLibrary* GLOBAL_NAMES;
     // Open a plugin library
     DFHACK_EXPORT DFLibrary * OpenPlugin (const char * filename);
     // find a symbol inside plugin
@@ -145,6 +148,8 @@ namespace DFHack
         ~Plugin();
         command_result on_update(color_ostream &out);
         command_result on_state_change(color_ostream &out, state_change_event event);
+        command_result save_data(color_ostream &out);
+        command_result load_data(color_ostream &out);
         void detach_connection(RPCService *svc);
     public:
         enum plugin_state
@@ -235,6 +240,8 @@ namespace DFHack
         command_result (*plugin_enable)(color_ostream &, bool);
         RPCService* (*plugin_rpcconnect)(color_ostream &);
         command_result (*plugin_eval_ruby)(color_ostream &, const char*);
+        command_result (*plugin_save_data)(color_ostream &);
+        command_result (*plugin_load_data)(color_ostream &);
     };
     class DFHACK_EXPORT PluginManager
     {
@@ -248,6 +255,8 @@ namespace DFHack
         void OnStateChange(color_ostream &out, state_change_event event);
         void registerCommands( Plugin * p );
         void unregisterCommands( Plugin * p );
+        void doSaveData(color_ostream &out);
+        void doLoadData(color_ostream &out);
     // PUBLIC METHODS
     public:
         // list names of all plugins present in hack/plugins
@@ -296,7 +305,8 @@ namespace DFHack
     DFhackDataExport const char * plugin_name = m_plugin_name;\
     DFhackDataExport const char * plugin_version = DFHack::Version::dfhack_version();\
     DFhackDataExport const char * plugin_git_description = DFHack::Version::git_description();\
-    DFhackDataExport Plugin *plugin_self = NULL;\
+    DFhackDataExport int plugin_abi_version = DFHack::Version::dfhack_abi_version();\
+    DFhackDataExport DFHack::Plugin *plugin_self = NULL;\
     std::vector<std::string> _plugin_globals;\
     DFhackDataExport std::vector<std::string>* plugin_globals = &_plugin_globals; \
     DFhackDataExport bool plugin_dev = is_dev;

@@ -28,6 +28,8 @@ distribution.
 #include "RemoteClient.h"
 #include "Core.h"
 
+#include <future>
+
 class CPassiveSocket;
 class CActiveSocket;
 class CSimpleSocket;
@@ -46,7 +48,10 @@ namespace  DFHack
         SF_CALLED_ONCE = 1,
         // Don't automatically suspend the core around the call.
         // The function is supposed to manage locking itself.
-        SF_DONT_SUSPEND = 2
+        SF_DONT_SUSPEND = 2,
+        // The function is considered safe to call from a remote computer.
+        // All other functions cannot be allowed for security reasons.
+        SF_ALLOW_REMOTE = 4
     };
 
     class DFHACK_EXPORT ServerFunctionBase : public RPCFunctionBase {
@@ -148,6 +153,7 @@ namespace  DFHack
     class DFHACK_EXPORT RPCService {
         friend class ServerConnection;
         friend class Plugin;
+        friend class Core;
 
         std::vector<ServerFunctionBase*> functions;
         std::map<std::string, ServerFunctionBase*> lookup;
@@ -205,6 +211,8 @@ namespace  DFHack
             assert(!owner);
             functions.push_back(new VoidServerMethod<Svc,In>(this, name, flags, fptr));
         }
+
+        void dumpMethods(std::ostream & out) const;
     };
 
     class ServerConnection {
@@ -227,26 +235,25 @@ namespace  DFHack
         CoreService *core_service;
         std::map<std::string, RPCService*> plugin_services;
 
-        tthread::thread *thread;
-        static void threadFn(void *);
         void threadFn();
+        ServerConnection(CActiveSocket* socket);
+        ~ServerConnection();
 
     public:
-        ServerConnection(CActiveSocket *socket);
-        ~ServerConnection();
+
+        static void Accepted(CActiveSocket* socket);
 
         ServerFunctionBase *findFunction(color_ostream &out, const std::string &plugin, const std::string &name);
     };
 
     class ServerMain {
-        CPassiveSocket *socket;
+        static std::mutex access_;
+        static bool blocked_;
+        friend struct BlockGuard;
 
-        tthread::thread *thread;
-        static void threadFn(void *);
     public:
-        ServerMain();
-        ~ServerMain();
 
-        bool listen(int port);
+        static std::future<bool> listen(int port);
+        static void block();
     };
 }
