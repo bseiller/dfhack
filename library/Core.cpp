@@ -1579,6 +1579,12 @@ void Core::fatal (std::string output)
 #else
     cout << "DFHack fatal error: " << out.str() << std::endl;
 #endif
+
+    bool is_headless = bool(getenv("DFHACK_HEADLESS"));
+    if (is_headless)
+    {
+        exit('f');
+    }
 }
 
 std::string Core::getHackPath()
@@ -1701,7 +1707,6 @@ bool Core::Init()
     }
     if (is_text_mode && !is_headless)
     {
-        con.init(true);
         cerr << "Console is not available. Use dfhack-run to send commands.\n";
         if (!is_text_mode)
         {
