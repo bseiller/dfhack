@@ -15,6 +15,9 @@
 #include "overlay.h"
 #include "screen.h"
 
+#include <chrono>
+#include <ctime>
+
 using df::global::world;
 
 namespace embark_assist {
@@ -58,6 +61,8 @@ namespace embark_assist {
 
             bool fileresult = false;
             uint8_t fileresult_pass = 0;
+
+            std::chrono::time_point<std::chrono::system_clock> start;
         };
 
         static states *state = nullptr;
@@ -307,12 +312,46 @@ void embark_assist::overlay::set_sites(embark_assist::defs::site_lists *site_lis
 
 void embark_assist::overlay::initiate_match() {
     embark_assist::overlay::state->matching = true;
+
+    color_ostream_proxy out(Core::getInstance().getConsole());
+
+    const auto start = std::chrono::system_clock::now();
+    embark_assist::overlay::state->start = start;
+    const std::time_t start_time = std::chrono::system_clock::to_time_t(start);
+    out.print("embark_assist::overlay::initiate_match started at: %s\n", std::ctime(&start_time));
+}
+
+//====================================================================
+
+void init_stream(std::ostringstream &oss, std::chrono::duration<double> duration) {
+    auto d(duration.count());
+    oss << std::setfill('0')
+        << std::setw(2)
+        << (int)(d / 60) // format minutes
+        << ":"
+        << std::setw(2)
+        << (int)std::fmod(d, 60) // format seconds
+        << ":"
+        << std::setw(3) // set width of milliseconds field
+        << (int)std::fmod(d * 1000, 1000);
+}
+
+//====================================================================
+
+void format_and_output_duration(const char *format, std::chrono::duration<double> &duration) {
+    color_ostream_proxy out(Core::getInstance().getConsole());
+    std::ostringstream oss;
+    init_stream(oss, duration);
+
+    out.print(format, oss.str(), duration.count());
+
+    duration = std::chrono::seconds(0);
 }
 
 //====================================================================
 
 void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs::match_results *match_results, bool done) {
-//    color_ostream_proxy out(Core::getInstance().getConsole());
+    color_ostream_proxy out(Core::getInstance().getConsole());
     state->matching = !done;
     state->match_count = count;
 
@@ -328,6 +367,16 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
                 state->world_match_grid[i][k] = empty_pen;
             }
         }
+    }
+
+    if (done) {
+        const auto end = std::chrono::system_clock::now();
+        const std::chrono::duration<double> elapsed_seconds = end - state->start;
+        const std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+
+        std::ostringstream oss;
+        init_stream(oss, elapsed_seconds);
+        out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time formatted: %s (m:s:ms) - %f seconds \n", std::ctime(&end_time), oss.str(), elapsed_seconds.count());        
     }
 
     if (done && state->fileresult) {
