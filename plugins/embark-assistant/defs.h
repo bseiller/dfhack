@@ -44,24 +44,35 @@ namespace embark_assist {
             Woodland,
             Heavily_Forested
         };
-
-        struct mid_level_tile {
+        
+        // only contains those attributes that are being used for incursion processing
+        // leads to a significantly smaller memory footprint
+        struct mid_level_tile_basic {
             aquifer_sizes aquifer = aquifer_sizes::NA;
             bool clay = false;
             bool sand = false;
-            bool flux = false;
-            bool coal = false;
+            
             int8_t soil_depth;
-            int8_t offset;
             int16_t elevation;
-            bool river_present = false;
-            int16_t river_elevation = 100;
-            int8_t adamantine_level;  // -1 = none, 0 .. 3 = cavern 1 .. magma sea. Currently not used beyond present/absent.
-            int8_t magma_level;  // -1 = none, 0 .. 3 = cavern 3 .. surface/volcano
+            
             int8_t biome_offset;
             tree_levels trees;
             uint8_t savagery_level;  // 0 - 2
             uint8_t evilness_level;  // 0 - 2
+        };
+
+        // contains all attributes (per inheritance), used for regular survey/matching
+        struct mid_level_tile : public mid_level_tile_basic {            
+            bool flux = false;
+            bool coal = false;
+            
+            int8_t offset;
+            
+            bool river_present = false;
+            int16_t river_elevation = 100;
+            int8_t adamantine_level;  // -1 = none, 0 .. 3 = cavern 1 .. magma sea. Currently not used beyond present/absent.
+            int8_t magma_level;  // -1 = none, 0 .. 3 = cavern 3 .. surface/volcano
+                        
             std::vector<bool> metals;
             std::vector<bool> economics;
             std::vector<bool> minerals;
@@ -109,10 +120,10 @@ namespace embark_assist {
             std::vector<bool> minerals;
             std::vector<int16_t> neighbors;  //  entity_raw indices
             uint8_t necro_neighbors;
-            mid_level_tile north_row[16];
-            mid_level_tile south_row[16];
-            mid_level_tile west_column[16];
-            mid_level_tile east_column[16];
+            mid_level_tile_basic north_row[16];
+            mid_level_tile_basic south_row[16];
+            mid_level_tile_basic west_column[16];
+            mid_level_tile_basic east_column[16];
             uint8_t north_corner_selection[16]; //  0 - 3. For some reason DF stores everything needed for incursion
             uint8_t west_corner_selection[16];  //  detection in 17:th row/colum data in the region details except
                                                 //  this info, so we have to go to neighboring world tiles to fetch it.

@@ -503,7 +503,7 @@ namespace embark_assist {
 
         void process_embark_incursion(embark_assist::defs::site_infos *site_info,
             embark_assist::defs::world_tile_data *survey_results,
-            embark_assist::defs::mid_level_tile *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
+            embark_assist::defs::mid_level_tile_basic *mlt,  // Note this is a single tile, as opposed to most usages of this variable name.
             int16_t elevation,
             uint16_t x,
             uint16_t y) {
@@ -1388,6 +1388,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         tile->west_column[i].sand = mlt->at(0).at(i).sand;
         tile->east_column[i].sand = mlt->at(15).at(i).sand;
 
+		/*
         tile->north_row[i].flux = mlt->at(i).at(0).flux;  //  Not used
         tile->south_row[i].flux = mlt->at(i).at(15).flux;
         tile->west_column[i].flux = mlt->at(0).at(i).flux;
@@ -1397,22 +1398,26 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         tile->south_row[i].coal = mlt->at(i).at(15).coal;
         tile->west_column[i].coal = mlt->at(0).at(i).coal;
         tile->east_column[i].coal = mlt->at(15).at(i).coal;
+		*/
 
         tile->north_row[i].soil_depth = mlt->at(i).at(0).soil_depth;
         tile->south_row[i].soil_depth = mlt->at(i).at(15).soil_depth;
         tile->west_column[i].soil_depth = mlt->at(0).at(i).soil_depth;
         tile->east_column[i].soil_depth = mlt->at(15).at(i).soil_depth;
 
+		/*
         tile->north_row[i].offset = mlt->at(i).at(0).offset; //  Not used
         tile->south_row[i].offset = mlt->at(i).at(15).offset;
         tile->west_column[i].offset = mlt->at(0).at(i).offset;
         tile->east_column[i].offset = mlt->at(15).at(i).offset;
+		*/
 
         tile->north_row[i].elevation = mlt->at(i).at(0).elevation;
         tile->south_row[i].elevation = mlt->at(i).at(15).elevation;
         tile->west_column[i].elevation = mlt->at(0).at(i).elevation;
         tile->east_column[i].elevation = mlt->at(15).at(i).elevation;
 
+		/*
         tile->north_row[i].river_present = mlt->at(i).at(0).river_present; //  Not used
         tile->south_row[i].river_present = mlt->at(i).at(15).river_present;
         tile->west_column[i].river_present = mlt->at(0).at(i).river_present;
@@ -1427,11 +1432,12 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         tile->south_row[i].adamantine_level = mlt->at(i).at(15).adamantine_level;
         tile->west_column[i].adamantine_level = mlt->at(0).at(i).adamantine_level;
         tile->east_column[i].adamantine_level = mlt->at(15).at(i).adamantine_level;
-
+		
         tile->north_row[i].magma_level = mlt->at(i).at(0).magma_level; //  Not used
         tile->south_row[i].magma_level = mlt->at(i).at(15).magma_level;
         tile->west_column[i].magma_level = mlt->at(0).at(i).magma_level;
         tile->east_column[i].magma_level = mlt->at(15).at(i).magma_level;
+		*/
 
         tile->north_row[i].biome_offset = mlt->at(i).at(0).biome_offset;
         tile->south_row[i].biome_offset = mlt->at(i).at(15).biome_offset;
@@ -1453,6 +1459,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         tile->west_column[i].evilness_level = mlt->at(0).at(i).evilness_level;
         tile->east_column[i].evilness_level = mlt->at(15).at(i).evilness_level;
 
+		/*
         tile->north_row[i].metals.resize(0);  //  Not used
         tile->south_row[i].metals.resize(0);
         tile->west_column[i].metals.resize(0);
@@ -1467,6 +1474,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         tile->south_row[i].minerals.resize(0);
         tile->west_column[i].minerals.resize(0);
         tile->east_column[i].minerals.resize(0);
+		*/
 
         tile->north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
         tile->west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
