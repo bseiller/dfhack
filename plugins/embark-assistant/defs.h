@@ -3,6 +3,10 @@
 #include <array>
 #include <string>
 #include <vector>
+
+#include "DataDefs.h"
+
+#include "df/biome_type.h"
 #include "df/world_region_type.h"
 
 using namespace std;
@@ -14,9 +18,19 @@ using std::vector;
 #define fileresult_file_name "./data/init/embark_assistant_fileresult.txt"
 #define index_folder_name "./data/init/embark_assistant_indexes/"
 #define index_folder_log_file_name "./data/init/embark_assistant_indexes/index.log"
+#define rivers_file_name "./data/init/embark_assistant_indexes/rivers"
+#define river_anomalies_file_name "./data/init/embark_assistant_indexes/rivers_anomalies"
+#define invalid_rivers_file_name "./data/init/embark_assistant_indexes/invalid_rivers"
 
 namespace embark_assist {
     namespace defs {
+
+        static const uint8_t SOIL_DEPTH_LEVELS = 5;
+        static const uint8_t ARRAY_SIZE_FOR_BIOMES = ENUM_LAST_ITEM(biome_type) + 1;
+        static const uint8_t ARRAY_SIZE_FOR_REGION_TYPES = ENUM_LAST_ITEM(world_region_type) + 1;
+        static const uint8_t ARRAY_SIZE_FOR_RIVER_SIZES = 6;
+        static const uint8_t ARRAY_SIZE_FOR_WATERFALL_DROPS = 10;
+
         //  Survey types
         //
         enum class river_sizes {
@@ -342,12 +356,39 @@ namespace embark_assist {
 
         typedef void(*find_callbacks) (const embark_assist::defs::finders &finder);
 
+        class key_buffer_holder_basic_interface {
+        public:
+            virtual void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_clay_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_sand_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_soil_depth_buffers(const std::array<uint16_t, SOIL_DEPTH_LEVELS> *&indices, const std::array<uint32_t *, SOIL_DEPTH_LEVELS> *&buffers) const = 0;
+            virtual void get_savagery_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
+            virtual void get_evilness_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
+            virtual void get_biome_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_BIOMES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_BIOMES> *&buffers) const = 0;
+            virtual void get_region_type_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_REGION_TYPES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_REGION_TYPES> *&buffers) const = 0;
+        };
+
+        class key_buffer_holder_interface : public virtual key_buffer_holder_basic_interface {
+        public:
+            virtual void get_coal_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_flux_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_adamantine_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
+            virtual void get_magma_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
+            virtual void get_metal_buffers(const std::vector<uint16_t> *&indices, const std::vector<uint32_t*> *&buffers) const = 0;
+            virtual void get_economic_buffers(const std::vector<uint16_t> *&indices, const std::vector<uint32_t*> *&buffers) const = 0;
+            virtual void get_mineral_buffers(const std::vector<uint16_t> *&indices, const std::vector<uint32_t*> *&buffers) const = 0;
+            virtual void get_river_size_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_RIVER_SIZES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_RIVER_SIZES> *&buffers) const = 0;
+            virtual void get_waterfall_drop_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&indices, const std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&buffers) const = 0;
+            virtual void get_no_waterfall_buffers(uint16_t &index, const uint32_t *&buffer) const = 0;
+        };
+
         class index_interface {
             public:
                 virtual const bool containsEntries() const = 0;
-                virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt) = 0;
+                virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) = 0;
                 virtual void optimize(bool debugOutput) = 0;
                 virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
+                virtual const uint32_t get_key(const int16_t x, const int16_t y) const = 0;
                 virtual ~index_interface(){}
         };
     }

@@ -5,24 +5,31 @@ SET(PROJECT_SRCS
     finder_ui.cpp
     help_ui.cpp
     index.cpp
+    inorganics_information.cpp
+    key_buffer_holder.cpp
     key_position_mapper.cpp
     matcher.cpp
     overlay.cpp
+    query_plan_factory.cpp
     roaring.c
     screen.cpp
     survey.cpp
 )
 # A list of headers
 SET(PROJECT_HDRS
+    basic_key_buffer_holder.h
     defs.h
     embark-assistant.h
     finder_ui.h
     help_ui.h
     index.h
+    inorganics_information.h
+    key_buffer_holder.h
     key_position_mapper.h
     matcher.h
     overlay.h
     query.h
+    query_plan_factory.h
     roaring.h
     roaring.hh
     screen.h

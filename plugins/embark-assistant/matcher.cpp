@@ -62,6 +62,12 @@ namespace embark_assist {
             bool mineral_3;
         };
 
+        struct states {
+            embark_assist::defs::mid_level_tiles mlt;
+        };
+
+        static states *state;
+
         //=======================================================================================
 
         void process_embark_incursion(matcher_info *result,
@@ -2106,15 +2112,18 @@ namespace embark_assist {
             uint16_t y) {
 
 //            color_ostream_proxy out(Core::getInstance().getConsole());
-            embark_assist::defs::mid_level_tiles mlt;
+            //embark_assist::defs::mid_level_tiles mlt;
+            //embark_assist::survey::initiate(&mlt);
 
             embark_assist::survey::survey_mid_level_tile(geo_summary,
                 survey_results,
-                &mlt,
+                &state->mlt,
+                //&mlt,
                 index);
 
             mid_level_tile_match(survey_results,
-                &mlt,
+                &state->mlt,
+                //&mlt,
                 x,
                 y,
                 finder,
@@ -2126,6 +2135,15 @@ namespace embark_assist {
 //=======================================================================================
 //  Visible operations
 //=======================================================================================
+
+void embark_assist::matcher::setup() {
+    embark_assist::matcher::state = new(embark_assist::matcher::states);
+    embark_assist::survey::initiate(&state->mlt);
+}
+
+void embark_assist::matcher::shutdown() {
+    delete state;
+}
 
 void embark_assist::matcher::move_cursor(uint16_t x, uint16_t y) {
     //            color_ostream_proxy out(Core::getInstance().getConsole());

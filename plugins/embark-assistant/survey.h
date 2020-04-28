@@ -1,5 +1,5 @@
 #pragma once
-#include <map>
+//#include <map>
 
 #include "DataDefs.h"
 #include "df/coord2d.h"
@@ -10,6 +10,18 @@ using namespace DFHack;
 
 namespace embark_assist {
     namespace survey {
+        extern std::chrono::duration<double> elapsed_init_seconds;
+        extern std::chrono::duration<double> elapsed_big_loop_seconds;
+        extern std::chrono::duration<double> elapsed_workaround_seconds;
+        extern std::chrono::duration<double> elapsed_tile_summary_seconds;
+        extern std::chrono::duration<double> elapsed_waterfall_and_biomes_seconds;
+        extern std::chrono::duration<double> elapsed_survey_seconds;
+        extern std::chrono::duration<double> elapsed_survey_total_seconds;
+        extern uint32_t number_of_waterfalls;
+
+        extern uint32_t number_of_layer_cache_misses;
+        extern uint32_t number_of_layer_cache_hits;
+
         void setup(uint16_t max_inorganic);
 
         df::coord2d get_last_pos();

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "Core.h"
 #include <Console.h>
+#include <future>
 
 // #include "ColorText.h"
 #include "DataDefs.h"
@@ -17,18 +18,33 @@
 
 #include "defs.h"
 #include "index.h"
+#include "inorganics_information.h"
 #include "query.h"
+#include "basic_key_buffer_holder.h"
 
 using namespace DFHack;
 
 namespace embark_assist {
     namespace index {
 
+        std::mutex add_many_aquifer_m;
+        std::mutex add_many_clay_m;
+        std::mutex add_many_sand_m;
+        std::mutex add_many_soil_m;
+        std::mutex add_many_savagery_m;
+        std::mutex add_many_evilness_m;
+
+        std::array<std::mutex, embark_assist::defs::SOIL_DEPTH_LEVELS> add_many_soil_ms;
+        std::array<std::mutex, 3> add_many_savagery_ms;
+        std::array<std::mutex, 3> add_many_evilness_ms;
+        std::array<std::mutex, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> add_many_biomes_ms;
+        std::array<std::mutex, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> add_many_regions_ms;
+
         class query_plan : public query_plan_interface {
         public:
-            std::vector<embark_assist::query::query_interface*> queries;
+            std::vector<const embark_assist::query::query_interface*> queries;
 
-            // TODO: make this a smart iterator instead of a vector - which would save same memory...
+            // TODO: make this a smart iterator instead of a vector - which would save some memory...
             const std::vector<uint32_t>& get_most_significant_ids() const final {
                 return *most_significant_ids;
             }
@@ -61,66 +77,35 @@ namespace embark_assist {
             const std::vector<uint32_t>* most_significant_ids;
         };
 
-        struct key_buffer_holder_basic {
-            uint32_t aquiferBuffer[256];
-            uint16_t aquifierBufferIndex = 0;
-
-            uint32_t clayBuffer[256];
-            uint16_t clayBufferIndex = 0;
-
-            uint32_t sandBuffer[256];
-            uint16_t sandBufferIndex = 0;
-
-            std::array<uint32_t[256], 3> savagery_buffer;
-            std::array<uint16_t, 3> savagery_buffer_index = { 0, 0, 0 };
-
-            std::array<uint32_t[256], 3> evilness_buffer;
-            std::array<uint16_t, 3> evilness_buffer_index = { 0, 0, 0 };
-            
-            std::array<uint32_t[256], embark_assist::index::Index::SOIL_DEPTH_LEVELS> soil_buffer;
-            std::array<uint16_t, embark_assist::index::Index::SOIL_DEPTH_LEVELS> soil_buffer_index = { 0, 0, 0, 0, 0 };
-
-            //std::array<uint32_t[256], ENUM_LAST_ITEM(biome_type) + 1> biomes_buffer;
-            //std::array<uint16_t, ENUM_LAST_ITEM(biome_type) + 1>  biomes_buffer_index = { 0, 0, 0, 0, 0 };
-        };
-
-        struct key_buffer_holder : key_buffer_holder_basic {
-            std::array<uint32_t[256], 4> magma_buffer;
-            std::array<uint16_t, 4> magma_buffer_index = { 0, 0, 0, 0 };
-
-            std::array<uint32_t[256], 4> adamantine_buffer;
-            std::array<uint16_t, 4> adamantine_buffer_index = { 0, 0, 0, 0 };
-
-            uint32_t coalBuffer[256];
-            uint32_t riverBuffer[256];
-            uint32_t fluxBuffer[256];
-
-            uint16_t coalBufferIndex = 0;
-            uint16_t fluxBufferIndex = 0;
-            uint16_t riverBufferIndex = 0;
-        };
-
-        void add_to_buffers(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, key_buffer_holder &buffer_holder) {
+        void add_to_buffers(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, embark_assist::key_buffer_holder::basic_key_buffer_holder<256> &buffer_holder) {
             if (mlt.aquifer) {
-                buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
+                buffer_holder.add_aquifer(key);
+                // buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
             }
 
             if (mlt.clay) {
-                buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
+                buffer_holder.add_clay(key);
+                //buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
             }
 
             if (mlt.sand) {
-                buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
+                buffer_holder.add_sand(key);
+                // buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
             }
 
-            buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;
-            buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
-            buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
+            buffer_holder.add_soil_depth(key, mlt.soil_depth);
+            //buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;
+            buffer_holder.add_savagery_level(key, mlt.savagery_level);
+            // buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
+            buffer_holder.add_evilness_level(key, mlt.evilness_level);
+            // buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
 
-            //  Biomes
-            // result.biomes[rtd.biome[mlt.biome_offset]] = true;
-            // rtd.biome[mlt.biome_offset];
-            // biomes[rtd.biome[mlt.biome_offset]].add(key);
+            // needs additional processing!
+            const int16_t biome_id = rtd.biome[mlt.biome_offset];
+            buffer_holder.add_biome(key, biome_id);
+
+            // TODO: how to do this for regions here?
+            //buffer_holder.add_region_type(key);
         }
 
         void set_capacity_and_add_to_static_indices(Roaring& index, const uint32_t capacity, std::vector<Roaring*> static_indices) {
@@ -139,7 +124,16 @@ embark_assist::index::Index::Index(df::world *world)
     hasFlux(roaring_bitmap_create_with_capacity(capacity)),
     hasRiver(roaring_bitmap_create_with_capacity(capacity)),
     hasSand(roaring_bitmap_create_with_capacity(capacity)),
-    uniqueKeys(roaring_bitmap_create_with_capacity(capacity)) {
+    is_unflat_by_incursion(roaring_bitmap_create_with_capacity(capacity)),
+    no_waterfall(roaring_bitmap_create_with_capacity(capacity)),
+    uniqueKeys(roaring_bitmap_create_with_capacity(capacity)),
+    inorganics_info(embark_assist::inorganics::inorganics_information::get_instance()),
+    metal_indices(inorganics_info.get_metal_indices()),
+    economic_indices(inorganics_info.get_economic_indices()),
+    mineral_indices(inorganics_info.get_mineral_indices()),
+    metal_names(inorganics_info.get_metal_names()),
+    economic_names(inorganics_info.get_economic_names()),
+    mineral_names(inorganics_info.get_mineral_names()) {
 
     this->world = world;
 
@@ -181,6 +175,21 @@ embark_assist::index::Index::Index(df::world *world)
     for (auto& index : evilness_level) {
         set_capacity_and_add_to_static_indices(index, capacity, static_indices);
     }
+
+    for (auto& index : biome) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : region_type) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    // TODO: move to top
+    static_indices.push_back(&no_waterfall);
+
+    //for (auto& index : waterfall_drops) {
+    //    set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    //}
 }
 
 embark_assist::index::Index::~Index() {
@@ -190,34 +199,33 @@ embark_assist::index::Index::~Index() {
 void embark_assist::index::Index::setup(const uint16_t max_inorganic) {
     this->max_inorganic = max_inorganic;
 
-    init_inorganic_index();
-    initInorganicNames();
+    init_inorganic_indices();
 }
 
+const uint32_t embark_assist::index::Index::get_key(const int16_t x, const int16_t y) const {
+    return keyMapper->key_of(x, y, 0, 0);
+}
 
-void embark_assist::index::Index::add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts) {
+void embark_assist::index::Index::add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts, 
+                                      const embark_assist::defs::key_buffer_holder_interface &buffer_holder2) {
     color_ostream_proxy out(Core::getInstance().getConsole());
+    const auto innerStartTime = std::chrono::steady_clock::now();
 
-    const auto innerStartTime = std::chrono::system_clock::now();
-    
     const uint32_t world_offset = keyMapper->key_of(x, y, 0, 0);
-    uint32_t mlt_offset = 0;
-        
     if (previous_key == world_offset) {
         return;
     }
     previous_key = world_offset;
 
-    positions.push_back({ x,y });
+    //positions.push_back({ x,y });
 
-    key_buffer_holder buffer_holder;
+    // std::thread t_incursion = std::thread{ [&]() { this->process_incursions(x, y, world_offset, rtd, mlts); } };
 
-    metalBufferIndex.assign(max_inorganic, 0);
-    economicBufferIndex.assign(max_inorganic, 0);
-    mineralBufferIndex.assign(max_inorganic, 0);
+    //auto incursion_processing_result = std::async(std::launch::async, [&]() { this->process_incursions(x, y, world_offset, rtd, mlts); });
 
-    uint32_t last_key = 0;
+    uint32_t mlt_offset = 0;
 
+    /*
     // beware: we process "first" in k(y) than in the i(x) dimension, otherwise the key can't be calculated just be using a rolling offset
     // the inner loop processes one row, then the next row with a higher k/y value
     for (uint8_t k = 0; k < 16; k++) {
@@ -225,23 +233,10 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             entryCounter++;
 
             const embark_assist::defs::mid_level_tile &mlt = mlts->at(i).at(k);
-            const uint32_t key = world_offset + mlt_offset;
-            last_key = key;
-            keys_in_order.push_back(key);
-
-            mlt_offset++;
-
+            const uint32_t key = world_offset + mlt_offset++;
+            
+            // keys_in_order.push_back(key);
             // uniqueKeys.add(key);
-
-            add_to_buffers(key, mlt, rtd, buffer_holder);
-
-            //if (mlt.aquifer) {
-            //    buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
-            //}
-
-            //if (mlt.clay) {
-            //    buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
-            //}
 
             if (mlt.coal) {
                 buffer_holder.coalBuffer[buffer_holder.coalBufferIndex++] = key;
@@ -255,10 +250,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
                 buffer_holder.riverBuffer[buffer_holder.riverBufferIndex++] = key;
             }
 
-            //if (mlt.sand) {
-            //    buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
-            //}
-
             if (mlt.magma_level > -1) {
                 buffer_holder.magma_buffer[mlt.magma_level][buffer_holder.magma_buffer_index[mlt.magma_level]++] = key;
             }
@@ -267,19 +258,12 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
                 buffer_holder.adamantine_buffer[mlt.adamantine_level][buffer_holder.adamantine_buffer_index[mlt.adamantine_level]++] = key;
             }
 
-            // soil[mlt.soil_depth].add(key);
-            /*buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;*/
-
-            //savagery_level[mlt.savagery_level].add(key);
-            //evilness_level[mlt.evilness_level].add(key);
-
-            //buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
-            //buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
-
             //  Region Type
             // result.region_types[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type] = true;
             // world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type;
             // regions[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type].add(key);
+
+            //const auto inorganicsStartTime = std::chrono::steady_clock::now();
 
             // create indices for metals, economics and minerals
             //const auto begin_metals = mlt.metals.cbegin();
@@ -290,6 +274,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
                 }
                 index++;
             }
+            
 
             // const auto begin_economics = mlt.economics.cbegin();
             index = 0;
@@ -320,83 +305,126 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
                 }
                 index++;
             }
+
+            //const auto inorganics_processing_end = std::chrono::steady_clock::now();
+            //inorganics_processing_seconds += inorganics_processing_end - inorganicsStartTime;
+
+            // handling data that is also processed by incursions
+            add_to_buffers(key, mlt, rtd, buffer_holder);
+        }
+    }
+    */
+
+    //const auto adding_start = std::chrono::steady_clock::now();
+
+    uint16_t coalBufferIndex(0);
+    const uint32_t *coalBuffer;
+    buffer_holder2.get_coal_buffer(coalBufferIndex, coalBuffer);
+    if (coalBufferIndex > 0) {
+        hasCoal.addMany(coalBufferIndex, coalBuffer);
+    }
+
+    uint16_t fluxBufferIndex(0);
+    const uint32_t *fluxBuffer;
+    buffer_holder2.get_flux_buffer(fluxBufferIndex, fluxBuffer);
+    if (fluxBufferIndex > 0) {
+        hasFlux.addMany(fluxBufferIndex, fluxBuffer);
+    }
+
+    const std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> * river_indices;
+    const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> * river_buffers;
+    buffer_holder2.get_river_size_buffers(river_indices, river_buffers);
+    for (int i = 0; i < river_indices->size(); i++) {
+        if (river_indices->at(i) > 0) {
+            river_size[i].addMany(river_indices->at(i), river_buffers->at(i));
         }
     }
 
-    if (buffer_holder.aquifierBufferIndex > 0) {
-        hasAquifer.addMany(buffer_holder.aquifierBufferIndex, buffer_holder.aquiferBuffer);
-    }
-    if (buffer_holder.coalBufferIndex > 0) {
-        hasCoal.addMany(buffer_holder.coalBufferIndex, buffer_holder.coalBuffer);
-    }
-    if (buffer_holder.clayBufferIndex > 0) {
-        hasClay.addMany(buffer_holder.clayBufferIndex, buffer_holder.clayBuffer);
-    }
-    if (buffer_holder.fluxBufferIndex > 0) {
-        hasFlux.addMany(buffer_holder.fluxBufferIndex, buffer_holder.fluxBuffer);
-    }
-    if (buffer_holder.riverBufferIndex > 0) {
-        hasRiver.addMany(buffer_holder.riverBufferIndex, buffer_holder.riverBuffer);
-    }
-    if (buffer_holder.sandBufferIndex > 0) {
-        hasSand.addMany(buffer_holder.sandBufferIndex, buffer_holder.sandBuffer);
-    }
-
-    for (int i = 0; i < magma_level.size(); i++) {
-        if (buffer_holder.magma_buffer_index[i] > 0) {
-            magma_level[i].addMany(buffer_holder.magma_buffer_index[i], buffer_holder.magma_buffer[i]);
+    const std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> * waterfall_indices;
+    const std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS > * waterfall_buffers;
+    buffer_holder2.get_waterfall_drop_buffers(waterfall_indices, waterfall_buffers);
+    for (int depth = 0; depth < waterfall_indices->size(); depth++) {
+        const uint16_t buffer_index_position = waterfall_indices->at(depth);
+        if (buffer_index_position > 0) {
+            for (int index = 0; index < buffer_index_position; index++) {
+                const std::pair<uint32_t, uint32_t> &keys = waterfall_buffers->at(depth)[index];
+                //waterfall_drops[depth].insert(waterfall_buffers->at(depth)[index].first, waterfall_buffers->at(depth)[index].second);
+                //waterfall_drops[depth].insert(waterfall_buffers->at(depth)[index]);
+                if (waterfall_drops[depth].count(keys.first) == 1) {
+                    waterfall_drops[depth][keys.first]->add(keys.second);
+                }
+                else {
+                    //waterfall_drops[depth][keys.first] = { 1, {keys.second, 0, 0, 0} };
+                    waterfall_drops[depth][keys.first] = new waterfall_drop_bucket(keys.second);
+                }
+            }
         }
     }
 
-    for (int i = 0; i < adamantine_level.size(); i++) {
-        if (buffer_holder.adamantine_buffer_index[i] > 0) {
-            adamantine_level[i].addMany(buffer_holder.adamantine_buffer_index[i], buffer_holder.adamantine_buffer[i]);
+    uint16_t no_waterfall_index(0);
+    const uint32_t *no_waterfall_buffer;
+    buffer_holder2.get_no_waterfall_buffers(no_waterfall_index, no_waterfall_buffer);
+    if (no_waterfall_index > 0) {
+        no_waterfall.addMany(no_waterfall_index, no_waterfall_buffer);
+    }
+
+    const std::array<uint16_t, 4> * magma_indices;
+    const std::array<uint32_t *, 4> * magma_buffers;
+    buffer_holder2.get_magma_level_buffers(magma_indices, magma_buffers);
+    for (int i = 0; i < magma_indices->size(); i++) {
+        if (magma_indices->at(i) > 0) {
+            magma_level[i].addMany(magma_indices->at(i), magma_buffers->at(i));
         }
     }
 
-    for (int i = 0; i < SOIL_DEPTH_LEVELS; i++) {
-        if (buffer_holder.soil_buffer_index[i] > 0) {
-            soil[i].addMany(buffer_holder.soil_buffer_index[i], buffer_holder.soil_buffer[i]);
+    const std::array<uint16_t, 4> * adamantine_indices;
+    const std::array<uint32_t *, 4> * adamantine_buffers;
+    buffer_holder2.get_adamantine_level_buffers(adamantine_indices, adamantine_buffers);
+    for (int i = 0; i < adamantine_indices->size(); i++) {
+        if (adamantine_indices->at(i) > 0) {
+            adamantine_level[i].addMany(adamantine_indices->at(i), adamantine_buffers->at(i));
         }
     }
 
-    for (int i = 0; i < savagery_level.size(); i++) {
-        if (buffer_holder.savagery_buffer_index[i] > 0) {
-            savagery_level[i].addMany(buffer_holder.savagery_buffer_index[i], buffer_holder.savagery_buffer[i]);
+    const std::vector<uint16_t> * metal_buffer_indices;
+    const std::vector<uint32_t *> * metal_buffers;
+    buffer_holder2.get_metal_buffers(metal_buffer_indices, metal_buffers);
+    for (auto metalIndexOffset : this->metal_indices) {
+        if (metal_buffer_indices->at(metalIndexOffset) > 0) {
+            metals[metalIndexOffset]->addMany(metal_buffer_indices->at(metalIndexOffset), metal_buffers->at(metalIndexOffset));
         }
     }
 
-    for (int i = 0; i < evilness_level.size(); i++) {
-        if (buffer_holder.evilness_buffer_index[i] > 0) {
-            evilness_level[i].addMany(buffer_holder.evilness_buffer_index[i], buffer_holder.evilness_buffer[i]);
+    const std::vector<uint16_t> * economic_buffer_indices;
+    const std::vector<uint32_t *> * economic_buffers;
+    buffer_holder2.get_economic_buffers(economic_buffer_indices, economic_buffers);
+    for (auto economicIndexOffset : economic_indices) {
+        if (economic_buffer_indices->at(economicIndexOffset) > 0) {
+            economics[economicIndexOffset]->addMany(economic_buffer_indices->at(economicIndexOffset), economic_buffers->at(economicIndexOffset));
         }
     }
 
-    for (auto it = metalIndices.cbegin(); it != metalIndices.cend(); it++) {
-        if (metalBufferIndex[*it] > 0) {
-            metals[*it]->addMany(metalBufferIndex[*it], metalBuffer[*it]);
+    const std::vector<uint16_t> * mineral_buffer_indices;
+    const std::vector<uint32_t *> * mineral_buffers;
+    buffer_holder2.get_mineral_buffers(mineral_buffer_indices, mineral_buffers);
+    for (auto mineralIndexOffset : mineral_indices) {
+        if (mineral_buffer_indices->at(mineralIndexOffset) > 0) {
+            minerals[mineralIndexOffset]->addMany(mineral_buffer_indices->at(mineralIndexOffset), mineral_buffers->at(mineralIndexOffset));
         }
     }
 
-    // alternative loop structure - better performance?
-    //for (auto metalIndexOffset : metalIndices) {
-    //    if (metalBufferIndex[metalIndexOffset] > 0) {
-    //        metals[metalIndexOffset]->addMany(metalBufferIndex[metalIndexOffset], metalBuffer[metalIndexOffset]);
-    //    }
-    //}
+    // add all buffers that contain data that is also handled by the incursions to the indices
+    this->add_buffers_to_indices(buffer_holder2);
+    
+    //const auto adding_end = std::chrono::steady_clock::now();
+    //index_adding_seconds += adding_end - adding_start;
 
-    for (auto it = economicIndices.cbegin(); it != economicIndices.cend(); it++) {
-        if (economicBufferIndex[*it] > 0) {
-            economics[*it]->addMany(economicBufferIndex[*it], economicBuffer[*it]);
-        }
-    }
+    // sync with incursion task, wait block till it finishes
+    //incursion_processing_result.get();
 
-    for (auto it = mineralIndices.cbegin(); it != mineralIndices.cend(); it++) {
-        if (mineralBufferIndex[*it] > 0) {
-            minerals[*it]->addMany(mineralBufferIndex[*it], mineralBuffer[*it]);
-        }
-    }
-
+    // now we may optimize, since all data is collected for this world tile - but do so only after every feature shell (= 16*16 world tiles)
+    // ATTENTION: if the line incursion_processing_result.get(); is moved after the optimize call locking must be implemented otherwise race conditions will happen!
+    const uint32_t last_key = world_offset + NUMBER_OF_EMBARK_TILES - 1;
     if ((last_key - feature_set_counter) % (NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL * (feature_set_counter + 1)) == 0) {
         if (!was_optimized_in_current_feature_shell) {
             this->optimize(false);
@@ -409,8 +437,107 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
         was_optimized_in_current_feature_shell = false;
     }
 
-    const auto innerEnd = std::chrono::system_clock::now();
+    const auto innerEnd = std::chrono::steady_clock::now();
     innerElapsed_seconds += innerEnd - innerStartTime;
+}
+
+void embark_assist::index::Index::process_incursions(const int16_t x, const int16_t y, const uint32_t world_offset, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts) {
+    uint32_t mlt_offset = 0;
+    embark_assist::key_buffer_holder::basic_key_buffer_holder<256> buffer_holder;
+    //std::vector<std::future<void>> pending_futures;
+
+    // beware: we process "first" in k(y) than in the i(x) dimension, otherwise the key can't be calculated just be using a rolling offset
+    // the inner loop processes one row, then the next row with a higher k/y value
+    for (uint8_t k = 1; k < 15; k++) {
+        for (uint8_t i = 1; i < 15; i++) {
+            const embark_assist::defs::mid_level_tile &mlt = mlts->at(i).at(k);
+            // BEWARE: this is absolutely wrong - so don't keep this line - if we start with k=1,i=1 we have to calculate the key properly with that offset!
+            const uint32_t key = world_offset + mlt_offset++;
+
+            // handling data that is also processed by incursions
+            add_to_buffers(key, mlt, rtd, buffer_holder);
+        }
+    }
+
+    this->add_buffers_to_indices(buffer_holder);
+
+    //auto buffer_adding_result = std::async(std::launch::async, [&]() { this->add_buffers_to_indices({ buffer_holder }); });
+    //// transfer the future's shared state to a longer-lived future
+    //pending_futures.push_back(std::move(buffer_adding_result));
+}
+
+
+void embark_assist::index::Index::add_buffers_to_indices(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) {
+    uint16_t aquiferBufferIndex(0);
+    const uint32_t *aquiferBuffer;
+    buffer_holder.get_aquifer_buffer(aquiferBufferIndex, aquiferBuffer);
+    if (aquiferBufferIndex > 0) {
+        hasAquifer.addMany(aquiferBufferIndex, aquiferBuffer);
+    }
+
+    uint16_t clayBufferIndex(0);
+    const uint32_t *clayBuffer;
+    buffer_holder.get_clay_buffer(clayBufferIndex, clayBuffer);
+    if (clayBufferIndex > 0) {
+        hasClay.addMany(clayBufferIndex, clayBuffer);
+    }
+
+    uint16_t sandBufferIndex(0);
+    const uint32_t *sandBuffer;
+    buffer_holder.get_sand_buffer(sandBufferIndex, sandBuffer);
+    if (sandBufferIndex > 0) {
+        hasSand.addMany(sandBufferIndex, sandBuffer);
+    }
+
+    const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *indices;
+    const std::array<uint32_t *, embark_assist::defs::SOIL_DEPTH_LEVELS> *buffers;
+    buffer_holder.get_soil_depth_buffers(indices, buffers);
+    for (int i = 0; i < embark_assist::defs::SOIL_DEPTH_LEVELS; i++) {
+        if (indices->at(i) > 0) {
+            const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_soil_ms[i]);
+            soil[i].addMany(indices->at(i), buffers->at(i));
+        }
+    }
+
+    const std::array<uint16_t, 3> *savagery_indices;
+    const std::array<uint32_t *, 3> *savagery_buffers;
+    buffer_holder.get_savagery_level_buffers(savagery_indices, savagery_buffers);
+    for (int i = 0; i < savagery_level.size(); i++) {
+        if (savagery_indices->at(i) > 0) {
+            const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_savagery_ms[i]);
+            savagery_level[i].addMany(savagery_indices->at(i), savagery_buffers->at(i));
+        }
+    }
+
+    const std::array<uint16_t, 3> *evilness_indices;
+    const std::array<uint32_t *, 3> *evilness_buffers;
+    buffer_holder.get_evilness_level_buffers(evilness_indices, evilness_buffers);
+    for (int i = 0; i < evilness_level.size(); i++) {
+        if (evilness_indices->at(i) > 0) {
+            const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_evilness_ms[i]);
+            evilness_level[i].addMany(evilness_indices->at(i), evilness_buffers->at(i));
+        }
+    }
+
+    const std::array<int16_t, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> *biome_indices;
+    const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> *biome_buffers;
+    buffer_holder.get_biome_buffers(biome_indices, biome_buffers);
+    for (int i = 0; i < biome.size(); i++) {
+        if (biome_indices->at(i) > 0) {
+            const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_biomes_ms[i]);
+            biome[i].addMany(biome_indices->at(i), biome_buffers->at(i));
+        }
+    }
+
+    const std::array<int16_t, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> *region_type_indices;
+    const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> *region_type_buffers;
+    buffer_holder.get_region_type_buffers(region_type_indices, region_type_buffers);
+    for (int i = 0; i < region_type.size(); i++) {
+        if (region_type_indices->at(i) > 0) {
+            const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_regions_ms[i]);
+            region_type[i].addMany(region_type_indices->at(i), region_type_buffers->at(i));
+        }
+    }
 }
 
 const bool embark_assist::index::Index::containsEntries() const {
@@ -427,9 +554,6 @@ inline void embark_assist::index::Index::optimize(Roaring *index, bool shrinkToS
 void embark_assist::index::Index::optimize(bool debugOutput) {
 
     if (debugOutput) {
-        if (metalNames.empty()) {
-            initInorganicNames();
-        }
         this->outputSizes("before optimize");
     }
 
@@ -460,14 +584,20 @@ void embark_assist::index::Index::optimize(bool debugOutput) {
         this->outputContents();
 
         color_ostream_proxy out(Core::getInstance().getConsole());
-        out.print("### actual adding took total %f seconds ###\n", innerElapsed_seconds.count());
+        out.print("### embark_assist::index::Index::add inorganics processing took %f seconds ###\n", inorganics_processing_seconds.count());
+        out.print("### embark_assist::index::Index::add only index adding took %f seconds ###\n", index_adding_seconds.count());
+        out.print("### embark_assist::index::Index::add buffer and index adding took total %f seconds ###\n", innerElapsed_seconds.count());
         // std::cout << "### actual adding took total " << innerElapsed_seconds.count() << " seconds ###" << std::endl;
         innerElapsed_seconds = std::chrono::seconds(0);
+        index_adding_seconds = std::chrono::seconds(0);
+        inorganics_processing_seconds = std::chrono::seconds(0);
     }
 }
 
 void embark_assist::index::Index::shutdown() {
-    world = nullptr; 
+    embark_assist::inorganics::inorganics_information::reset();
+    world = nullptr;
+    feature_set_counter = 0;
     entryCounter = 0;
     max_inorganic = 0;
     maxKeyValue = 0;
@@ -488,25 +618,7 @@ void embark_assist::index::Index::shutdown() {
     metals.clear();
     metals.resize(0);
     metals.reserve(0);
-    metalNames.clear();
-    metalNames.reserve(0);
-       
-    for (auto it = metalBuffer.begin(); it != metalBuffer.end(); it++) {
-        if (*it != nullptr) {
-            delete *it;
-        }
-    }
-    metalBuffer.clear();
-    metalBuffer.resize(0);
-    metalBuffer.reserve(0);
-
-    metalBufferIndex.clear();
-    metalBufferIndex.resize(0);
-    metalBufferIndex.reserve(0);
-
-    metalIndices.clear();
-    metalIndices.resize(0);
-
+    
     for (auto it = economics.begin(); it != economics.end(); it++) {
         if (*it != nullptr) {
             roaring_bitmap_clear(&(*it)->roaring);
@@ -516,25 +628,7 @@ void embark_assist::index::Index::shutdown() {
     economics.clear();
     economics.resize(0);
     economics.reserve(0);
-    economicNames.clear();
-    economicNames.reserve(0);
-
-    for (auto it = economicBuffer.begin(); it != economicBuffer.end(); it++) {
-        if (*it != nullptr) {
-            delete *it;
-        }
-    }
-    economicBuffer.clear();
-    economicBuffer.resize(0);
-    economicBuffer.reserve(0);
-
-    economicBufferIndex.clear();
-    economicBufferIndex.resize(0);
-    economicBufferIndex.reserve(0);
-
-    economicIndices.clear();
-    economicIndices.resize(0);
-
+    
     for (auto it = minerals.begin(); it != minerals.end(); it++) {
         if (*it != nullptr) {
             roaring_bitmap_clear(&(*it)->roaring);
@@ -544,28 +638,18 @@ void embark_assist::index::Index::shutdown() {
     minerals.clear();
     minerals.resize(0);
     minerals.reserve(0);
-    mineralNames.clear();
-    mineralNames.reserve(0);
-
-    for (auto it = mineralBuffer.begin(); it != mineralBuffer.end(); it++) {
-        if (*it != nullptr) {
-            delete *it;
-        }
-    }
-    mineralBuffer.clear();
-    mineralBuffer.resize(0);
-    mineralBuffer.reserve(0);
-
-    mineralBufferIndex.clear();
-    mineralBufferIndex.resize(0);
-    mineralBufferIndex.reserve(0);
-
-    mineralIndices.clear();
-    mineralIndices.resize(0);
 
     inorganics.clear();
     inorganics.resize(0);
     inorganics.reserve(0);
+
+    for (auto it = waterfall_drops.begin(); it != waterfall_drops.end(); it++) {
+        for (auto it2 = (*it).begin(); it2 != (*it).end(); it2++) {
+            delete (*it2).second;
+        }
+        (*it).clear();
+        (*it).reserve(0);
+    }
 
     keys_in_order.clear();
     positions.clear();
@@ -632,7 +716,7 @@ const void embark_assist::index::Index::outputContents() const {
         if (*it != nullptr) {
             std::string name = "### UNKOWN METAL ###";
             const uint16_t index = std::distance(metals.cbegin(), it);
-            name = getInorganicName(index, metalNames, name);
+            name = getInorganicName(index, metal_names, name);
             fprintf(outfile, "#%d - %s: %I64d\n", index, name.c_str(), (*it)->cardinality());
             this->writeIndexToDisk((**it), std::to_string(index_prefix++) + "_#" + std::to_string(index) + "_" + name);
         }
@@ -642,7 +726,7 @@ const void embark_assist::index::Index::outputContents() const {
         if (*it != nullptr) {
             std::string name = "### UNKOWN ECONOMIC ###";
             const uint16_t index = std::distance(economics.cbegin(), it);
-            name = getInorganicName(index, economicNames, name);
+            name = getInorganicName(index, economic_names, name);
             fprintf(outfile, "#%d - %s: %I64d\n", index, name.c_str(), (*it)->cardinality());
             this->writeIndexToDisk((**it), std::to_string(index_prefix++) + "_#" + std::to_string(index) + "_" + name);
         }
@@ -652,13 +736,35 @@ const void embark_assist::index::Index::outputContents() const {
         if (*it != nullptr) {
             std::string name = "### UNKOWN MINERAL ###";
             const uint16_t index = std::distance(minerals.cbegin(), it);
-            name = getInorganicName(index, mineralNames, name);
+            name = getInorganicName(index, mineral_names, name);
             fprintf(outfile, "#%d - %s: %I64d\n", index, name.c_str(), (*it)->cardinality());
             this->writeIndexToDisk((**it), std::to_string(index_prefix++) + "_#" + std::to_string(index) + "_" + name);
         }
     }
+    // TODO: move the following blocks (before fclose) before the inorganics
+    level_post_fix = 0;
+    for (auto& index : biome) {
+        fprintf(outfile, "number of biome #%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_biome_" + std::to_string(level_post_fix++));
+    }
+
+    level_post_fix = 0;
+    for (auto& index : region_type) {
+        fprintf(outfile, "number of region_type #%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_region_type_" + std::to_string(level_post_fix++));
+    }
+
+    //level_post_fix = 0;
+    //for (auto& index : waterfall_drops) {
+    //    fprintf(outfile, "number of waterfall_drops #%d entries: %I64d\n", level_post_fix, index.cardinality());
+    //    this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_waterfall_drops_" + std::to_string(level_post_fix++));
+    //}
+
+    fprintf(outfile, "number of no_waterfall entries: %I64d\n", no_waterfall.cardinality());
+    this->writeIndexToDisk(no_waterfall, std::to_string(index_prefix++) + "_no_waterfall");
+
     fclose(outfile);
-    
+
     const std::string prefix = "keys_in_order";
     auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out);
     
@@ -786,7 +892,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         // - if this query is the most significant one we need another query as helper to verify that all the other tiles also (not) have a aquifer... 
         // This is true for all criteria with exclusive/absolute (all/none, absent, ...) meaning
         const Roaring &hasAquifer = this->hasAquifer;
-        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasAquifer](const Roaring &embark_candidate) -> bool {
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasAquifer](const Roaring &embark_candidate) -> bool {
             // std::cout << "hasAquifer.and_cardinality" << std::endl;
             return hasAquifer.and_cardinality(embark_candidate) > 0;
         }, [&hasAquifer]() -> uint32_t {
@@ -801,7 +907,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     if (finder.magma_min == embark_assist::defs::magma_ranges::Volcano) {
         const uint64_t i = static_cast<uint64_t>(embark_assist::defs::magma_ranges::Volcano);
         const Roaring &magma_level = this->magma_level[i];
-        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&magma_level](const Roaring &embark_candidate) -> bool {
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&magma_level](const Roaring &embark_candidate) -> bool {
             // std::cout << "magma_level.and_cardinality" << std::endl;
             return magma_level.and_cardinality(embark_candidate) > 0;
         }, [&magma_level]() -> uint32_t {
@@ -816,7 +922,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     if (finder.evilness[static_cast<uint8_t>(embark_assist::defs::evil_savagery_ranges::Medium)] != embark_assist::defs::evil_savagery_values::Present) {
         const uint64_t i = static_cast<uint64_t>(embark_assist::defs::evil_savagery_ranges::Medium);
         const Roaring &evilness_level = this->evilness_level[i];
-        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&evilness_level](const Roaring &embark_candidate) -> bool {
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&evilness_level](const Roaring &embark_candidate) -> bool {
             // std::cout << "evilness_level.and_cardinality" << std::endl;
             return evilness_level.and_cardinality(embark_candidate) > 0;
         }, [&evilness_level]() -> uint32_t {
@@ -830,7 +936,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     if (finder.metal_1 != -1) {
         const Roaring &metal = *this->metals[finder.metal_1];
-        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
             // std::cout << "metal.and_cardinality" << std::endl;
             return metal.and_cardinality(embark_candidate) > 0;
         }, [&metal]() -> uint32_t {
@@ -844,7 +950,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     if (finder.metal_2 != -1) {
         const Roaring &metal = *this->metals[finder.metal_2];
-        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
             // std::cout << "metal.and_cardinality" << std::endl;
             return metal.and_cardinality(embark_candidate) > 0;
         }, [&metal]() -> uint32_t {
@@ -853,6 +959,55 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }, [&metal, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(metal);
         });
+        result->queries.push_back(q);
+    }
+
+    if (finder.min_waterfall > 0) {
+        const int8_t waterfall_depth = finder.min_waterfall;
+        const std::array<unordered_map<uint32_t, waterfall_drop_bucket*>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> &waterfall_drops = this->waterfall_drops;
+        embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&waterfall_drops, waterfall_depth](const Roaring &embark_candidate) -> bool {
+            const uint32_t cardinality = embark_candidate.cardinality();
+            // max size (16*16) for a embark_candidate roaring index
+            uint32_t keys[256];
+            embark_candidate.toUint32Array(keys);
+            for (uint8_t drop = waterfall_depth; drop < 10; drop++) {
+                for (uint16_t key_index = 0; key_index < cardinality; key_index++) {
+                    const uint32_t key = keys[key_index];
+                    if (waterfall_drops[drop].count(key)) {
+                        const waterfall_drop_bucket &bucket = *waterfall_drops[drop].at(key);
+                        const uint32_t secondary_key = bucket.keys[0];
+                        if (std::binary_search(keys, keys + cardinality, secondary_key)) {
+                            return true;
+                        }
+                        if (bucket.counter > 1) {
+                            const uint32_t secondary_key = bucket.keys[1];
+                            if (std::binary_search(keys, keys + cardinality, secondary_key)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }, [&waterfall_drops, waterfall_depth]() -> uint32_t {
+            uint32_t get_number_of_entries = 0;
+            for (uint8_t drop = waterfall_depth; drop < 10; drop++) {
+                get_number_of_entries += waterfall_drops[drop].size();
+            }
+            return get_number_of_entries;
+        }, [&waterfall_drops, waterfall_depth]() -> const std::vector<uint32_t>* {
+            std::vector<uint32_t>* dest = new std::vector<uint32_t>();
+            for (uint8_t drop = waterfall_depth; drop < 10; drop++) {
+                for (auto it = waterfall_drops[drop].cbegin(); it != waterfall_drops[drop].cend(); ++it) {
+                    dest->push_back(it->first);
+                }
+            }
+            std::sort(dest->begin(), dest->end());
+            auto last = std::unique(dest->begin(), dest->end());
+            dest->erase(last, dest->end());
+            return dest;
+        });
+        q->flag_for_keeping();
         result->queries.push_back(q);
     }
 
@@ -876,8 +1031,8 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
 void embark_assist::index::Index::find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const {
     color_ostream_proxy out(Core::getInstance().getConsole());
-    const auto innerStartTime = std::chrono::system_clock::now();
-    const std::time_t start_time = std::chrono::system_clock::to_time_t(innerStartTime);
+    const auto innerStartTime = std::chrono::steady_clock::now();
+    const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     out.print("embark_assist::index::Index::find: started index query search at %s\n", std::ctime(&start_time));
     
     const uint16_t embark_size_x = finder.x_dim;
@@ -895,6 +1050,10 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
     uint32_t embark_tile_key_buffer[256];
     uint32_t number_of_iterations = 0;
     uint32_t number_of_matches = 0;
+    uint32_t number_of_matched_worldtiles = 0;
+
+    int16_t previous_x = -1;
+    int16_t previous_y = -1;
 
     embark_tile_tracker start_tile_tracker;
 
@@ -919,12 +1078,19 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
                 //get_position(smallest_key, x, y, i, k);
                 keyMapper->get_position(smallest_key, x, y, i, k);
 
+                if (previous_x != x || previous_y != y) {
+                    number_of_matched_worldtiles++;
+                    previous_x = x;
+                    previous_y = y;
+                }
+
                 match_results[x][y].contains_match = true;
+                match_results[x][y].preliminary_match = false;
                 //if (match_results[x][y].mlt_match[i][k]) {
                 //    out.print("embark_assist::index::Index::find: found same match as matcher:");
                 //}
                 //else {
-                //    out.print("embark_assist::index::Index::find: found match matcher has not found:");
+                    //out.print("embark_assist::index::Index::find: found match matcher has not found:");
                 //    //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x, y, i, k);
                 //}
                 match_results[x][y].mlt_match[i][k] = true;
@@ -936,10 +1102,10 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
     }
     delete query_plan;
     
-    const auto innerEnd = std::chrono::system_clock::now();
-    const std::time_t end_time = std::chrono::system_clock::to_time_t(innerEnd);
+    const auto innerEnd = std::chrono::steady_clock::now();
+    const std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     const std::chrono::duration<double> elapsed_seconds = innerEnd - innerStartTime;
-    out.print("embark_assist::index::Index::find: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches);
+    out.print("embark_assist::index::Index::find: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches, number_of_matched_worldtiles);
 }
 
 const void embark_assist::index::Index::outputSizes(const string &prefix) {
@@ -966,6 +1132,8 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     fprintf(outfile, "hasFlux bytesize: %zd\n", hasFlux.getSizeInBytes());
     byteSize += hasSand.getSizeInBytes();
     fprintf(outfile, "hasSand bytesize: %zd\n", hasSand.getSizeInBytes());
+    byteSize += no_waterfall.getSizeInBytes();
+    fprintf(outfile, "no_waterfall bytesize: %zd\n", no_waterfall.getSizeInBytes());
 
     uint32_t level_post_fix = 0;
     for (auto& index : soil) {
@@ -1003,13 +1171,31 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
         fprintf(outfile, "evilness_level#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
     }
 
+    level_post_fix = 0;
+    for (auto& index : biome) {
+        byteSize += index.getSizeInBytes();
+        fprintf(outfile, "biome#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
+    }
+
+    level_post_fix = 0;
+    for (auto& index : region_type) {
+        byteSize += index.getSizeInBytes();
+        fprintf(outfile, "region_type#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
+    }
+
+    //level_post_fix = 0;
+    //for (auto& index : waterfall_drops) {
+    //    byteSize += index.getSizeInBytes();
+    //    fprintf(outfile, "waterfall_drops#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
+    //}
+
     fprintf(outfile, "metal index bytesizes:\n");
     for (auto it = metals.cbegin(); it != metals.cend(); it++) {
         if (*it != nullptr) {
             byteSize += (*it)->getSizeInBytes();
             std::string name = "### UNKOWN METAL ###";
             const uint16_t index = std::distance(metals.cbegin(), it);
-            name = getInorganicName(index, metalNames, name);
+            name = getInorganicName(index, metal_names, name);
             fprintf(outfile, "%zd (#%d - %s); ", (*it)->getSizeInBytes(), index, name.c_str());
             // fprintf(outfile, "%d (index #%d); ", it->second->getSizeInBytes(), it->first);
         }
@@ -1020,7 +1206,7 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
             byteSize += (*it)->getSizeInBytes();
             std::string name = "### UNKOWN ECONOMIC ###";
             const uint16_t index = std::distance(economics.cbegin(), it);
-            name = getInorganicName(index, economicNames, name);
+            name = getInorganicName(index, economic_names, name);
             fprintf(outfile, "%zd (#%d - %s); ", (*it)->getSizeInBytes(), index, name.c_str());
         }
     }
@@ -1030,7 +1216,7 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
             byteSize += (*it)->getSizeInBytes();
             std::string name = "### UNKOWN MINERAL ###";
             const uint16_t index = std::distance(minerals.cbegin(), it);
-            name = getInorganicName(index, mineralNames, name);
+            name = getInorganicName(index, mineral_names, name);
             fprintf(outfile, "%zd (#%d - %s); ", (*it)->getSizeInBytes(), index, name.c_str());
         }
     }
@@ -1039,10 +1225,8 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     fclose(outfile);
 }
 
-void embark_assist::index::Index::init_inorganic_index() {
+void embark_assist::index::Index::init_inorganic_indices() {
     metals.resize(max_inorganic, nullptr);
-    metalBuffer.resize(max_inorganic, nullptr);
-    metalBufferIndex.resize(max_inorganic);
     for (uint16_t k = 0; k < max_inorganic; k++) {
         for (uint16_t l = 0; l < world->raws.inorganics[k]->metal_ore.mat_index.size(); l++) {
             const int metalIndex = world->raws.inorganics[k]->metal_ore.mat_index[l];
@@ -1050,34 +1234,24 @@ void embark_assist::index::Index::init_inorganic_index() {
                 roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
                 Roaring* inorganicIndex = new Roaring(rr);
                 metals[metalIndex] = inorganicIndex;
-
-                metalBuffer[metalIndex] = new uint32_t[256];
-                metalIndices.push_back(metalIndex);
             }
         }
     }
     metals.shrink_to_fit();
 
     economics.resize(max_inorganic, nullptr);
-    economicBuffer.resize(max_inorganic, nullptr);
-    economicBufferIndex.resize(max_inorganic);
     for (int16_t k = 0; k < max_inorganic; k++) {
         if (world->raws.inorganics[k]->economic_uses.size() != 0 && !world->raws.inorganics[k]->material.flags.is_set(df::material_flags::IS_METAL)) {
             if (economics[k] == nullptr) {
                 roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
                 Roaring* inorganicIndex = new Roaring(rr);
                 economics[k] = inorganicIndex;
-
-                economicBuffer[k] = new uint32_t[256];
-                economicIndices.push_back(k);
             }
         }
     }
     economics.shrink_to_fit();
 
     minerals.resize(max_inorganic, nullptr);
-    mineralBuffer.resize(max_inorganic, nullptr);
-    mineralBufferIndex.resize(max_inorganic);
     for (int16_t k = 0; k < max_inorganic; k++) {
         const df::inorganic_raw* raw = world->raws.inorganics[k];
         if (
@@ -1089,46 +1263,14 @@ void embark_assist::index::Index::init_inorganic_index() {
              raw->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
              raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
              raw->flags.is_set(df::inorganic_flags::SOIL)) {
-        if (minerals[k] == nullptr) {
-            roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
-            Roaring* inorganicIndex = new Roaring(rr);
-            minerals[k] = inorganicIndex;
-
-            mineralBuffer[k] = new uint32_t[256];
-            mineralIndices.push_back(k);
-        }
+            if (minerals[k] == nullptr) {
+                roaring_bitmap_t* rr = roaring_bitmap_create_with_capacity(capacity);
+                Roaring* inorganicIndex = new Roaring(rr);
+                minerals[k] = inorganicIndex;
+            }
         }
     }
     minerals.shrink_to_fit();
-}
-
-void embark_assist::index::Index::initInorganicNames() {
-    for (uint16_t k = 0; k < max_inorganic; k++) {
-        for (uint16_t l = 0; l < world->raws.inorganics[k]->metal_ore.mat_index.size(); l++) {
-            metalNames.insert(std::pair<uint16_t, std::string>(world->raws.inorganics[k]->metal_ore.mat_index[l],
-                world->raws.inorganics[world->raws.inorganics[k]->metal_ore.mat_index[l]]->id));
-        }
-    }
-
-    for (int16_t k = 0; k < max_inorganic; k++) {
-        if (world->raws.inorganics[k]->economic_uses.size() != 0 && !world->raws.inorganics[k]->material.flags.is_set(df::material_flags::IS_METAL)) {
-            economicNames.insert(std::pair<uint16_t, std::string>(k, world->raws.inorganics[k]->id));
-        }
-    }
-
-    for (int16_t k = 0; k < max_inorganic; k++) {
-        const df::inorganic_raw* raw = world->raws.inorganics[k];
-        /*if (
-            raw->environment.location.size() != 0 ||
-            raw->environment_spec.mat_index.size() != 0 ||
-            raw->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
-            raw->flags.is_set(df::inorganic_flags::IGNEOUS_EXTRUSIVE) ||
-            raw->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
-            raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
-            raw->flags.is_set(df::inorganic_flags::SOIL)) {*/
-        mineralNames.insert(std::pair<uint16_t, std::string>(k, world->raws.inorganics[k]->id));
-        //}
-    }
 }
 std::string embark_assist::index::Index::getInorganicName(uint16_t index, const std::unordered_map<uint16_t, std::string> &ingorganicNames, std::string name) const {
     const auto iter = ingorganicNames.find(index);

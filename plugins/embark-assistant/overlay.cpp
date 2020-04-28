@@ -13,6 +13,7 @@
 #include "help_ui.h"
 #include "overlay.h"
 #include "screen.h"
+#include "survey.h"
 
 #include <chrono>
 #include <ctime>
@@ -322,6 +323,33 @@ void embark_assist::overlay::initiate_match() {
 
 //====================================================================
 
+void init_stream(std::ostringstream &oss, std::chrono::duration<double> duration) {
+    auto d(duration.count());
+    oss << std::setfill('0')
+        << std::setw(2)
+        << (int)(d / 60) // format minutes
+        << ":"
+        << std::setw(2)
+        << (int)std::fmod(d, 60) // format seconds
+        << ":"
+        << std::setw(3) // set width of milliseconds field
+        << (int)std::fmod(d * 1000, 1000);
+}
+
+//====================================================================
+
+void format_and_output_duration(const char *format, std::chrono::duration<double> &duration) {
+    color_ostream_proxy out(Core::getInstance().getConsole());
+    std::ostringstream oss;
+    init_stream(oss, duration);
+
+    out.print(format, oss.str(), duration.count());
+
+    duration = std::chrono::seconds(0);
+}
+
+//====================================================================
+
 void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs::match_results *match_results, bool done) {
     color_ostream_proxy out(Core::getInstance().getConsole());
     state->matching = !done;
@@ -346,7 +374,23 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
         const std::chrono::duration<double> elapsed_seconds = end - state->start;
         const std::time_t end_time = std::chrono::system_clock::to_time_t(end);
 
-        out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time: %f seconds\n", std::ctime(&end_time), elapsed_seconds.count());
+        std::ostringstream oss;
+        init_stream(oss, elapsed_seconds);
+        out.print("embark_assist::overlay::match_progress: finished search at: %s - elapsed time formatted: %s (m:s:ms) - %f seconds \n", std::ctime(&end_time), oss.str(), elapsed_seconds.count());
+        
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile - elapsed_init took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_init_seconds);
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile - elapsed_big_loop took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_big_loop_seconds);
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile - elapsed_river_workaround took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_workaround_seconds);
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile - elapsed_tile_summary took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_tile_summary_seconds);
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile - elapsed_waterfall_and_biomes took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_waterfall_and_biomes_seconds);
+
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_survey_seconds);
+        format_and_output_duration("embark_assist::survey::survey_mid_level_tile took: %s (m:s:ms) - %f seconds including index.add total \n", embark_assist::survey::elapsed_survey_total_seconds);
+
+        out.print("number of found waterfalls: %d\n", embark_assist::survey::number_of_waterfalls);
+        out.print("number of layer_cache misses: %d\n", embark_assist::survey::number_of_layer_cache_misses);
+        out.print("number of layer_cache hits: %d\n", embark_assist::survey::number_of_layer_cache_hits);
+        embark_assist::survey::number_of_waterfalls = 0;
     }
 
     if (done && state->fileresult) {
