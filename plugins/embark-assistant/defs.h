@@ -78,6 +78,18 @@ namespace embark_assist {
 
         typedef std::array<std::array<mid_level_tile, 16>, 16> mid_level_tiles;
 
+        enum class region_tile_position {
+            north_west,
+            north,
+            north_east,
+            west,
+            middle,
+            east,
+            south_west,
+            south,
+            south_east
+        };
+
         struct region_tile_datum {
             bool surveyed = false;
             uint16_t aquifer_count = 0;
@@ -126,6 +138,13 @@ namespace embark_assist {
             df::world_region_type region_type[16][16];  //  Required for incursion override detection. We could store only the
                                                 //  edges, but storing it for every tile allows for a unified fetching
                                                 //  logic.
+
+            region_tile_position world_position = region_tile_position::middle;
+            uint8_t number_of_contiguous_surveyed_world_tiles = 0;
+            uint8_t required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
+            bool totally_processed = false;
+            uint8_t northern_row_biome_x[16]; /*!< 0=Reference is N, 1=Reference is current tile (adopted by S edge to the N) */
+            uint8_t western_column_biome_y[16]; /*!< 0=Reference is W, 1=Reference is current tile (Adopted by E edge to the W) */
         };
 
         struct geo_datum {
@@ -358,14 +377,24 @@ namespace embark_assist {
 
         class key_buffer_holder_basic_interface {
         public:
+            virtual void add_aquifer(const uint32_t key) = 0;
             virtual void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_clay(const uint32_t key) = 0;
             virtual void get_clay_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_sand(const uint32_t key) = 0;
             virtual void get_sand_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_soil_depth(const uint32_t key, const int8_t soil_depth) = 0;
             virtual void get_soil_depth_buffers(const std::array<uint16_t, SOIL_DEPTH_LEVELS> *&indices, const std::array<uint32_t *, SOIL_DEPTH_LEVELS> *&buffers) const = 0;
+            virtual void add_savagery_level(const uint32_t key, const uint8_t savagery_level) = 0;
             virtual void get_savagery_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
+            virtual void add_evilness_level(const uint32_t key, const uint8_t evilness_level) = 0;
             virtual void get_evilness_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
+            virtual void add_biome(const uint32_t key, const int16_t biome) = 0;
             virtual void get_biome_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_BIOMES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_BIOMES> *&buffers) const = 0;
+            virtual void add_region_type(const uint32_t key, const int8_t region_type) = 0;
             virtual void get_region_type_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_REGION_TYPES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_REGION_TYPES> *&buffers) const = 0;
+            virtual void reset() = 0;
+            virtual ~key_buffer_holder_basic_interface() {}
         };
 
         class key_buffer_holder_interface : public virtual key_buffer_holder_basic_interface {
@@ -386,9 +415,11 @@ namespace embark_assist {
             public:
                 virtual const bool containsEntries() const = 0;
                 virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) = 0;
+                virtual void add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) = 0;
                 virtual void optimize(bool debugOutput) = 0;
                 virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
                 virtual const uint32_t get_key(const int16_t x, const int16_t y) const = 0;
+                virtual const uint32_t get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const = 0;
                 virtual ~index_interface(){}
         };
     }

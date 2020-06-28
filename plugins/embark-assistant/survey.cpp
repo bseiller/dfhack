@@ -5,7 +5,7 @@
 #include <vector>
 //#include <unordered_map>
 //#include <unordered_set>
-//#include <future>
+#include <future>
 #include <map>
 
 #include "Core.h"
@@ -65,6 +65,7 @@
 #include "df/world_underground_region.h"
 
 #include "defs.h"
+#include "incursion_processor.h"
 #include "survey.h"
 #include "key_buffer_holder.h"
 
@@ -122,6 +123,7 @@ namespace embark_assist {
             //std::vector<layer_content_cache_entry> layer_content_cache_entry_pool;
             uint16_t layer_content_cache_entry_pool_index = 0;
             //layer_content_cache layer_content_cache;
+            embark_assist::incursion::incursion_processor incursion_processor;
         };
 
         static states *state;
@@ -1397,6 +1399,7 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     const bool is_brook = world_data->region_map[x][y].flags.is_set(df::region_map_entry_flags::is_brook);
     color_ostream_proxy out(Core::getInstance().getConsole());
     //out.print("x,y: %02d,%02d, has_river: %d, is_brook: %d, tile.river_size: %d - ", x, y, has_river, is_brook, tile.river_size);
+    //out.print("x,y: %02d,%02d\n", x, y);
 
     const uint32_t world_offset = index.get_key(x, y);
     embark_assist::key_buffer_holder::key_buffer_holder &buffer_holder = state->buffer_holder;
@@ -1459,7 +1462,10 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 out.print("invalid biome_id %d\n", biome_id);
             }
             buffer_holder.add_biome(key, biome_id);
-            const int16_t region_type_id = world_data->regions[tile.biome_index[mid_level_tile.biome_offset]]->type;
+            const df::world_region_type region_type = world_data->regions[tile.biome_index[mid_level_tile.biome_offset]]->type;
+            const int16_t region_type_id = region_type;
+            // moved from below
+            tile.region_type[i][k] = region_type;
             if (region_type_id < 0 || region_type_id > 10) {
                 color_ostream_proxy out(Core::getInstance().getConsole());
                 out.print("invalid region_type_id %d\n", region_type_id);
@@ -1798,8 +1804,14 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     }
                 }
             }
-            /* end here with comment to use survey_layers */
+            /* end here with comment to use survey_layers cache */
         }
+    }
+    
+    // constructing an empty future to make sure there won't be an invalid access later on
+    std::future<void> internal_incursion_processing_result = std::future<void>::future();
+    if (!tile.surveyed) {
+        internal_incursion_processing_result = std::async(std::launch::async, [&]() { state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results, mlt, index); });
     }
 
     const auto _2_start_river_workaround = std::chrono::steady_clock::now();
@@ -2125,19 +2137,35 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         //east_column.minerals.resize(0);
 
         tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
+        tile.northern_row_biome_x[i] = world_data->region_details[0]->edges.biome_x[i][0];
         tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
+        tile.western_column_biome_y[i] = world_data->region_details[0]->edges.biome_y[0][i];
     }
 
-    for (uint8_t i = 0; i < 16; i++) {
-        for (uint8_t k = 0; k < 16; k++) {
-            tile.region_type[i][k] = world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type;
-        }
-    }
+    // TODO: remove this, if there is no output because of inequal region_types
+    //for (uint8_t i = 0; i < 16; i++) {
+    //    for (uint8_t k = 0; k < 16; k++) {
+    //        if (tile.region_type[i][k] != world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type) {
+    //            out.print("region_type does not match => x:%d, y:%d, i:%d, k:%d, old_region:%d, new_region:%d \n", x, y, i, k, tile.region_type[i][k], world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type);
+    //        }
+    //        tile.region_type[i][k] = world_data->regions[tile.biome_index[mlt->at(i).at(k).biome_offset]]->type;
+    //    }
+    //}
 
     const auto end = std::chrono::steady_clock::now();
     elapsed_survey_seconds += end - start;
 
     if (!tile.surveyed) {
+        // making sure the async job is done before we process the "regular" data - just to be sure it does operate on valid data, 
+        // which might not be the case if the cursor iterates on another world tile will the incursions are being processed
+        internal_incursion_processing_result.get();
+
+        // as now all the required data has been collected in the world tile (north_corner_selection, ...)
+        // starting to process the external incursions of the neighbours and potentially also the current tile
+        // not operating on any transient data that gets changed during iteration we can let this run async/concurrent
+        std::future<void> external_incursion_processing_result 
+            = std::async(std::launch::async, [&]() { state->incursion_processor.update_and_check_survey_counters_of_neighbouring_world_tiles(x, y, survey_results, index); });
+
         index.add(x, y, tile, mlt, buffer_holder);
     }
 
@@ -2257,7 +2285,7 @@ df::world_region_type embark_assist::survey::region_type_of(embark_assist::defs:
     int16_t effective_y = y;
     int8_t effective_i = i;
     int8_t effective_k = k;
-    adjust_coordinates(&effective_x, &effective_y, &effective_i, &effective_i);
+    adjust_coordinates(&effective_x, &effective_y, &effective_i, &effective_k);
 
     if (effective_x < 0 ||
         effective_x >= world_data->world_width ||
@@ -2313,7 +2341,7 @@ uint8_t  embark_assist::survey::translate_corner(embark_assist::defs::world_tile
         effective_k = k + 1;
     }
 
-    adjust_coordinates(&effective_x, &effective_y, &effective_i, &effective_i);
+    adjust_coordinates(&effective_x, &effective_y, &effective_i, &effective_k);
 
     if (effective_x == world_data->world_width) {
         if (effective_y == world_data->world_height) {  //  Only the SE corner of the SE most tile of the world can reference this.
@@ -2570,12 +2598,26 @@ uint8_t embark_assist::survey::translate_ns_edge(embark_assist::defs::world_tile
     df::world_region_type south_region_type;
 
     if (own_edge) {
+        // the edge belongs to the currently processed tile thus its counterpart is the north tile (k - 1)
         effective_edge = world_data->region_details[0]->edges.biome_x[i][k];
+        // region_type_of actually properly handles the case that we need information from the world tile north (y - 1) and returns df::world_region_type::Lake in case of y < 0, which prevents incursion processing
         south_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         north_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k - 1);
     }
     else {
-        effective_edge = world_data->region_details[0]->edges.biome_x[i][k + 1];
+        // the edge belongs to the tile south of the currently processed tile thus its counterpart is the south tile (k + 1)
+        // here the case that we need information from the next world tile south is being handled properly
+        if (k < 15) {
+            effective_edge = world_data->region_details[0]->edges.biome_x[i][k + 1];
+        }
+        else {
+            // TODO: is that right?
+            if (y + 1 == world_data->world_height) {
+                return 4;
+            }
+            effective_edge = survey_results->at(x).at(y + 1).northern_row_biome_x[i];
+        }
+        
         north_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         south_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k + 1);
     }
@@ -2644,12 +2686,25 @@ uint8_t embark_assist::survey::translate_ew_edge(embark_assist::defs::world_tile
     df::world_region_type east_region_type;
 
     if (own_edge) {
+        // the edge belongs to the currently processed tile thus its counterpart is the west tile (i - 1)
         effective_edge = world_data->region_details[0]->edges.biome_y[i][k];
+        // region_type_of actually properly handles the case that we need information from the world tile west (x - 1)
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i - 1, k);
     }
     else {
-        effective_edge = world_data->region_details[0]->edges.biome_y[i + 1][k];
+        // the edge belongs to the tile east of the currently processed tile thus its counterpart is the east tile (i + 1)
+        // here the case that we need information from the next world tile east (x + 1) is being handled properly
+        if (i < 15) {
+            effective_edge = world_data->region_details[0]->edges.biome_y[i + 1][k];
+        }
+        else {
+            // TODO: is that right?
+            if (x + 1 == world_data->world_width) {
+                return 4;
+            }
+            effective_edge = survey_results->at(x + 1).at(y).western_column_biome_y[k];
+        }
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i + 1, k);
     }
@@ -2820,6 +2875,9 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
     site_info->metals.clear();
     site_info->economics.clear();
     site_info->metals.clear();
+
+    //color_ostream_proxy out(Core::getInstance().getConsole());
+    //out.print("i,k: %02d,%02d\n", state->local_min_x, state->local_min_y);
 
     for (uint8_t i = state->local_min_x; i <= state->local_max_x; i++) {
         for (uint8_t k = state->local_min_y; k <= state->local_max_y; k++) {
@@ -3074,7 +3132,7 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
         }
         else {
             process_embark_incursion_mid_level_tile
-            (translate_ns_edge(survey_results,
+            (translate_ew_edge(survey_results,
                 true,
                 x,
                 y,
@@ -3131,7 +3189,7 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
         }
         else {
             process_embark_incursion_mid_level_tile
-            (translate_ns_edge(survey_results,
+            (translate_ew_edge(survey_results,
                 false,
                 x,
                 y,

@@ -16,11 +16,13 @@
 #include "df/world_region_feature.h"
 #include "df/world_region_type.h"
 
+#include "basic_key_buffer_holder.h"
 #include "defs.h"
 #include "index.h"
 #include "inorganics_information.h"
 #include "query.h"
-#include "basic_key_buffer_holder.h"
+// TODO: remove again, just used to get embark_assist::survey::clear_results(&match_results)
+#include "survey.h"
 
 using namespace DFHack;
 
@@ -190,6 +192,12 @@ embark_assist::index::Index::Index(df::world *world)
     //for (auto& index : waterfall_drops) {
     //    set_capacity_and_add_to_static_indices(index, capacity, static_indices);
     //}
+
+    // TODO: remove, just here for debugging
+    match_results.resize(world->worldgen.worldgen_parms.dim_x);
+    for (uint16_t i = 0; i < world->worldgen.worldgen_parms.dim_x; i++) {
+        match_results[i].resize(world->worldgen.worldgen_parms.dim_y);
+    }
 }
 
 embark_assist::index::Index::~Index() {
@@ -204,6 +212,10 @@ void embark_assist::index::Index::setup(const uint16_t max_inorganic) {
 
 const uint32_t embark_assist::index::Index::get_key(const int16_t x, const int16_t y) const {
     return keyMapper->key_of(x, y, 0, 0);
+}
+
+const uint32_t embark_assist::index::Index::get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const {
+    return keyMapper->key_of(x, y, i, k);
 }
 
 void embark_assist::index::Index::add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlts, 
@@ -223,7 +235,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
 
     //auto incursion_processing_result = std::async(std::launch::async, [&]() { this->process_incursions(x, y, world_offset, rtd, mlts); });
 
-    uint32_t mlt_offset = 0;
+    // uint32_t mlt_offset = 0;
 
     /*
     // beware: we process "first" in k(y) than in the i(x) dimension, otherwise the key can't be calculated just be using a rolling offset
@@ -414,7 +426,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
     }
 
     // add all buffers that contain data that is also handled by the incursions to the indices
-    this->add_buffers_to_indices(buffer_holder2);
+    this->add(buffer_holder2);
     
     //const auto adding_end = std::chrono::steady_clock::now();
     //index_adding_seconds += adding_end - adding_start;
@@ -459,7 +471,7 @@ void embark_assist::index::Index::process_incursions(const int16_t x, const int1
         }
     }
 
-    this->add_buffers_to_indices(buffer_holder);
+    this->add(buffer_holder);
 
     //auto buffer_adding_result = std::async(std::launch::async, [&]() { this->add_buffers_to_indices({ buffer_holder }); });
     //// transfer the future's shared state to a longer-lived future
@@ -467,11 +479,12 @@ void embark_assist::index::Index::process_incursions(const int16_t x, const int1
 }
 
 
-void embark_assist::index::Index::add_buffers_to_indices(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) {
+void embark_assist::index::Index::add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) {
     uint16_t aquiferBufferIndex(0);
     const uint32_t *aquiferBuffer;
     buffer_holder.get_aquifer_buffer(aquiferBufferIndex, aquiferBuffer);
     if (aquiferBufferIndex > 0) {
+        const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_aquifer_m);
         hasAquifer.addMany(aquiferBufferIndex, aquiferBuffer);
     }
 
@@ -479,6 +492,7 @@ void embark_assist::index::Index::add_buffers_to_indices(const embark_assist::de
     const uint32_t *clayBuffer;
     buffer_holder.get_clay_buffer(clayBufferIndex, clayBuffer);
     if (clayBufferIndex > 0) {
+        const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_clay_m);
         hasClay.addMany(clayBufferIndex, clayBuffer);
     }
 
@@ -486,6 +500,7 @@ void embark_assist::index::Index::add_buffers_to_indices(const embark_assist::de
     const uint32_t *sandBuffer;
     buffer_holder.get_sand_buffer(sandBufferIndex, sandBuffer);
     if (sandBufferIndex > 0) {
+        const std::lock_guard<std::mutex> add_many_mutex_guard(add_many_sand_m);
         hasSand.addMany(sandBufferIndex, sandBuffer);
     }
 
@@ -891,6 +906,9 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         // TODO: be aware, that there are special (corner) cases if a criteria makes assumptions about more than one tile e.g. "All", "Absent", "Partial"
         // - if this query is the most significant one we need another query as helper to verify that all the other tiles also (not) have a aquifer... 
         // This is true for all criteria with exclusive/absolute (all/none, absent, ...) meaning
+        // actually it is fine to keep the query in the case of "all" and "absent" by 
+        // q->flag_for_keeping();
+        // which will allow the query plan to use the query again which will make sure all embark candiates have or haven't an aquifer...
         const Roaring &hasAquifer = this->hasAquifer;
         const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasAquifer](const Roaring &embark_candidate) -> bool {
             // std::cout << "hasAquifer.and_cardinality" << std::endl;
@@ -900,6 +918,62 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             return hasAquifer.cardinality();
         }, [&hasAquifer, &scope]() -> const std::vector<uint32_t>* {
             return scope.get_keys(hasAquifer);
+        });
+        result->queries.push_back(q);
+    }
+
+    if (finder.sand == embark_assist::defs::present_absent_ranges::Present) {
+        const Roaring &hasSand = this->hasSand;
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasSand](const Roaring &embark_candidate) -> bool {
+            // std::cout << "hasSand.and_cardinality" << std::endl;
+            return hasSand.and_cardinality(embark_candidate) > 0;
+        }, [&hasSand]() -> uint32_t {
+            // std::cout << "hasSand.cardinality" << std::endl;
+            return hasSand.cardinality();
+        }, [&hasSand, &scope]() -> const std::vector<uint32_t>* {
+            return scope.get_keys(hasSand);
+        });
+        result->queries.push_back(q);
+    }
+
+    if (finder.clay == embark_assist::defs::present_absent_ranges::Present) {
+        const Roaring &hasClay = this->hasClay;
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasClay](const Roaring &embark_candidate) -> bool {
+            // std::cout << "hasClay.and_cardinality" << std::endl;
+            return hasClay.and_cardinality(embark_candidate) > 0;
+        }, [&hasClay]() -> uint32_t {
+            // std::cout << "hasClay.cardinality" << std::endl;
+            return hasClay.cardinality();
+        }, [&hasClay, &scope]() -> const std::vector<uint32_t>* {
+            return scope.get_keys(hasClay);
+        });
+        result->queries.push_back(q);
+    }
+
+    if (finder.biome_1 == -1) {
+        const Roaring &biome = this->biome[finder.biome_1];
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&biome](const Roaring &embark_candidate) -> bool {
+            // std::cout << "biome.and_cardinality" << std::endl;
+            return biome.and_cardinality(embark_candidate) > 0;
+        }, [&biome]() -> uint32_t {
+            // std::cout << "biome.cardinality" << std::endl;
+            return biome.cardinality();
+        }, [&biome, &scope]() -> const std::vector<uint32_t>* {
+            return scope.get_keys(biome);
+        });
+        result->queries.push_back(q);
+    }
+
+    if (finder.region_type_1 == -1) {
+        const Roaring &region_type = this->region_type[finder.region_type_1];
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&region_type](const Roaring &embark_candidate) -> bool {
+            // std::cout << "region_type.and_cardinality" << std::endl;
+            return region_type.and_cardinality(embark_candidate) > 0;
+        }, [&region_type]() -> uint32_t {
+            // std::cout << "region_type.cardinality" << std::endl;
+            return region_type.cardinality();
+        }, [&region_type, &scope]() -> const std::vector<uint32_t>* {
+            return scope.get_keys(region_type);
         });
         result->queries.push_back(q);
     }
@@ -1029,7 +1103,66 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     return result;
 }
 
-void embark_assist::index::Index::find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const {
+void output_embark_matches(std::ofstream &myfile, const embark_assist::defs::matches &match) {
+    for (uint16_t i = 0; i < 16; i++) {
+        for (uint16_t k = 0; k < 16; k++) {
+            if (match.mlt_match[i][k]) {
+                myfile << " i:" << i << "/k:" << k;
+            }
+        }
+    }
+}
+
+// TODO: remove, just here for debugging
+void compare_matches(df::world *world, const embark_assist::defs::match_results &match_results_matcher, const embark_assist::defs::match_results &match_results_index) {
+    const std::string prefix = "match_result_delta";
+    auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out);
+    
+    for (uint16_t x = 0; x < world->worldgen.worldgen_parms.dim_x; x++) {
+        for (uint16_t y = 0; y < world->worldgen.worldgen_parms.dim_y; y++) {
+            if(match_results_matcher[x][y].contains_match != match_results_index[x][y].contains_match) {
+                myfile << "x:" << x << "/y:" << y;
+                if (match_results_matcher[x][y].contains_match) {
+                    myfile << " unique world tile matcher result\n";
+                    output_embark_matches(myfile, match_results_matcher[x][y]);
+                }
+                else {
+                    myfile << " unique world tile index result\n";
+                    output_embark_matches(myfile, match_results_index[x][y]);
+                }
+            }
+            else {
+                bool is_first = true;
+                for (uint16_t i = 0; i < 16; i++) {
+                    for (uint16_t k = 0; k < 16; k++) {
+                        if (match_results_matcher[x][y].mlt_match[i][k] != match_results_index[x][y].mlt_match[i][k]) {
+                            if (is_first) {
+                                myfile << "x:" << x << "/y:" << y;
+                                myfile << " common world tile result\n";
+                                is_first = false;
+                            }
+                            myfile << " i:" << i << "/k:" << k;
+                            if (match_results_matcher[x][y].mlt_match[i][k]) {
+                                myfile << " unique embark tile matcher result\n";
+                            }
+                            else {
+                                myfile << " unique embark tile index result\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    myfile.close();
+}
+
+void embark_assist::index::Index::find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results_matcher) const {
+
+    // TODO: remove, just here for debugging
+    embark_assist::survey::clear_results(&const_cast<Index*>(this)->match_results);
+
     color_ostream_proxy out(Core::getInstance().getConsole());
     const auto innerStartTime = std::chrono::steady_clock::now();
     const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1071,7 +1204,7 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
                 uint16_t y = 0;
                 uint16_t i = 0;
                 uint16_t k = 0;
-                
+
                 // getting the key/id of the start tile
                 const uint32_t smallest_key = embarks[embark_variant_index].minimum();
                 // extracting the x,y + i,k to set the match
@@ -1084,16 +1217,25 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
                     previous_y = y;
                 }
 
-                match_results[x][y].contains_match = true;
-                match_results[x][y].preliminary_match = false;
-                //if (match_results[x][y].mlt_match[i][k]) {
+                //match_results_matcher[x][y].contains_match = true;
+                //match_results_matcher[x][y].preliminary_match = false;
+                // TODO: just for debugging, reactivate above lines
+                const_cast<Index*>(this)->match_results[x][y].contains_match = true;
+                const_cast<Index*>(this)->match_results[x][y].preliminary_match = false;
+
+
+
+                //if (match_results_matcher[x][y].mlt_match[i][k]) {
                 //    out.print("embark_assist::index::Index::find: found same match as matcher:");
                 //}
                 //else {
                     //out.print("embark_assist::index::Index::find: found match matcher has not found:");
                 //    //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x, y, i, k);
                 //}
-                match_results[x][y].mlt_match[i][k] = true;
+
+                //match_results_matcher[x][y].mlt_match[i][k] = true;
+                // TODO: just for debugging, reactivate above line
+                const_cast<Index*>(this)->match_results[x][y].mlt_match[i][k] = true;
 
                 //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x,y,i,k);
                 number_of_matches++;
@@ -1106,6 +1248,9 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
     const std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     const std::chrono::duration<double> elapsed_seconds = innerEnd - innerStartTime;
     out.print("embark_assist::index::Index::find: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches, number_of_matched_worldtiles);
+
+    // TODO: remove, just here for debugging
+    compare_matches(world, match_results_matcher, match_results);
 }
 
 const void embark_assist::index::Index::outputSizes(const string &prefix) {

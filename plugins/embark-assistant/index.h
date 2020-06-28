@@ -72,8 +72,9 @@ namespace embark_assist {
             uint32_t maxKeyValue = 0;
             uint32_t previous_key = -1;
             
-            // following 1 is for debugging - remove again
+            // following 2 are for debugging - remove again
             Roaring uniqueKeys;
+            embark_assist::defs::match_results match_results;
 
             Roaring hasAquifer;
             Roaring hasClay;
@@ -128,7 +129,6 @@ namespace embark_assist {
             uint16_t calculate_embark_variants(const uint32_t position_id, const uint16_t embark_size_x, const uint16_t embark_size_y, std::vector<Roaring> &embarks, uint32_t buffer[], embark_tile_tracker &tracker) const;
             const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder) const;
             const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const Roaring &index) const;
-            void add_buffers_to_indices(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder2);
             void process_incursions(const int16_t x, const int16_t y, const uint32_t world_offset, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt);
             void optimize(Roaring *index, bool shrinkToSize);
             const void outputContents() const;
@@ -140,10 +140,12 @@ namespace embark_assist {
             void shutdown();
             virtual const bool containsEntries() const final override;
             virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) final override;
+            virtual void add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) final override;
             virtual void optimize(bool debugOutput) final override;
             // FIXME: add find variant that allows for a search only in a specific world tile which is needed during survey iteration phase
             virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const final override;
             virtual const uint32_t get_key(const int16_t x, const int16_t y) const final override;
+            virtual const uint32_t get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const final override;
         };
     }
 }

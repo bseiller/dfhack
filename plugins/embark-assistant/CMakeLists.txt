@@ -4,6 +4,7 @@ SET(PROJECT_SRCS
     embark-assistant.cpp
     finder_ui.cpp
     help_ui.cpp
+    incursion_processor.cpp
     index.cpp
     inorganics_information.cpp
     key_buffer_holder.cpp
@@ -22,6 +23,7 @@ SET(PROJECT_HDRS
     embark-assistant.h
     finder_ui.h
     help_ui.h
+    incursion_processor.h
     index.h
     inorganics_information.h
     key_buffer_holder.h
