@@ -50,6 +50,7 @@ namespace embark_assist {
             uint16_t max_inorganic;
             embark_assist::index::Index index = embark_assist::index::Index(world);
             //embark_assist::index::Index *index;
+            bool testing = false;
         };
 
         static states *state = nullptr;
@@ -83,11 +84,37 @@ namespace embark_assist {
 
         //===============================================================================
 
+        // FIXME: for debugging, remove for release
+        void check_all_processed(embark_assist::defs::world_tile_data &survey_results) {
+            const std::string prefix = "world_tiles_without_incursion_processing";
+            auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out);
+            myfile << "x\ty\trequired_count\tactual_count\n";
+            uint16_t count = 0;
+            for (uint16_t x = 0; x < world->worldgen.worldgen_parms.dim_x; x++) {
+                for (uint16_t y = 0; y < world->worldgen.worldgen_parms.dim_y; y++) {
+                    embark_assist::defs::region_tile_datum &rtd = survey_results.at(x)[y];
+                    if (!rtd.totally_processed) {
+                        myfile << x <<"\t" << y << "\t" << unsigned(rtd.required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing) << "\t" << unsigned(rtd.number_of_contiguous_surveyed_world_tiles) << "\n";
+                        ++count;
+                    }
+                }
+            }
+            myfile << "number of unprocessed tiles: " << count << "\n";
+            myfile.close();
+        }
+
         void match() {
-//            color_ostream_proxy out(Core::getInstance().getConsole());
+            color_ostream_proxy out(Core::getInstance().getConsole());
 
             if (state->index.containsEntries()) {
+                // should prevent subsequent survey phases, once the first survey phase is complete and the index is primed
+                // FIXME: debug if this works as expected - the below message does not seem to be output to the console...
+                out.print("embark_assistant::match: index already contains all entries - directly searching/finding matches");
+                // embark_assist::main::clear_match();
+                embark_assist::main::state->match_iterator.active = false;
+                embark_assist::main::state->testing = false;
                 state->index.find(state->match_iterator.finder, state->match_results);
+                embark_assist::overlay::match_progress(0, &state->match_results, true);
             } else {
                 uint16_t count = embark_assist::matcher::find(&state->match_iterator,
                     &state->geo_summary,
@@ -103,8 +130,16 @@ namespace embark_assist {
 
             if (!state->match_iterator.active) {
                 state->index.optimize(true);
+                // FIXME: for debugging, remove for release
+                check_all_processed(state->survey_results);
                 auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
                 embark_assist::overlay::set_mid_level_tile_match(state->match_results.at(screen->location.region_pos.x).at(screen->location.region_pos.y).mlt_match);
+            }
+
+            if (state->testing) {
+                // as long as there is another profile advance to next profile file name
+                // FIXME: use next profile file name from encapsulated logic/class/iterator
+                embark_assist::overlay::testing(nullptr);
             }
         }
 
@@ -118,6 +153,7 @@ namespace embark_assist {
             embark_assist::survey::clear_results(&state->match_results);
             embark_assist::overlay::clear_match_results();
             embark_assist::main::state->match_iterator.active = false;
+            embark_assist::main::state->testing = false;
         }
 
         //===============================================================================
@@ -277,11 +313,15 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
 //    std::cout << __cplusplus << std::endl;
 
     bool fileresult = false;
+    bool testing = false;
 
     if (parameters.size() == 1 &&
         parameters[0] == "fileresult") {
         remove(fileresult_file_name);
         fileresult = true;
+    } if (parameters.size() == 1 &&
+        parameters[0] == "testing") {
+        testing = true;
     } else
     if (!parameters.empty())
         return CR_WRONG_USAGE;
@@ -304,6 +344,7 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
     embark_assist::main::state = new embark_assist::main::states;
 
     embark_assist::main::state->match_iterator.active = false;
+    embark_assist::main::state->testing = testing;
 
     //  Find the end of the normal inorganic definitions.
     embark_assist::main::state->max_inorganic = 0;
@@ -386,6 +427,9 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
 
     if (fileresult) {
         embark_assist::overlay::fileresult();
+    } else if (testing) {
+        // FIXME: use first profile file name => encapsulate logic of retrieving all test profile file names
+        embark_assist::overlay::testing(nullptr);
     }
 
     return CR_OK;

@@ -63,6 +63,10 @@ namespace embark_assist {
             uint8_t fileresult_pass = 0;
 
             std::chrono::time_point<std::chrono::system_clock> start;
+            
+            bool testing = false;
+            uint8_t test_pass = 0;
+            char const* custom_profile_file_name;
         };
 
         static states *state = nullptr;
@@ -119,10 +123,12 @@ namespace embark_assist {
                         state->match_active = false;
                         state->clear_match_callback();
                     }
+                    state->testing = false;
+                    state->test_pass = 0;
                 }
                 else if (input->count(df::interface_key::CUSTOM_F)) {
                     if (!state->match_active && !state->matching) {
-                        embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, false);
+                        embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, false, false, nullptr);
                     }
                 }
                 else if (input->count(df::interface_key::CUSTOM_I)) {
@@ -396,12 +402,23 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
     if (done && state->fileresult) {
         state->fileresult_pass++;
         if (state->fileresult_pass == 1) {
-            embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, true);
+            embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, true, false, nullptr);
         }
         else {
             FILE* outfile = fopen(fileresult_file_name, "w");
             fprintf(outfile, "%i\n", count);
             fclose(outfile);
+        }
+    }
+
+    if (done && state->testing) {
+        state->test_pass++;
+        if (state->test_pass == 1) {
+            embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, false, true, state->custom_profile_file_name);
+        }
+        else if (state->test_pass == 2) {
+            state->test_pass = 0;
+            state->testing = false;
         }
     }
 }
@@ -546,7 +563,17 @@ void embark_assist::overlay::clear_match_results() {
 void embark_assist::overlay::fileresult() {
     //  Have to search twice, as the first pass cannot be complete due to mutual dependencies.
     state->fileresult = true;
-    embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, true);
+    embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, true, false, nullptr);
+}
+
+void embark_assist::overlay::testing(char const* test_profile_file_name) {
+    if (state->testing == true) {
+        return;
+    }
+    //  Have to search twice, as the first pass cannot be complete due to mutual dependencies.
+    state->testing = true;
+    state->custom_profile_file_name = test_profile_file_name;
+    embark_assist::finder_ui::init(embark_assist::overlay::plugin_self, state->find_callback, state->max_inorganic, false, true, test_profile_file_name);
 }
 
 //====================================================================

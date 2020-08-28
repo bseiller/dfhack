@@ -51,6 +51,14 @@ namespace embark_assist {
             std::array<uint32_t*, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> river_size_buffer_helper;
             std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> river_size_indices;
 
+            //std::array<uint32_t[256], embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> mapped_elevation_buffers;
+            //std::array<uint32_t*, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> mapped_elevation_buffer_helper;
+            //std::array<int16_t, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> mapped_elevation_buffer_indices;
+
+            uint32_t current_initial_offset = 0;
+            uint8_t mapped_elevation_buffer[256];
+            uint16_t mapped_elevation_buffer_index = 0;
+
             // 480 = 256*2 - (2*16) or 2 * 15 * 16 , as every tile can have 2 outgoing waterfalls, but the last row and the last column can't have 2 "outgoing" waterfalls but just 1
             std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> waterfall_drop_buffers;
             std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> waterfall_drop_indices;
@@ -96,6 +104,10 @@ namespace embark_assist {
                 for (int index = 0; index < river_size_buffers.size(); index++) {
                     river_size_buffer_helper[index] = river_size_buffers[index];
                 }
+
+                //for (int index = 0; index < mapped_elevation_buffers.size(); index++) {
+                //    mapped_elevation_buffer_helper[index] = mapped_elevation_buffers[index];
+                //}
             }
 
             ~key_buffer_holder() {
@@ -213,6 +225,36 @@ namespace embark_assist {
                 buffers = &river_size_buffer_helper;
             }
 
+            void add_mapped_elevation(const uint32_t key, const uint8_t mapped_elevation) {
+                //mapped_elevation_buffers[mapped_elevation][mapped_elevation_buffer_indices[mapped_elevation]++] = key;
+                //if (mapped_elevation_buffer_indices[mapped_elevation] > 256) {
+                //    color_ostream_proxy out(Core::getInstance().getConsole());
+                //    out.print("mapped_elevation_buffers buffer overflow %d, mapped_elevation %d\n", mapped_elevation_buffer_indices[mapped_elevation], mapped_elevation);
+                //}
+
+                // second, alternative solution
+                mapped_elevation_buffer[mapped_elevation_buffer_index++] = mapped_elevation;
+                if (mapped_elevation_buffer_index > 256) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("mapped_elevation_buffer_index buffer overflow %d, mapped_elevation %d\n", mapped_elevation_buffer_index, mapped_elevation);
+                }
+            }
+
+            //void get_mapped_elevation_buffers(const std::array<int16_t, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> *&indices, const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> *&buffers) const {
+            //    indices = &mapped_elevation_buffer_indices;
+            //    buffers = &mapped_elevation_buffer_helper;
+            //}
+
+            void set_current_initial_offset(uint32_t initial_offset) {
+                current_initial_offset = initial_offset;
+            }
+
+            void get_mapped_elevation_buffer(uint16_t & index, const uint8_t *&buffer, uint32_t &initial_offset) const override {
+                index = mapped_elevation_buffer_index;
+                buffer = mapped_elevation_buffer;
+                initial_offset = current_initial_offset;
+            }
+
             void add_waterfall_drop(const uint32_t key, const uint32_t key2, const uint8_t raw_waterfall_drop) {
                 uint8_t waterfall_drop = raw_waterfall_drop;
                 if (raw_waterfall_drop > 9) {
@@ -244,13 +286,15 @@ namespace embark_assist {
                 embark_assist::key_buffer_holder::basic_key_buffer_holder<256>::reset();
                 coalBufferIndex = 0;
                 fluxBufferIndex = 0;
-                metal_buffer_indices.assign(max_inorganic, 0);
-                economic_buffer_indices.assign(max_inorganic, 0);
-                mineral_buffer_indices.assign(max_inorganic, 0);
-                adamantine_buffer_indices.assign(0);
-                mamgma_buffer_indices.assign(0);
-                river_size_indices.assign(0);
-                waterfall_drop_indices.assign(0);
+                std::fill(metal_buffer_indices.begin(), metal_buffer_indices.end(), 0);
+                std::fill(economic_buffer_indices.begin(), economic_buffer_indices.end(), 0);
+                std::fill(mineral_buffer_indices.begin(), mineral_buffer_indices.end(), 0);
+                std::fill(adamantine_buffer_indices.begin(), adamantine_buffer_indices.end(), 0);
+                std::fill(mamgma_buffer_indices.begin(), mamgma_buffer_indices.end(), 0);
+                std::fill(river_size_indices.begin(), river_size_indices.end(), 0);
+                //std::fill(mapped_elevation_buffer_indices.begin(), mapped_elevation_buffer_indices.end(), 0);
+                std::fill(waterfall_drop_indices.begin(), waterfall_drop_indices.end(), 0);
+                mapped_elevation_buffer_index = 0;
                 no_waterfall_index = 0;
             }
 

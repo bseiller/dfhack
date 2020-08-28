@@ -21,6 +21,7 @@ namespace embark_assist {
 
         struct waterfall_drop_bucket {
             uint8_t counter = 1;
+            // size == 2 because no more than 2 waterfalls can start in one tile and end in two different tiles (east and south tile)
             std::array<uint32_t, 2> keys;
 
             waterfall_drop_bucket(const uint32_t first_key) {
@@ -46,16 +47,44 @@ namespace embark_assist {
                 virtual ~query_plan_interface() {};
                 virtual bool execute(const Roaring &embark_candidate) const = 0;
 
-                // TODO: make this a smart iterator instead of a vector - which would save same memory...
+                // TODO: make this a smart iterator instead of a vector - which would save some memory...
                 virtual const std::vector<uint32_t>& get_most_significant_ids() const = 0;
                 virtual void set_most_significant_ids(const std::vector<uint32_t>* ids) = 0;
 
                 // FIXME: add method to query only for a specific whole world tile at a time...
+                // FIXME: add method to resort queries and reinit/reset most_significant_ids
+        };
+
+        // added locking mechanism to allow for concurrent access without race conditions
+        class LockedRoaring : public Roaring {
+            using Roaring::Roaring;
+            private:
+                std::mutex lock;
+
+            public:
+                LockedRoaring() : Roaring() {
+
+                }
+
+                LockedRoaring(const LockedRoaring &r) : Roaring(r){
+                }
+
+                void addManyGuarded(size_t n_args, const uint32_t *vals) {
+                    const std::lock_guard<std::mutex> add_many_mutex_guard(lock);
+                    Roaring::addMany(n_args, vals);
+                }
+
+                bool runOptimizeAndShrinkToFitGuarded(const bool shrinkToFit) {
+                    const std::lock_guard<std::mutex> add_many_mutex_guard(lock);
+                    Roaring::runOptimize();
+                    if (shrinkToFit) {
+                        Roaring::shrinkToFit();
+                    }
+                    return true;
+                }
         };
 
         class Index final : public embark_assist::defs::index_interface {
-        public:
-            
         private:
             static const uint32_t NUMBER_OF_EMBARK_TILES = 16 * 16;
             static const uint32_t NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL = NUMBER_OF_EMBARK_TILES * 256 - 1;
@@ -72,26 +101,30 @@ namespace embark_assist {
             uint32_t maxKeyValue = 0;
             uint32_t previous_key = -1;
             
-            // following 2 are for debugging - remove again
+            // following 2 are for debugging - remove for release
             Roaring uniqueKeys;
+            // TODO: remove, just here for debugging
             embark_assist::defs::match_results match_results;
 
-            Roaring hasAquifer;
-            Roaring hasClay;
+            LockedRoaring hasAquifer;
+            LockedRoaring hasClay;
             Roaring hasCoal;
             Roaring hasFlux;
             Roaring hasRiver;
-            Roaring hasSand;
-            Roaring is_unflat_by_incursion;
-            std::array<Roaring, embark_assist::defs::SOIL_DEPTH_LEVELS> soil;
+            LockedRoaring hasSand;
+            LockedRoaring is_unflat_by_incursion;
+            std::vector<uint8_t> mapped_elevations;
+            std::array<LockedRoaring, embark_assist::defs::SOIL_DEPTH_LEVELS> soil;
             std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> river_size;
-            std::array<Roaring, 4> magma_level;
+            std::vector<Roaring> magma_level;
             std::array<Roaring, 4> adamantine_level;
-            std::array<Roaring, 3> savagery_level;
-            std::array<Roaring, 3> evilness_level;
-            std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biome;
-            std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_type;
+            std::array<LockedRoaring, 3> savagery_level;
+            std::array<LockedRoaring, 3> evilness_level;
+            std::array<LockedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biome;
+            std::array<LockedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_type;
+            //std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> mapped_elevation_index;
             std::array<unordered_map<uint32_t, waterfall_drop_bucket*>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> waterfall_drops;
+            std::array<uint64_t, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> number_of_waterfall_drops;
             Roaring no_waterfall;
 
             std::vector<Roaring*> metals;
@@ -100,12 +133,13 @@ namespace embark_assist {
 
             std::vector<Roaring*> inorganics;
 
-            // following 2 are only for debugging - remove again
+            // following 2 are only for debugging - remove for release
             std::vector<uint32_t> keys_in_order;
             std::vector <position> positions;
 
             // helper for easier reset, debug and output of over all indices
             std::vector<Roaring*> static_indices;
+            std::vector<LockedRoaring*> static_indices2;
 
             const embark_assist::inorganics::inorganics_information &inorganics_info;
 
@@ -120,6 +154,9 @@ namespace embark_assist {
             std::chrono::duration<double> innerElapsed_seconds = std::chrono::seconds(0);
             std::chrono::duration<double> index_adding_seconds = std::chrono::seconds(0);
             std::chrono::duration<double> inorganics_processing_seconds = std::chrono::seconds(0);
+            //std::chrono::duration<double> all_indices_elevation_query_seconds = std::chrono::seconds(0);
+            std::chrono::duration<double> vector_elevation_query_seconds = std::chrono::seconds(0);
+            //bool run_all_vector_query = true;
 
             // Roaring& getInorganicsIndex(std::vector<Roaring*> &indexMap, uint16_t metal_index);
             void init_inorganic_indices();
@@ -129,7 +166,6 @@ namespace embark_assist {
             uint16_t calculate_embark_variants(const uint32_t position_id, const uint16_t embark_size_x, const uint16_t embark_size_y, std::vector<Roaring> &embarks, uint32_t buffer[], embark_tile_tracker &tracker) const;
             const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder) const;
             const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const Roaring &index) const;
-            void process_incursions(const int16_t x, const int16_t y, const uint32_t world_offset, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt);
             void optimize(Roaring *index, bool shrinkToSize);
             const void outputContents() const;
             const void outputSizes(const string &prefix);

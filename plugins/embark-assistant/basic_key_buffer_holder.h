@@ -8,8 +8,13 @@ namespace embark_assist {
         template<int N>
         class basic_key_buffer_holder : public virtual embark_assist::defs::key_buffer_holder_basic_interface {
 
+            const uint16_t BUFFER_SIZE = N;
+
             static const uint8_t ARRAY_SIZE_FOR_BIOMES = embark_assist::defs::ARRAY_SIZE_FOR_BIOMES;
             static const uint8_t ARRAY_SIZE_FOR_REGIONS = embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES;
+
+            uint32_t unflatBuffer[N];
+            uint16_t unflatBufferIndex = 0;
 
             uint32_t aquiferBuffer[N];
             uint16_t aquifierBufferIndex = 0;
@@ -41,6 +46,10 @@ namespace embark_assist {
             std::array<int16_t, ARRAY_SIZE_FOR_REGIONS> region_type_buffer_indices;
 
         public:
+
+            // FIXME: only for debugging - remove for release
+            static int max_index;
+
             basic_key_buffer_holder() {
                 for (int index = 0; index < savagery_buffers.size(); index++) {
                     savagery_buffer_helper[index] = savagery_buffers[index];
@@ -61,6 +70,25 @@ namespace embark_assist {
                 for (int index = 0; index < region_type_buffers.size(); index++) {
                     region_type_buffer_helper[index] = region_type_buffers[index];
                 }
+
+                init();
+            }
+
+            ~basic_key_buffer_holder() {
+                get_max();
+            }
+
+            void add_unflat(const uint32_t key) {
+                unflatBuffer[unflatBufferIndex++] = key;
+                if (unflatBufferIndex > N) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("unflatBuffer buffer overflow %d\n", unflatBufferIndex);
+                }
+            }
+
+            void get_unflat_buffer(uint16_t &index, const uint32_t *&buffer) const override {
+                index = unflatBufferIndex;
+                buffer = unflatBuffer;
             }
 
             void add_aquifer(const uint32_t key) {
@@ -167,15 +195,54 @@ namespace embark_assist {
                 buffers = &region_type_buffer_helper;
             }
 
-            void reset() {
+            void init() {
+                unflatBufferIndex = 0;
                 aquifierBufferIndex = 0;
                 clayBufferIndex = 0;
                 sandBufferIndex = 0;
-                savagery_buffer_indices.assign(0);
-                evilness_buffer_indices.assign(0);
-                soil_buffer_indices.assign(0);
-                biomes_buffer_indices.assign(0);
-                region_type_buffer_indices.assign(0);
+                std::fill(savagery_buffer_indices.begin(), savagery_buffer_indices.end(), 0);
+                std::fill(evilness_buffer_indices.begin(), evilness_buffer_indices.end(), 0);
+                std::fill(soil_buffer_indices.begin(), soil_buffer_indices.end(), 0);
+                std::fill(biomes_buffer_indices.begin(), biomes_buffer_indices.end(), 0);
+                std::fill(region_type_buffer_indices.begin(), region_type_buffer_indices.end(), 0);
+            }
+
+            void reset() {
+                // FIXME: only for debugging - remove for release
+                get_max();
+
+                init();
+            }
+
+            // FIXME: only for debugging - remove for release
+            void get_max() {
+                // only for debugging
+                uint32_t max_buffer = 0;
+                max_buffer = std::max<int>(aquifierBufferIndex, max_buffer);
+                max_buffer = std::max<int>(clayBufferIndex, max_buffer);
+                max_buffer = std::max<int>(sandBufferIndex, max_buffer);
+
+                for (int index = 0; index < savagery_buffers.size(); index++) {
+                    max_buffer = std::max<int>(savagery_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < evilness_buffers.size(); index++) {
+                    max_buffer = std::max<int>(evilness_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < soil_level_buffers.size(); index++) {
+                    max_buffer = std::max<int>(soil_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < biome_buffers.size(); index++) {
+                    max_buffer = std::max<int>(biomes_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < region_type_buffers.size(); index++) {
+                    max_buffer = std::max<int>(region_type_buffer_indices[index], max_buffer);
+                }
+
+                max_index = std::max<int>(max_index, max_buffer);
             }
         };
     }

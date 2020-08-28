@@ -173,12 +173,17 @@ namespace embark_assist {
 
         //==========================================================================================================
 
-        void load_profile() {
+        void load_profile(char const* custom_profile_file_name) {
             color_ostream_proxy out(Core::getInstance().getConsole());
-            FILE* infile = fopen(profile_file_name, "r");
+            char const* actual_profile_file_name = profile_file_name;
+            if (custom_profile_file_name != nullptr) {
+                actual_profile_file_name = custom_profile_file_name;
+            }
+
+            FILE* infile = fopen(actual_profile_file_name, "r");
 
             if (!infile) {
-                out.printerr("No profile file found at %s\n", profile_file_name);
+                out.printerr("No profile file found at %s\n", actual_profile_file_name);
                 return;
             }
 
@@ -248,7 +253,7 @@ namespace embark_assist {
 
             //  Checking done. Now do the work.
 
-            infile = fopen(profile_file_name, "r");
+            infile = fopen(actual_profile_file_name, "r");
             i = first_fields;
 
             while (true) {
@@ -1438,7 +1443,7 @@ namespace embark_assist {
                 save_profile();
 
             } else if (input->count(df::interface_key::CUSTOM_L)) {  //  Load
-                load_profile();
+                load_profile(nullptr);
             }
         }
 
@@ -1557,16 +1562,16 @@ namespace embark_assist {
 //  Exported operations
 //===============================================================================
 
-void embark_assist::finder_ui::init(DFHack::Plugin *plugin_self, embark_assist::defs::find_callbacks find_callback, uint16_t max_inorganic, bool fileresult) {
+void embark_assist::finder_ui::init(DFHack::Plugin *plugin_self, embark_assist::defs::find_callbacks find_callback, uint16_t max_inorganic, bool fileresult, bool testing, char const* custom_profile_file_name) {
     if (!embark_assist::finder_ui::state) {  //  First call. Have to do the setup
         embark_assist::finder_ui::ui_setup(find_callback, max_inorganic);
     }
-    if (!fileresult) {
+    if (!fileresult && !testing) {
         Screen::show(dts::make_unique<ViewscreenFindUi>(), plugin_self);
     }
     else
     {
-        load_profile();
+        load_profile(custom_profile_file_name);
         find();
     }
 }

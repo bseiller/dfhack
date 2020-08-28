@@ -28,7 +28,9 @@ namespace embark_assist {
         static const uint8_t SOIL_DEPTH_LEVELS = 5;
         static const uint8_t ARRAY_SIZE_FOR_BIOMES = ENUM_LAST_ITEM(biome_type) + 1;
         static const uint8_t ARRAY_SIZE_FOR_REGION_TYPES = ENUM_LAST_ITEM(world_region_type) + 1;
+        //static const uint16_t ARRAY_SIZE_FOR_ELEVATION_INDICES = 256;
         static const uint8_t ARRAY_SIZE_FOR_RIVER_SIZES = 6;
+        // 1-9 drops + everything > 9 => == 9, index 0 is never used
         static const uint8_t ARRAY_SIZE_FOR_WATERFALL_DROPS = 10;
 
         //  Survey types
@@ -377,6 +379,8 @@ namespace embark_assist {
 
         class key_buffer_holder_basic_interface {
         public:
+            virtual void add_unflat(const uint32_t key) = 0;
+            virtual void get_unflat_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_aquifer(const uint32_t key) = 0;
             virtual void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_clay(const uint32_t key) = 0;
@@ -409,6 +413,10 @@ namespace embark_assist {
             virtual void get_river_size_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_RIVER_SIZES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_RIVER_SIZES> *&buffers) const = 0;
             virtual void get_waterfall_drop_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&indices, const std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&buffers) const = 0;
             virtual void get_no_waterfall_buffers(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_mapped_elevation(const uint32_t key, const uint8_t mapped_index) = 0;
+            //virtual void get_mapped_elevation_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_ELEVATION_INDICES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_ELEVATION_INDICES> *&buffers) const = 0;
+            virtual void set_current_initial_offset(uint32_t initial_offset) = 0;
+            virtual void get_mapped_elevation_buffer(uint16_t & index, const uint8_t *&buffer, uint32_t &initial_offset) const = 0;
         };
 
         class index_interface {

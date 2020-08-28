@@ -1,6 +1,4 @@
 
-#define NOMINMAX
-
 #include <math.h>
 #include <vector>
 //#include <unordered_map>
@@ -1365,6 +1363,30 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //    }
 //}
 
+
+// FIXME for debugging - remove for release
+void log_incursion_data(std::ofstream &file, 
+    const int x, const int y, const int i, const int k, const int key, 
+    const int biome_id, const embark_assist::defs::mid_level_tile_basic &data) {
+
+    file
+        << x << ";"
+        << y << ";"
+        << (int)i << ";"
+        << (int)k << ";"
+        << (int)key << ";"
+        << data.aquifer << ";"
+        << data.clay << ";"
+        << data.sand << ";"
+        << data.elevation << ";"
+        << (int)data.biome_offset << ";"
+        << (int)biome_id << ";"
+        << (int)data.soil_depth << ";"
+        << (int)data.evilness_level << ";"
+        << (int)data.savagery_level << ";"
+        << "\n";
+}
+
 void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
     embark_assist::defs::mid_level_tiles *mlt,
@@ -1417,8 +1439,12 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             for (uint8_t k = 0; k < 16; k++) {
                 embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
                 mid_level_tile.metals.assign(state->max_inorganic, false);
+                // FIXME: profile performance difference between assign and fill
+                //std::fill(mid_level_tile.metals.begin(), mid_level_tile.metals.end(), false);
                 mid_level_tile.economics.assign(state->max_inorganic, false);
+                //std::fill(mid_level_tile.economics.begin(), mid_level_tile.economics.end(), false);
                 mid_level_tile.minerals.assign(state->max_inorganic, false);
+                //std::fill(mid_level_tile.minerals.begin(), mid_level_tile.minerals.end(), false);
             }
         }
     } else {
@@ -1995,14 +2021,33 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
     const auto _4_start_waterfall_and_biomes = std::chrono::steady_clock::now();
 
-    // handle mlts with no waterfalls
+    // handle elevation and mlts with no waterfalls
+    buffer_holder.set_current_initial_offset(world_offset);
     mlt_offset = 0;
     // beware: we process "first" in k(y) than in the i(x) dimension, otherwise the key can't be calculated just be using a rolling offset
     // the inner loop processes one row, then the next row with a higher k/y value
+    
+    // here we map the actual elevation of a tile to a "random" number between 0 and 255
+    // as there are only 256 embark tiles in a world tile there can't be more mapped elevations than 256
+    // => we can store the "relative" elevation as a uint8_t instead of a int16_t, saving 1 byte
+    uint8_t next_mapped_index = 0;
+    unordered_map<int16_t, uint8_t> elevation_to_index_mapping;
     for (uint8_t k = 0; k < 16; k++) {
         for (uint8_t i = 0; i < 16; i++) {
+            const embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
+            uint8_t mapped_index = next_mapped_index;
+            const auto iter = elevation_to_index_mapping.find(mid_level_tile.elevation);
+            if (iter == elevation_to_index_mapping.end()) {
+                mapped_index = next_mapped_index++;
+                elevation_to_index_mapping[mid_level_tile.elevation] = mapped_index;
+            } else {
+                mapped_index = iter->first;
+            }
+
+            const uint32_t key = world_offset + mlt_offset;
+            buffer_holder.add_mapped_elevation(key, mapped_index);
+
             if (!has_waterfall[i][k]) {
-                const uint32_t key = world_offset + mlt_offset;
                 buffer_holder.add_no_waterfall(key);
             }
             ++mlt_offset;
@@ -2156,18 +2201,79 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     elapsed_survey_seconds += end - start;
 
     if (!tile.surveyed) {
-        // making sure the async job is done before we process the "regular" data - just to be sure it does operate on valid data, 
-        // which might not be the case if the cursor iterates on another world tile will the incursions are being processed
+        // FIXME: test if putting this here at the beginning is any faster/better and error free, otherwise move it back to the end of this if block
+        index.add(x, y, tile, mlt, buffer_holder);
+
+        // making sure the async job is done before we process the "regular" survey data - to be sure it does operate on valid data, 
+        // which might not be the case if the cursor iterates on another world tile will the internal incursions are still being processed
         internal_incursion_processing_result.get();
 
         // as now all the required data has been collected in the world tile (north_corner_selection, ...)
         // starting to process the external incursions of the neighbours and potentially also the current tile
-        // not operating on any transient data that gets changed during iteration we can let this run async/concurrent
+        // not operating on any transient data that gets changed during iteration we can let this run async/concurrent, even while the cursor iterates onto another world tile
+        // BUT: we have to make sure that the very last call of this is finished before we allow a search request...
+        // FIXME: how to do this? perhaps start/"request" a query again and again until all world tiles have been removed from the processing queue?
         std::future<void> external_incursion_processing_result 
             = std::async(std::launch::async, [&]() { state->incursion_processor.update_and_check_survey_counters_of_neighbouring_world_tiles(x, y, survey_results, index); });
-
-        index.add(x, y, tile, mlt, buffer_holder);
     }
+
+    // write all incursion relevant data into a csv file for every embark tile that has either (x == world_data->world_width - 1 AND i == 15) OR (y == world_data->world_height - 1 AND k == 15)
+    //if (!tile.surveyed && (x == 0 || x == world_data->world_width - 1 || y == 0 || y == world_data->world_height - 1)) {
+    //    const std::string prefix = "edge_incursion_data.csv";
+    //    auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out | std::ofstream::app);
+
+    //    if (x == 0) {
+    //        // output eastern col
+    //        //const int i = 15;
+    //        for (int8_t i = 0; i < 2; i++) {
+    //            for (int8_t k = 0; k < 16; k++) {
+    //                const embark_assist::defs::mid_level_tile_basic &data = mlt->at(i)[k];
+    //                const uint32_t key = index.get_key(x, y, i, k);
+
+    //                log_incursion_data(myfile, x, y, i, k, key, tile.biome[data.biome_offset], data);
+    //            }
+    //        }
+    //    }
+
+    //    if (x == world_data->world_width - 1) {
+    //        // output eastern col
+    //        //const int i = 15;
+    //        for (int8_t i = 14; i < 16; i++) {
+    //            for (int8_t k = 0; k < 16; k++) {
+    //                const embark_assist::defs::mid_level_tile_basic &data = mlt->at(i)[k];
+    //                const uint32_t key = index.get_key(x, y, i, k);
+
+    //                log_incursion_data(myfile, x, y, i, k, key, tile.biome[data.biome_offset], data);
+    //            }
+    //        }
+    //    }
+
+    //    if (y == 0) {
+    //        // output southern row
+    //        //const int k = 15;
+    //        for (int8_t k = 0; k < 2; k++) {
+    //            for (int8_t i = 0; i < 16; i++) {
+    //                const embark_assist::defs::mid_level_tile_basic &data = mlt->at(i)[k];
+    //                const uint32_t key = index.get_key(x, y, i, k);
+
+    //                log_incursion_data(myfile, x, y, i, k, key, tile.biome[data.biome_offset], data);
+    //            }
+    //        }
+    //    }
+
+    //    if (y == world_data->world_height - 1) {
+    //        // output southern row
+    //        //const int k = 15;
+    //        for (int8_t k = 14; k < 16; k++) {
+    //            for (int8_t i = 0; i < 16; i++) {
+    //                const embark_assist::defs::mid_level_tile_basic &data = mlt->at(i)[k];
+    //                const uint32_t key = index.get_key(x, y, i, k);
+
+    //                log_incursion_data(myfile, x, y, i, k, key, tile.biome[data.biome_offset], data);
+    //            }
+    //        }
+    //    }
+    //}
 
     tile.surveyed = true;
 
@@ -2323,10 +2429,10 @@ uint8_t  embark_assist::survey::translate_corner(embark_assist::defs::world_tile
     bool n_region_type_active;
     bool w_region_type_active;
     bool home_region_type_active;
-    uint8_t nw_region_type_level;
-    uint8_t n_region_type_level;
-    uint8_t w_region_type_level;
-    uint8_t home_region_type_level;
+    int8_t nw_region_type_level;
+    int8_t n_region_type_level;
+    int8_t w_region_type_level;
+    int8_t home_region_type_level;
 
     if (corner_location == 4) {  //  We're the reference. No change.
     }
@@ -2361,7 +2467,8 @@ uint8_t  embark_assist::survey::translate_corner(embark_assist::defs::world_tile
             return 4;
         }
         else {  //  Can only be corner_location == 8
-            return 3;
+            // FIXME: compare region_type of current and eastern neighbour tile to determine return value
+            return 5;
         }
     }
 
