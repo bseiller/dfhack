@@ -2,10 +2,6 @@
 
 #include <unordered_map>
 
-//#include "DataDefs.h"
-//#include "df/biome_type.h"
-//#include "df/world_region_type.h"
-
 #include "defs.h"
 #include "inorganics_information.h"
 #include "key_position_mapper.h"
@@ -122,7 +118,6 @@ namespace embark_assist {
             std::array<LockedRoaring, 3> evilness_level;
             std::array<LockedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biome;
             std::array<LockedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_type;
-            //std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> mapped_elevation_index;
             std::array<unordered_map<uint32_t, waterfall_drop_bucket*>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> waterfall_drops;
             std::array<uint64_t, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> number_of_waterfall_drops;
             Roaring no_waterfall;
@@ -154,9 +149,7 @@ namespace embark_assist {
             std::chrono::duration<double> innerElapsed_seconds = std::chrono::seconds(0);
             std::chrono::duration<double> index_adding_seconds = std::chrono::seconds(0);
             std::chrono::duration<double> inorganics_processing_seconds = std::chrono::seconds(0);
-            //std::chrono::duration<double> all_indices_elevation_query_seconds = std::chrono::seconds(0);
             std::chrono::duration<double> vector_elevation_query_seconds = std::chrono::seconds(0);
-            //bool run_all_vector_query = true;
 
             // Roaring& getInorganicsIndex(std::vector<Roaring*> &indexMap, uint16_t metal_index);
             void init_inorganic_indices();

@@ -26,9 +26,8 @@ namespace embark_assist {
             Lambda3 _keys_lambda;
             bool _is_to_be_deleted_after_key_extraction = true;
         public:
-            query(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda) : 
-                _query_lambda(std::forward<Lambda>(query_lambda)), 
-                //_cardinality_lambda(cardinality_lambda),
+            query(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda) :
+                _query_lambda(std::forward<Lambda>(query_lambda)),
                 _cardinality_lambda(std::forward<Lambda2>(cardinality_lambda)),
                 _keys_lambda(std::forward<Lambda3>(keys_lambda)) {
             }
@@ -50,7 +49,7 @@ namespace embark_assist {
                 return _keys_lambda();
             }
 
-            bool is_to_be_deleted_after_key_extraction() const final{
+            bool is_to_be_deleted_after_key_extraction() const final {
                 return _is_to_be_deleted_after_key_extraction;
             }
 
@@ -270,7 +269,7 @@ namespace embark_assist {
         class single_index_present_query : public single_index_query {
         public:
             single_index_present_query(const Roaring &index)
-                : single_index_query(index, 
+                : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_INTERSECT,
                     query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
                     query_strategies::SINGLE_INDEX_ARRAY_KEYS) {
@@ -280,7 +279,7 @@ namespace embark_assist {
         class single_index_absent_query : public single_index_query {
         public:
             single_index_absent_query(const Roaring &index)
-                : single_index_query(index, 
+                : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_NOT_INTERSECT,
                     query_strategies::SINGLE_INDEX_INVERTED_CARDINALITY,
                     query_strategies::SINGLE_INDEX_INVERTED_ARRAY_KEYS) {
@@ -304,13 +303,14 @@ namespace embark_assist {
             const std::vector<Roaring> &indices;
             const std::vector<Roaring>::const_iterator min;
             const std::vector<Roaring>::const_iterator max;
-            multiple_indices_query_context(const std::vector<Roaring> &indices, 
-            const std::vector<Roaring>::const_iterator min,
-            const std::vector<Roaring>::const_iterator max) : indices(indices), min(min), max(max){
 
+            multiple_indices_query_context(
+                const std::vector<Roaring> &indices,
+                const std::vector<Roaring>::const_iterator min,
+                const std::vector<Roaring>::const_iterator max) : indices(indices), min(min), max(max) {
             }
         };
-        
+
         class multiple_indices_run_strategy {
         public:
             virtual bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const = 0;
@@ -423,7 +423,7 @@ namespace embark_assist {
                 return multiple_indices_query::get_keys(context);
             }
         };
-        
+
         class multi_indices_query_strategies {
         public:
             static const multiple_indices_run_intersect MULTI_INDICES_RUN_INTERSECT;

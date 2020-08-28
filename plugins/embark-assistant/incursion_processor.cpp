@@ -84,7 +84,7 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         embark_assist::defs::key_buffer_holder_basic_interface  &buffer, const embark_assist::defs::mid_level_tile_basic &source, 
         const bool are_flat[3],
         const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3]) {
-    // TODO: haha this is very naive solution and could be optimized by adapting the above method fill_buffer to take an array of keys and a length for the array/number of arguments...
+    // FIXME: haha this is very naive solution and could be optimized by adapting the above method fill_buffer to take an array of keys and a length for the array/number of arguments...
     // but for now it works fine and fast enough...
     fill_buffer(buffer, source, are_flat[0], rtd, target_keys[0]);
     fill_buffer(buffer, source, are_flat[1], rtd, target_keys[1]);
@@ -300,7 +300,7 @@ void embark_assist::incursion::incursion_processor::process_south_west_corner(
     fill_buffer(buffer, *source, is_flat, *source_rtd, target_key);
 }
 
-// for debugging
+// FIXME only for debugging - remove for release
 //void print_biome_x(const uint16_t x, const uint16_t y, const uint16_t dimension) {
 //    std::stringstream ss;
 //    ss << "biome_x_" << unsigned(x) << "_" << unsigned(y) << "_dim" << unsigned(dimension);

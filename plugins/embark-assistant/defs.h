@@ -414,9 +414,8 @@ namespace embark_assist {
             virtual void get_waterfall_drop_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&indices, const std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&buffers) const = 0;
             virtual void get_no_waterfall_buffers(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_mapped_elevation(const uint32_t key, const uint8_t mapped_index) = 0;
-            //virtual void get_mapped_elevation_buffers(const std::array<int16_t, ARRAY_SIZE_FOR_ELEVATION_INDICES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_ELEVATION_INDICES> *&buffers) const = 0;
             virtual void set_current_initial_offset(uint32_t initial_offset) = 0;
-            virtual void get_mapped_elevation_buffer(uint16_t & index, const uint8_t *&buffer, uint32_t &initial_offset) const = 0;
+            virtual void get_mapped_elevation_buffer(uint16_t &index, const uint8_t *&buffer, uint32_t &initial_offset) const = 0;
         };
 
         class index_interface {

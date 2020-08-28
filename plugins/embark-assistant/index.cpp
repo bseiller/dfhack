@@ -76,37 +76,6 @@ namespace embark_assist {
             const std::vector<uint32_t>* most_significant_ids;
         };
 
-        //void add_to_buffers(const uint32_t key, const embark_assist::defs::mid_level_tile_basic &mlt, const embark_assist::defs::region_tile_datum &rtd, embark_assist::key_buffer_holder::basic_key_buffer_holder<256> &buffer_holder) {
-        //    if (mlt.aquifer) {
-        //        buffer_holder.add_aquifer(key);
-        //        // buffer_holder.aquiferBuffer[buffer_holder.aquifierBufferIndex++] = key;
-        //    }
-
-        //    if (mlt.clay) {
-        //        buffer_holder.add_clay(key);
-        //        //buffer_holder.clayBuffer[buffer_holder.clayBufferIndex++] = key;
-        //    }
-
-        //    if (mlt.sand) {
-        //        buffer_holder.add_sand(key);
-        //        // buffer_holder.sandBuffer[buffer_holder.sandBufferIndex++] = key;
-        //    }
-
-        //    buffer_holder.add_soil_depth(key, mlt.soil_depth);
-        //    //buffer_holder.soil_buffer[mlt.soil_depth][buffer_holder.soil_buffer_index[mlt.soil_depth]++] = key;
-        //    buffer_holder.add_savagery_level(key, mlt.savagery_level);
-        //    // buffer_holder.savagery_buffer[mlt.savagery_level][buffer_holder.savagery_buffer_index[mlt.savagery_level]++] = key;
-        //    buffer_holder.add_evilness_level(key, mlt.evilness_level);
-        //    // buffer_holder.evilness_buffer[mlt.evilness_level][buffer_holder.evilness_buffer_index[mlt.evilness_level]++] = key;
-
-        //    // needs additional processing!
-        //    const int16_t biome_id = rtd.biome[mlt.biome_offset];
-        //    buffer_holder.add_biome(key, biome_id);
-
-        //    // TODO: how to do this for regions here?
-        //    //buffer_holder.add_region_type(key);
-        //}
-
         void set_capacity_and_add_to_static_indices(Roaring& index, const uint32_t capacity, std::vector<Roaring*> static_indices) {
             // sadly the copy constructor of Roaring does not copy the value for allocation_size, so we have to do this manually...
             ra_init_with_capacity(&index.roaring.high_low_container, capacity);
@@ -233,15 +202,7 @@ embark_assist::index::Index::Index(df::world *world)
         set_capacity_and_add_to_static_indices2(index, capacity, static_indices2);
     }
 
-    //for (auto& index : mapped_elevation_index) {
-    //    set_capacity_and_add_to_static_indices(index, capacity, static_indices);
-    //}
-
-    //for (auto& index : waterfall_drops) {
-    //    set_capacity_and_add_to_static_indices(index, capacity, static_indices);
-    //}
-
-    // TODO: remove, just here for debugging
+    // FIXME: remove, just here for debugging
     match_results.resize(world->worldgen.worldgen_parms.dim_x);
     for (uint16_t i = 0; i < world->worldgen.worldgen_parms.dim_x; i++) {
         match_results[i].resize(world->worldgen.worldgen_parms.dim_y);
@@ -279,98 +240,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
     entryCounter++;
 
     //positions.push_back({ x,y });
-
-    // uint32_t mlt_offset = 0;
-
-    /*
-    // beware: we process "first" in k(y) than in the i(x) dimension, otherwise the key can't be calculated just be using a rolling offset
-    // the inner loop processes one row, then the next row with a higher k/y value
-    for (uint8_t k = 0; k < 16; k++) {
-        for (uint8_t i = 0; i < 16; i++) {
-            entryCounter++;
-
-            const embark_assist::defs::mid_level_tile &mlt = mlts->at(i).at(k);
-            const uint32_t key = world_offset + mlt_offset++;
-            
-            // keys_in_order.push_back(key);
-            // uniqueKeys.add(key);
-
-            if (mlt.coal) {
-                buffer_holder.coalBuffer[buffer_holder.coalBufferIndex++] = key;
-            }
-
-            if (mlt.flux) {
-                buffer_holder.fluxBuffer[buffer_holder.fluxBufferIndex++] = key;
-            }
-
-            if (mlt.river_present) {
-                buffer_holder.riverBuffer[buffer_holder.riverBufferIndex++] = key;
-            }
-
-            if (mlt.magma_level > -1) {
-                buffer_holder.magma_buffer[mlt.magma_level][buffer_holder.magma_buffer_index[mlt.magma_level]++] = key;
-            }
-
-            if (mlt.adamantine_level > -1) {
-                buffer_holder.adamantine_buffer[mlt.adamantine_level][buffer_holder.adamantine_buffer_index[mlt.adamantine_level]++] = key;
-            }
-
-            //  Region Type
-            // result.region_types[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type] = true;
-            // world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type;
-            // regions[world->world_data->regions[rtd.biome_index[mlt.biome_offset]]->type].add(key);
-
-            //const auto inorganicsStartTime = std::chrono::steady_clock::now();
-
-            // create indices for metals, economics and minerals
-            //const auto begin_metals = mlt.metals.cbegin();
-            uint16_t index = 0;
-            for (auto it = mlt.metals.cbegin(); it != mlt.metals.cend(); it++) {
-                if (*it) {
-                    metalBuffer[index][metalBufferIndex[index]++] = key;
-                }
-                index++;
-            }
-            
-
-            // const auto begin_economics = mlt.economics.cbegin();
-            index = 0;
-            for (auto it = mlt.economics.cbegin(); it != mlt.economics.cend(); it++) {
-                if (*it) {
-                    economicBuffer[index][economicBufferIndex[index]++] = key;
-                }
-                index++;
-            }
-
-            // const auto begin_minerals = mlt.minerals.cbegin();
-            index = 0;
-            for (auto it = mlt.minerals.cbegin(); it != mlt.minerals.cend(); it++) {
-                if (*it) {
-                    const df::inorganic_raw* raw = world->raws.inorganics[index];
-                    if (
-                        // true || 
-                        raw->environment.location.size() != 0 ||
-                        raw->environment_spec.mat_index.size() != 0 ||
-                        raw->flags.is_set(df::inorganic_flags::SEDIMENTARY) ||
-                        raw->flags.is_set(df::inorganic_flags::IGNEOUS_EXTRUSIVE) ||
-                        raw->flags.is_set(df::inorganic_flags::IGNEOUS_INTRUSIVE) ||
-                        raw->flags.is_set(df::inorganic_flags::METAMORPHIC) ||
-                        raw->flags.is_set(df::inorganic_flags::SOIL)) {
-
-                        mineralBuffer[index][mineralBufferIndex[index]++] = key;
-                    }
-                }
-                index++;
-            }
-
-            //const auto inorganics_processing_end = std::chrono::steady_clock::now();
-            //inorganics_processing_seconds += inorganics_processing_end - inorganicsStartTime;
-
-            // handling data that is also processed by incursions
-            add_to_buffers(key, mlt, rtd, buffer_holder);
-        }
-    }
-    */
 
     //const auto adding_start = std::chrono::steady_clock::now();
 
@@ -475,15 +344,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, const em
             minerals[mineralIndexOffset]->addMany(mineral_buffer_indices->at(mineralIndexOffset), mineral_buffers->at(mineralIndexOffset));
         }
     }
-
-    //const std::array<int16_t, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> *mapped_elevation_indices;
-    //const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> *mapped_elevation_buffers;
-    //buffer_holder2.get_mapped_elevation_buffers(mapped_elevation_indices, mapped_elevation_buffers);
-    //for (int i = 0; i < embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES; i++) {
-    //    if (mapped_elevation_indices->at(i) > 0) {
-    //        mapped_elevation_index[i].addMany(mapped_elevation_indices->at(i), mapped_elevation_buffers->at(i));
-    //    }
-    //}
 
     uint16_t elevationIndex(0);
     const uint8_t *elevation_buffer;
@@ -868,14 +728,8 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of is_unflat_by_incursion entries: %I64d\n", is_unflat_by_incursion.cardinality());
     this->writeIndexToDisk(is_unflat_by_incursion, std::to_string(index_prefix++) + "_is_unflat_by_incursion");
 
-    //level_post_fix = 0;
-    //total_number_of_entries = 0;
-    //for (auto& index : mapped_elevation_index) {
-    //    total_number_of_entries += index.cardinality();
-    //    fprintf(outfile, "number of mapped_elevation #%d entries: %I64d\n", level_post_fix, index.cardinality());
-    //    this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_mapped_elevation_" + std::to_string(level_post_fix++));
-    //}
     fprintf(outfile, "total number of mapped_elevations entries: %I64d\n", mapped_elevations.size());
+    // FIXME: write mapped_elevations vector to disk
 
     fclose(outfile);
 
@@ -1034,34 +888,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         result->queries.push_back(q);
     }
 
-    //if (finder.sand == embark_assist::defs::present_absent_ranges::Present) {
-    //    const Roaring &hasSand = this->hasSand;
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasSand](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "hasSand.and_cardinality" << std::endl;
-    //        return hasSand.and_cardinality(embark_candidate) > 0;
-    //    }, [&hasSand]() -> uint32_t {
-    //        // std::cout << "hasSand.cardinality" << std::endl;
-    //        return hasSand.cardinality();
-    //    }, [&hasSand, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(hasSand);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
-    //if (finder.clay == embark_assist::defs::present_absent_ranges::Present) {
-    //    const Roaring &hasClay = this->hasClay;
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasClay](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "hasClay.and_cardinality" << std::endl;
-    //        return hasClay.and_cardinality(embark_candidate) > 0;
-    //    }, [&hasClay]() -> uint32_t {
-    //        // std::cout << "hasClay.cardinality" << std::endl;
-    //        return hasClay.cardinality();
-    //    }, [&hasClay, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(hasClay);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
     // savagery queries
     const uint8_t lowSavageryEvilness = static_cast<uint8_t>(embark_assist::defs::evil_savagery_ranges::Low);
     create_savagery_evilness_queries(finder.savagery, savagery_level, lowSavageryEvilness, result);
@@ -1161,49 +987,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         create_and_add_present_query(*minerals[finder.mineral_3], result);
     }
 
-    //if (finder.biome_1 != -1) {
-    //    const Roaring &biome = this->biome[finder.biome_1];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&biome](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "biome.and_cardinality" << std::endl;
-    //        return biome.and_cardinality(embark_candidate) > 0;
-    //    }, [&biome]() -> uint32_t {
-    //        // std::cout << "biome.cardinality" << std::endl;
-    //        return biome.cardinality();
-    //    }, [&biome, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(biome);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
-    //if (finder.region_type_1 != -1) {
-    //    const Roaring &region_type = this->region_type[finder.region_type_1];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&region_type](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "region_type.and_cardinality" << std::endl;
-    //        return region_type.and_cardinality(embark_candidate) > 0;
-    //    }, [&region_type]() -> uint32_t {
-    //        // std::cout << "region_type.cardinality" << std::endl;
-    //        return region_type.cardinality();
-    //    }, [&region_type, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(region_type);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
-    //if (finder.magma_min == embark_assist::defs::magma_ranges::Volcano) {
-    //    const uint64_t i = static_cast<uint64_t>(embark_assist::defs::magma_ranges::Volcano);
-    //    const Roaring &magma_level = this->magma_level[i];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&magma_level](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "magma_level.and_cardinality" << std::endl;
-    //        return magma_level.and_cardinality(embark_candidate) > 0;
-    //    }, [&magma_level]() -> uint32_t {
-    //        // std::cout << "magma_level.cardinality" << std::endl;
-    //        return magma_level.cardinality();
-    //    }, [&magma_level, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(magma_level);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
     if (finder.magma_min != embark_assist::defs::magma_ranges::NA || finder.magma_max != embark_assist::defs::magma_ranges::NA) {
         std::vector<Roaring>::const_iterator min = magma_level.cbegin();
         if (finder.magma_min != embark_assist::defs::magma_ranges::NA) {
@@ -1225,48 +1008,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
     }
 
-    //if (finder.evilness[static_cast<uint8_t>(embark_assist::defs::evil_savagery_ranges::Medium)] != embark_assist::defs::evil_savagery_values::Present) {
-    //    const uint64_t i = static_cast<uint64_t>(embark_assist::defs::evil_savagery_ranges::Medium);
-    //    const Roaring &evilness_level = this->evilness_level[i];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&evilness_level](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "evilness_level.and_cardinality" << std::endl;
-    //        return evilness_level.and_cardinality(embark_candidate) > 0;
-    //    }, [&evilness_level]() -> uint32_t {
-    //        // std::cout << "evilness_level.cardinality" << std::endl;
-    //        return evilness_level.cardinality();
-    //    }, [&evilness_level, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(evilness_level);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
-    //if (finder.metal_1 != -1) {
-    //    const Roaring &metal = *this->metals[finder.metal_1];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "metal.and_cardinality" << std::endl;
-    //        return metal.and_cardinality(embark_candidate) > 0;
-    //    }, [&metal]() -> uint32_t {
-    //        // std::cout << "metal.cardinality" << std::endl;
-    //        return metal.cardinality();
-    //    }, [&metal, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(metal);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
-    //if (finder.metal_2 != -1) {
-    //    const Roaring &metal = *this->metals[finder.metal_2];
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&metal](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "metal.and_cardinality" << std::endl;
-    //        return metal.and_cardinality(embark_candidate) > 0;
-    //    }, [&metal]() -> uint32_t {
-    //        // std::cout << "metal.cardinality" << std::endl;
-    //        return metal.cardinality();
-    //    }, [&metal, &scope]() -> const std::vector<uint32_t>* {
-    //        return scope.get_keys(metal);
-    //    });
-    //    result->queries.push_back(q);
-    //}
+    // FIXME: add finder.magma_max
 
     if (finder.min_waterfall > 0) {
         const int8_t waterfall_depth = finder.min_waterfall;
@@ -1316,84 +1058,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         q->flag_for_keeping();
         result->queries.push_back(q);
     }
-
-    // indices based variant of is flat query
-    //if (this->run_all_vector_query && finder.flat == embark_assist::defs::yes_no_ranges::Yes) {
-    //    color_ostream_proxy out(Core::getInstance().getConsole());
-    //    out.print("running indices based elevation/flat query");
-
-    //    const LockedRoaring &is_unflat_by_incursion = this->is_unflat_by_incursion;
-    //    const std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> &mapped_elevation_index = this->mapped_elevation_index;
-    //    std::chrono::duration<double> &all_indices_elevation_query_seconds = (const_cast<Index*>(this))->all_indices_elevation_query_seconds;
-    //    embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&is_unflat_by_incursion, &mapped_elevation_index, &all_indices_elevation_query_seconds](const Roaring &embark_candidate) -> bool {
-    //        const auto innerStart = std::chrono::steady_clock::now();
-    //        if (is_unflat_by_incursion.intersect(embark_candidate)) {
-    //            calculate_elapsed(innerStart, all_indices_elevation_query_seconds);
-    //            return false;
-    //        }
-    //        const uint32_t cardinality = embark_candidate.cardinality();
-    //        if (cardinality == 1) {
-    //            calculate_elapsed(innerStart, all_indices_elevation_query_seconds);
-    //            return true;
-    //        }
-
-    //        for (auto index : mapped_elevation_index) {
-    //            const uint32_t and_cardinality = index.and_cardinality(embark_candidate);
-    //            if (and_cardinality > 0) {
-    //                if (and_cardinality == cardinality) {
-    //                    calculate_elapsed(innerStart, all_indices_elevation_query_seconds);
-    //                    return true;
-    //                }
-    //                else {
-    //                    calculate_elapsed(innerStart, all_indices_elevation_query_seconds);
-    //                    return false;
-    //                }
-    //            }
-    //        }
-    //        // this should be unreachable - unless there is no elevation for the embark_cadidate at all
-    //        return true;
-    //    }, [&is_unflat_by_incursion]() -> uint32_t {
-    //        return embark_assist::query::single_index_query::get_inverted_cardinality(is_unflat_by_incursion);
-    //    }, [&is_unflat_by_incursion]() -> const std::vector<uint32_t>* {
-    //        return embark_assist::query::single_index_query::get_inverted_keys(is_unflat_by_incursion);
-    //    });
-    //    q->flag_for_keeping();
-    //    result->queries.push_back(q);
-    //}
-    //else if (finder.flat == embark_assist::defs::yes_no_ranges::No) {
-    //    const LockedRoaring &is_unflat_by_incursion = this->is_unflat_by_incursion;
-    //    const std::array<Roaring, embark_assist::defs::ARRAY_SIZE_FOR_ELEVATION_INDICES> &mapped_elevation_index = this->mapped_elevation_index;
-    //    embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&is_unflat_by_incursion, &mapped_elevation_index](const Roaring &embark_candidate) -> bool {
-    //        if (is_unflat_by_incursion.intersect(embark_candidate)) {
-    //            return true;
-    //        }
-    //        const uint32_t cardinality = embark_candidate.cardinality();
-    //        if (cardinality == 1) {
-    //            return false;
-    //        }
-
-    //        for (auto index : mapped_elevation_index) {
-    //            const uint32_t and_cardinality = index.and_cardinality(embark_candidate);
-    //            if (and_cardinality > 0) {
-    //                if (and_cardinality != cardinality) {
-    //                    return true;
-    //                }
-    //                else {
-    //                    return false;
-    //                }
-    //            }
-    //        }
-    //        // this should be unreachable - unless there is no elevation for the embark_cadidate at all
-    //        return true;
-    //    }, []() -> uint32_t {
-    //        return embark_assist::query::abstract_query::get_world_size();
-    //    }, []() -> const std::vector<uint32_t>* {
-    //        // FIXME: this is very bad, 64MB RAM bad for a 257x257 region => change return type of method to iterator and implement differnt iterators
-    //        return embark_assist::query::abstract_query::get_world_keys();
-    //    });
-    //    q->flag_for_keeping();
-    //    result->queries.push_back(q);
-    //}
 
     // vector based variant of is flat query
     if (finder.flat == embark_assist::defs::yes_no_ranges::Yes) {
@@ -1658,13 +1322,10 @@ void embark_assist::index::Index::find(const embark_assist::defs::finders &finde
     const std::chrono::duration<double> elapsed_seconds = innerEnd - innerStartTime;
     out.print("embark_assist::index::Index::find: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches, number_of_matched_worldtiles);
     out.print("embark_assist::index::Index::find: took %f seconds to create query plan, took %f seconds total to calculate embark variants, took %f seconds total to execute query plan \n", queryPlanCreatedElapsed.count(), embarkVariantsCreated.count(), queryElapsed.count());
-    
-    //out.print("### embark_assist::index::Index::all indices elevation query total took %f seconds ###\n", all_indices_elevation_query_seconds.count());
+
     out.print("### embark_assist::index::Index::vector elevation query total took %f seconds ###\n", vector_elevation_query_seconds.count());
 
-    //(const_cast<Index*>(this))->all_indices_elevation_query_seconds = std::chrono::seconds(0);
     (const_cast<Index*>(this))->vector_elevation_query_seconds = std::chrono::seconds(0);
-    //(const_cast<Index*>(this))->run_all_vector_query = !this->run_all_vector_query;
 
     // TODO: remove, just here for debugging
     compare_matches(world, match_results_matcher, match_results);
@@ -1746,12 +1407,6 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
         byteSize += index.getSizeInBytes();
         fprintf(outfile, "region_type#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
     }
-
-    //level_post_fix = 0;
-    //for (auto& index : mapped_elevation_index) {
-    //    byteSize += index.getSizeInBytes();
-    //    fprintf(outfile, "mapped_elevation_index#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
-    //}
 
     fprintf(outfile, "mapped_elevations bytesize: %zd\n", mapped_elevations.size() * sizeof(uint8_t));
 
