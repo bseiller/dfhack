@@ -48,7 +48,8 @@ namespace embark_assist {
             embark_assist::defs::match_results match_results;
             embark_assist::defs::match_iterators match_iterator;
             uint16_t max_inorganic;
-            embark_assist::index::Index index = embark_assist::index::Index(world);
+            //embark_assist::index::Index index = embark_assist::index::Index(world, match_results, match_iterator.finder);
+            embark_assist::index::Index index{ world, match_results, match_iterator.finder };
             //embark_assist::index::Index *index;
             bool testing = false;
         };
@@ -108,12 +109,11 @@ namespace embark_assist {
 
             if (state->index.containsEntries()) {
                 // should prevent subsequent survey phases, once the first survey phase is complete and the index is primed
-                // FIXME: debug if this works as expected - the below message does not seem to be output to the console...
-                out.print("embark_assistant::match: index already contains all entries - directly searching/finding matches");
+                out.print("embark_assistant::match: index already contains all entries - directly searching/finding matches\n");
                 // embark_assist::main::clear_match();
                 embark_assist::main::state->match_iterator.active = false;
                 embark_assist::main::state->testing = false;
-                state->index.find(state->match_iterator.finder, state->match_results);
+                state->index.find_all_matches(state->match_iterator.finder, state->match_results);
                 embark_assist::overlay::match_progress(0, &state->match_results, true);
             } else {
                 uint16_t count = embark_assist::matcher::find(&state->match_iterator,
@@ -122,8 +122,9 @@ namespace embark_assist {
                     state->index,
                     &state->match_results);
 
+                // FIXME: remove the following if block containing "find_all_matches" as we don't need it anymore once the iterative search during the survey phase is properly implemented
                 if (!state->match_iterator.active) {
-                    state->index.find(state->match_iterator.finder, state->match_results);
+                    state->index.find_all_matches(state->match_iterator.finder, state->match_results);
                 }
                 embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
             }
@@ -164,6 +165,7 @@ namespace embark_assist {
             state->match_iterator.x = embark_assist::survey::get_last_pos().x;
             state->match_iterator.y = embark_assist::survey::get_last_pos().y;
             state->match_iterator.finder = finder;
+            state->index.init_for_iterative_find();
             embark_assist::overlay::initiate_match();
         }
 

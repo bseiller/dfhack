@@ -22,6 +22,7 @@ SET(PROJECT_HDRS
     defs.h
     embark-assistant.h
     finder_ui.h
+    guarded_roaring.h
     help_ui.h
     incursion_processor.h
     index.h

@@ -144,7 +144,10 @@ namespace embark_assist {
             region_tile_position world_position = region_tile_position::middle;
             uint8_t number_of_contiguous_surveyed_world_tiles = 0;
             uint8_t required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
+            uint8_t number_of_neighboring_incursion_processed_world_tiles = 0;
+            uint8_t required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search;
             bool totally_processed = false;
+            std::unique_ptr<std::atomic_uint8_t> process_counter{ new std::atomic_uint8_t(0) };
             uint8_t northern_row_biome_x[16]; /*!< 0=Reference is N, 1=Reference is current tile (adopted by S edge to the N) */
             uint8_t western_column_biome_y[16]; /*!< 0=Reference is W, 1=Reference is current tile (Adopted by E edge to the W) */
         };
@@ -421,10 +424,12 @@ namespace embark_assist {
         class index_interface {
             public:
                 virtual const bool containsEntries() const = 0;
-                virtual void add(const int16_t x, const int16_t y, const embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::mid_level_tiles *mlt, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) = 0;
+                virtual void add(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) = 0;
                 virtual void add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) = 0;
                 virtual void optimize(bool debugOutput) = 0;
-                virtual void find(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
+                virtual void find_all_matches(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
+                virtual void check_for_find_single_world_tile_matches(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const string &prefix) = 0;
+                virtual void find_single_world_tile_matches(const int16_t x, const int16_t y) const = 0;
                 virtual const uint32_t get_key(const int16_t x, const int16_t y) const = 0;
                 virtual const uint32_t get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const = 0;
                 virtual ~index_interface(){}

@@ -14,6 +14,7 @@
 #include "overlay.h"
 #include "screen.h"
 #include "survey.h"
+#include "matcher.h"
 
 #include <chrono>
 #include <ctime>
@@ -392,6 +393,7 @@ void embark_assist::overlay::match_progress(uint16_t count, embark_assist::defs:
 
         format_and_output_duration("embark_assist::survey::survey_mid_level_tile took: %s (m:s:ms) - %f seconds \n", embark_assist::survey::elapsed_survey_seconds);
         format_and_output_duration("embark_assist::survey::survey_mid_level_tile took: %s (m:s:ms) - %f seconds including index.add total \n", embark_assist::survey::elapsed_survey_total_seconds);
+        format_and_output_duration("embark_assist::matcher::match_world_tile took: %s (m:s:ms) - %f seconds including index.add total \n", embark_assist::matcher::elapsed_survey_total_seconds);
 
         out.print("number of found waterfalls: %d\n", embark_assist::survey::number_of_waterfalls);
         out.print("number of layer_cache misses: %d\n", embark_assist::survey::number_of_layer_cache_misses);

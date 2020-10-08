@@ -6,12 +6,16 @@
 
 namespace embark_assist {
     namespace query {
+
+        using embark_assist::roaring::GuardedRoaring;
+
         class query_interface {
         public:
             virtual bool run(const Roaring &embark_candidate) const = 0;
             virtual uint32_t get_number_of_entries() const = 0;
             // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
             virtual const std::vector<uint32_t>* get_keys() const = 0;
+            virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const = 0;
             // FIXME: add method to query for significant keys within the key range of a world tile
             // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
             // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
@@ -19,22 +23,20 @@ namespace embark_assist {
             virtual void flag_for_keeping() = 0;
         };
 
-        template<class Lambda, class Lambda2, class Lambda3>
+        template<class Lambda, class Lambda2, class Lambda3, class Lambda4>
         class query : public query_interface {
             Lambda _query_lambda;
             Lambda2 _cardinality_lambda;
             Lambda3 _keys_lambda;
+            Lambda4 _world_tile_keys_lambda;
             bool _is_to_be_deleted_after_key_extraction = true;
         public:
-            query(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda) :
+            query(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda, Lambda4 &&world_tile_keys_lambda) :
                 _query_lambda(std::forward<Lambda>(query_lambda)),
                 _cardinality_lambda(std::forward<Lambda2>(cardinality_lambda)),
-                _keys_lambda(std::forward<Lambda3>(keys_lambda)) {
+                _keys_lambda(std::forward<Lambda3>(keys_lambda)),
+                _world_tile_keys_lambda(std::forward<Lambda4>(world_tile_keys_lambda)) {
             }
-
-            /*void operator()() {
-                _query_lambda();
-            }*/
 
             bool run(const Roaring &embark_candidate) const {
                 return _query_lambda(embark_candidate);
@@ -49,6 +51,10 @@ namespace embark_assist {
                 return _keys_lambda();
             }
 
+            const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
+                _world_tile_keys_lambda(world_offset, keys);
+            }
+
             bool is_to_be_deleted_after_key_extraction() const final {
                 return _is_to_be_deleted_after_key_extraction;
             }
@@ -58,9 +64,9 @@ namespace embark_assist {
             }
         };
 
-        template<class Lambda, class Lambda2, class Lambda3>
-        query<Lambda, Lambda2, Lambda3>* make_myclass(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda) {
-            return new query<Lambda, Lambda2, Lambda3>{ std::forward<Lambda>(query_lambda), std::forward<Lambda2>(cardinality_lambda), std::forward<Lambda3>(keys_lambda) };
+        template<class Lambda, class Lambda2, class Lambda3, class Lambda4>
+        query<Lambda, Lambda2, Lambda3, Lambda4>* make_myclass(Lambda &&query_lambda, Lambda2 &&cardinality_lambda, Lambda3 &&keys_lambda, Lambda4 &&world_tile_keys_lambda) {
+            return new query<Lambda, Lambda2, Lambda3, Lambda4>{ std::forward<Lambda>(query_lambda), std::forward<Lambda2>(cardinality_lambda), std::forward<Lambda3>(keys_lambda), std::forward<Lambda4>(world_tile_keys_lambda) };
         }
 
         class abstract_query : public query_interface {
@@ -97,6 +103,11 @@ namespace embark_assist {
                 return dest;
             }
 
+            static void get_all_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t> &keys) {
+                keys.resize(256);
+                std::iota(keys.begin(), keys.end(), world_offset);
+            }
+
             static uint16_t get_embark_size() {
                 return abstract_query::embark_size;
             }
@@ -106,44 +117,76 @@ namespace embark_assist {
 
         class single_index_run_strategy {
         public:
-            virtual bool run(const Roaring &index, const Roaring &embark_candidate) const = 0;
+            virtual bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const = 0;
         };
 
         class single_index_count_entries_strategy {
         public:
-            virtual uint32_t get_number_of_entries(const Roaring &index) const = 0;
+            virtual uint32_t get_number_of_entries(const GuardedRoaring &index) const = 0;
         };
 
         class single_index_get_keys_strategy {
         public:
-            virtual const std::vector<uint32_t>* get_keys(const Roaring &index) const = 0;
+            virtual const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) const = 0;
+            virtual void get_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) const = 0;
         };
 
         class single_index_query : public abstract_query {
         private:
-            const Roaring &index;
+            const GuardedRoaring &index;
             const single_index_run_strategy &run_strategy;
             const single_index_count_entries_strategy &count_strategy;
             const single_index_get_keys_strategy &keys_strategy;
         public:
-            single_index_query(const Roaring &index,
+            single_index_query(const GuardedRoaring &index,
                 const single_index_run_strategy &run_strategy,
                 const single_index_count_entries_strategy &count_strategy,
                 const single_index_get_keys_strategy &keys_strategy) : index(index), run_strategy(run_strategy), count_strategy(count_strategy), keys_strategy(keys_strategy) {
             }
 
-            static const std::vector<uint32_t>* get_keys(const Roaring &index) {
-                uint32_t* most_significant_ids = new uint32_t[index.cardinality()];
-                index.toUint32Array(most_significant_ids);
-                const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + index.cardinality());
+            static const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) {
+                const uint64_t cardinality = index.cardinalityGuarded();
+                uint32_t* most_significant_ids = new uint32_t[cardinality];
+                index.toUint32ArrayGuarded(most_significant_ids);
+                const std::vector<uint32_t>* dest = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + cardinality);
 
                 delete most_significant_ids;
                 return dest;
             }
 
+            static void get_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) {
+                index.getWorldTileKeysGuarded(world_offset, keys);
+                /*const uint64_t first_key_position = index.rankGuarded(world_offset) - 1;
+
+                const uint32_t world_offset_end = world_offset + 255;
+                const uint64_t last_key_position = index.rankGuarded(world_offset_end);
+
+                const uint16_t limit = last_key_position - first_key_position;
+                if (limit > 0) {
+                    uint32_t key_buffer[256];
+                    index.rangeUint32ArrayGuarded(key_buffer, first_key_position, limit);
+                    uint32_t* keybuffer_begin_index = key_buffer;
+                    if (key_buffer[0] < world_offset) {
+                        keybuffer_begin_index = std::upper_bound(key_buffer, key_buffer + limit, world_offset);
+                    }
+                    keys.insert(keys.begin(), keybuffer_begin_index, key_buffer + limit);
+                    // keys.insert(keys.begin(), key_buffer, key_buffer + limit);
+                    int i = 0;
+                }*/
+
+                //// debugging
+                //if (world_offset == 73216) {
+                //    uint32_t key_buffer[256];
+                //    index.rangeUint32ArrayGuarded(key_buffer, first_key_position - 1, 256);
+                //    int i = 0;
+                //}
+
+            }
+
             // FIXME: this is likely to be very costly in terms of memory and performance => implement custom iterator that knows about the world size/range and returns only
             // values that are not in the index
-            static const std::vector<uint32_t>* get_inverted_keys(const Roaring &index) {
+            static const std::vector<uint32_t>* get_inverted_keys(const GuardedRoaring &index) {
+                // FIXME: move this into GuardedRoaring and add a mutex! at least the roaring_bitmap_flip part
                 const roaring_bitmap_t* rr = roaring_bitmap_flip(&index.roaring, 0, abstract_query::size_of_world);
                 const uint64_t cardinality = roaring_bitmap_get_cardinality(rr);
                 uint32_t* most_significant_ids = new uint32_t[cardinality];
@@ -154,8 +197,25 @@ namespace embark_assist {
                 return dest;
             }
 
-            static const uint32_t get_inverted_cardinality(const Roaring &index) {
-                return abstract_query::size_of_world - index.cardinality();
+            static void get_inverted_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) {
+                // FIXME: move this into GuardedRoaring and add a mutex! at least the roaring_bitmap_flip part
+                const uint32_t world_offset_end = world_offset + 255;
+                const roaring_bitmap_t* rr = roaring_bitmap_flip(&index.roaring, world_offset, world_offset_end);
+
+                const uint64_t first_key_position = roaring_bitmap_rank(rr, world_offset);
+                const uint64_t last_key_position = roaring_bitmap_rank(rr, world_offset_end);
+
+                const uint8_t limit = last_key_position - first_key_position;
+                if (limit > 0) {
+                    uint32_t key_buffer[256];
+                    roaring_bitmap_range_uint32_array(rr, first_key_position, limit + 1, key_buffer);
+                    keys.insert(keys.begin(), key_buffer, key_buffer + limit);
+                }
+                roaring_bitmap_free(rr);
+            }
+
+            static const uint32_t get_inverted_cardinality(const GuardedRoaring &index) {
+                return abstract_query::size_of_world - index.cardinalityGuarded();
             }
 
             virtual bool run(const Roaring &embark_candidate) const {
@@ -170,32 +230,36 @@ namespace embark_assist {
                 return keys_strategy.get_keys(index);
             };
 
+            virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
+                return keys_strategy.get_world_tile_keys(index, world_offset, keys);
+            };
+
             // FIXME: add method to query for significant keys within the key range of a world tile
             // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
             // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
         };
 
         class single_index_run_intersect : public single_index_run_strategy {
-            bool run(const Roaring &index, const Roaring &embark_candidate) const {
-                return index.intersect(embark_candidate);
+            bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                return index.intersectGuarded(embark_candidate);
             }
         };
 
         class single_index_run_all : public single_index_run_strategy {
-            bool run(const Roaring &index, const Roaring &embark_candidate) const {
-                if (index.intersect(embark_candidate)) {
-                    return index.and_cardinality(embark_candidate) == abstract_query::get_embark_size();
+            bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                if (index.intersectGuarded(embark_candidate)) {
+                    return index.and_cardinalityGuarded(embark_candidate) == abstract_query::get_embark_size();
                 }
                 return false;
             }
         };
 
         class single_index_run_partial : public single_index_run_strategy {
-            bool run(const Roaring &index, const Roaring &embark_candidate) const {
-                if (index.intersect(embark_candidate)) {
+            bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                if (index.intersectGuarded(embark_candidate)) {
                     // there is at least one match for sure
                     // but we don't want all tiles to have this attribute => <
-                    if (index.and_cardinality(embark_candidate) < abstract_query::get_embark_size()) {
+                    if (index.and_cardinalityGuarded(embark_candidate) < abstract_query::get_embark_size()) {
                         return true;
                     }
                 }
@@ -204,11 +268,11 @@ namespace embark_assist {
         };
 
         class single_index_run_not_all : public single_index_run_strategy {
-            bool run(const Roaring &index, const Roaring &embark_candidate) const {
-                if (index.intersect(embark_candidate)) {
+            bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                if (index.intersectGuarded(embark_candidate)) {
                     // there is at least one match for sure
                     // but we don't want all tiles to have this attribute => <
-                    if (index.and_cardinality(embark_candidate) < abstract_query::get_embark_size()) {
+                    if (index.and_cardinalityGuarded(embark_candidate) < abstract_query::get_embark_size()) {
                         return true;
                     }
                 }
@@ -218,32 +282,40 @@ namespace embark_assist {
         };
 
         class single_index_run_not_intersect : public single_index_run_strategy {
-            bool run(const Roaring &index, const Roaring &embark_candidate) const {
-                return !index.intersect(embark_candidate);
+            bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                return !index.intersectGuarded(embark_candidate);
             }
         };
 
         class single_index_count_cardinality : public single_index_count_entries_strategy {
-            uint32_t get_number_of_entries(const Roaring &index) const {
-                return index.cardinality();
+            uint32_t get_number_of_entries(const GuardedRoaring &index) const {
+                return index.cardinalityGuarded();
             }
         };
 
         class single_index_count_inverted_cardinality : public single_index_count_entries_strategy {
-            uint32_t get_number_of_entries(const Roaring &index) const {
+            uint32_t get_number_of_entries(const GuardedRoaring &index) const {
                 return single_index_query::get_inverted_cardinality(index);
             }
         };
 
         class single_index_array_keys : public single_index_get_keys_strategy {
-            const std::vector<uint32_t>* get_keys(const Roaring &index) const {
+            const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) const {
                 return single_index_query::get_keys(index);
+            }
+
+            void get_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) const {
+                return single_index_query::get_world_tile_keys(index, world_offset, keys);
             }
         };
 
         class single_index_array_inverted_keys : public single_index_get_keys_strategy {
-            const std::vector<uint32_t>* get_keys(const Roaring &index) const {
+            const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) const {
                 return single_index_query::get_inverted_keys(index);
+            }
+
+            void get_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) const {
+                return single_index_query::get_inverted_world_tile_keys(index, world_offset, keys);
             }
         };
 
@@ -268,7 +340,7 @@ namespace embark_assist {
 
         class single_index_present_query : public single_index_query {
         public:
-            single_index_present_query(const Roaring &index)
+            single_index_present_query(const GuardedRoaring &index)
                 : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_INTERSECT,
                     query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
@@ -278,7 +350,7 @@ namespace embark_assist {
 
         class single_index_absent_query : public single_index_query {
         public:
-            single_index_absent_query(const Roaring &index)
+            single_index_absent_query(const GuardedRoaring &index)
                 : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_NOT_INTERSECT,
                     query_strategies::SINGLE_INDEX_INVERTED_CARDINALITY,
@@ -289,7 +361,7 @@ namespace embark_assist {
 
         class single_index_all_query : public single_index_query {
         public:
-            single_index_all_query(const Roaring &index)
+            single_index_all_query(const GuardedRoaring &index)
                 : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_ALL,
                     query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
@@ -300,14 +372,14 @@ namespace embark_assist {
 
         class multiple_indices_query_context {
         public:
-            const std::vector<Roaring> &indices;
-            const std::vector<Roaring>::const_iterator min;
-            const std::vector<Roaring>::const_iterator max;
+            const std::vector<GuardedRoaring> &indices;
+            const std::vector<GuardedRoaring>::const_iterator min;
+            const std::vector<GuardedRoaring>::const_iterator max;
 
             multiple_indices_query_context(
-                const std::vector<Roaring> &indices,
-                const std::vector<Roaring>::const_iterator min,
-                const std::vector<Roaring>::const_iterator max) : indices(indices), min(min), max(max) {
+                const std::vector<GuardedRoaring> &indices,
+                const std::vector<GuardedRoaring>::const_iterator min,
+                const std::vector<GuardedRoaring>::const_iterator max) : indices(indices), min(min), max(max) {
             }
         };
 
@@ -324,6 +396,7 @@ namespace embark_assist {
         class multiple_indices_get_keys_strategy {
         public:
             virtual const std::vector<uint32_t>* get_keys(const multiple_indices_query_context context) const = 0;
+            virtual void get_world_tile_keys(const multiple_indices_query_context context, const uint32_t world_offset, std::vector<uint32_t>& keys) const = 0;
         };
 
         class multiple_indices_query : public abstract_query {
@@ -343,7 +416,7 @@ namespace embark_assist {
                 uint32_t cardinality = 0;
 
                 for (auto iter = context.min; iter != context.max; ++iter) {
-                    cardinality += (*iter).cardinality();
+                    cardinality += (*iter).cardinalityGuarded();
                 }
                 return cardinality;
             }
@@ -355,9 +428,9 @@ namespace embark_assist {
                 uint32_t* most_significant_ids_iter = most_significant_ids;
 
                 for (auto iter = context.min; iter != context.max; ++iter) {
-                    const Roaring &index = (*iter);
-                    const uint32_t current_cardinality = index.cardinality();
-                    index.toUint32Array(most_significant_ids_iter);
+                    const GuardedRoaring &index = (*iter);
+                    const uint32_t current_cardinality = index.cardinalityGuarded();
+                    index.toUint32ArrayGuarded(most_significant_ids_iter);
                     most_significant_ids_iter += current_cardinality;
                 }
 
@@ -378,6 +451,24 @@ namespace embark_assist {
                 return dest;
             }
 
+            static void get_world_tile_keys(const multiple_indices_query_context context, const uint32_t world_offset, std::vector<uint32_t> &keys) {
+                uint32_t key_buffer[256];
+                for (auto iter = context.min; iter != context.max; ++iter) {
+                    const GuardedRoaring &index = (*iter);
+                    
+                    const uint64_t first_key_position = index.rankGuarded(world_offset);
+
+                    const uint32_t world_offset_end = world_offset + 255;
+                    const uint64_t last_key_position = index.rankGuarded(world_offset_end);
+
+                    const uint8_t limit = last_key_position - first_key_position;
+                    if (limit > 0) {
+                        index.rangeUint32ArrayGuarded(key_buffer, first_key_position, limit + 1);
+                        keys.insert(keys.end(), key_buffer, key_buffer + limit);
+                    }
+                }
+            }
+
             virtual bool run(const Roaring &embark_candidate) const {
                 return run_strategy.run(context, embark_candidate);
             };
@@ -390,6 +481,10 @@ namespace embark_assist {
                 return keys_strategy.get_keys(context);
             };
 
+            virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
+                keys_strategy.get_world_tile_keys(context, world_offset, keys);
+            };
+
             // FIXME: add method to query for significant keys within the key range of a world tile
             // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
             // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
@@ -400,12 +495,12 @@ namespace embark_assist {
                 bool intersects = false;
 
                 for (auto iter = context.min; iter != context.max && !intersects; ++iter) {
-                    intersects |= (*iter).intersect(embark_candidate);
+                    intersects |= (*iter).intersectGuarded(embark_candidate);
                 }
                 if (intersects && context.max != context.indices.cend()) {
                     for (auto iter = context.max; iter != context.indices.cend() && intersects; ++iter) {
                         // mustn't intersect, otherwise there is a hit beyond max
-                        intersects = intersects && !(*iter).intersect(embark_candidate);
+                        intersects = intersects && !(*iter).intersectGuarded(embark_candidate);
                     }
                 }
                 return intersects;
@@ -421,6 +516,10 @@ namespace embark_assist {
         class multiple_indices_array_keys : public multiple_indices_get_keys_strategy {
             const std::vector<uint32_t>* get_keys(const multiple_indices_query_context context) const {
                 return multiple_indices_query::get_keys(context);
+            }
+
+            void get_world_tile_keys(const multiple_indices_query_context context, const uint32_t world_offset, std::vector<uint32_t> &keys) const {
+                multiple_indices_query::get_world_tile_keys(context, world_offset, keys);
             }
         };
 

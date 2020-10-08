@@ -25,6 +25,8 @@ namespace embark_assist {
 
         //=======================================================================================
 
+        std::chrono::duration<double> elapsed_survey_total_seconds = std::chrono::seconds(0);
+
         struct matcher_info {
             bool savagery_found[3] = { false, false, false };
             bool evilness_found[3] = { false, false, false };
@@ -2111,6 +2113,8 @@ namespace embark_assist {
             uint16_t x,
             uint16_t y) {
 
+            const auto start = std::chrono::steady_clock::now();
+
 //            color_ostream_proxy out(Core::getInstance().getConsole());
             //embark_assist::defs::mid_level_tiles mlt;
             //embark_assist::survey::initiate(&mlt);
@@ -2121,13 +2125,15 @@ namespace embark_assist {
                 //&mlt,
                 index);
 
-            mid_level_tile_match(survey_results,
-                &state->mlt,
-                //&mlt,
-                x,
-                y,
-                finder,
-                match_results);
+            //mid_level_tile_match(survey_results,
+            //    &state->mlt,
+            //   //&mlt,
+            //    x,
+            //    y,
+            //    finder,
+            //    match_results);
+
+            elapsed_survey_total_seconds += std::chrono::steady_clock::now() - start;
         }
     }
 }

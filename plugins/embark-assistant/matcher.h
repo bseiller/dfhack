@@ -8,6 +8,8 @@ using namespace DFHack;
 
 namespace embark_assist {
     namespace matcher {
+        extern std::chrono::duration<double> elapsed_survey_total_seconds;
+
         void move_cursor(uint16_t x, uint16_t y);
 
         //  Used to iterate over the whole world to generate a map of world tiles

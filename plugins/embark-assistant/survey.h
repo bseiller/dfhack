@@ -40,7 +40,7 @@ namespace embark_assist {
 
         df::coord2d apply_offset(uint16_t x, uint16_t y, int8_t offset);
 
-        df::world_region_type region_type_of(embark_assist::defs::world_tile_data *survey_results,
+        df::world_region_type region_type_of(const embark_assist::defs::world_tile_data *survey_results,
             int16_t x,
             int16_t y,
             int8_t i,
@@ -57,7 +57,7 @@ namespace embark_assist {
         //  results, but requires all world tiles affected by the corner to have
         //  been surveyed.
         //
-        uint8_t translate_corner(embark_assist::defs::world_tile_data *survey_results,
+        uint8_t translate_corner(const embark_assist::defs::world_tile_data *survey_results,
             uint8_t corner_location,
             uint16_t x,
             uint16_t y,

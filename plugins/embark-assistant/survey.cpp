@@ -2,7 +2,7 @@
 #include <math.h>
 #include <vector>
 //#include <unordered_map>
-//#include <unordered_set>
+#include <unordered_set>
 #include <future>
 #include <map>
 
@@ -118,10 +118,13 @@ namespace embark_assist {
             FILE* rivers_file;
             FILE* river_anomalies_file;
             FILE* invalid_river_file;
-            //std::vector<layer_content_cache_entry> layer_content_cache_entry_pool;
+            /*std::vector<layer_content_cache_entry> layer_content_cache_entry_pool;
             uint16_t layer_content_cache_entry_pool_index = 0;
-            //layer_content_cache layer_content_cache;
+            layer_content_cache layer_content_cache;*/
             embark_assist::incursion::incursion_processor incursion_processor;
+            std::future<void> regular_data_processing_result;
+            std::future<void> internal_incursion_processing_result;
+            std::future<void> external_incursion_processing_result;
         };
 
         static states *state;
@@ -868,15 +871,20 @@ void embark_assist::survey::setup(uint16_t max_inorganic) {
     embark_assist::survey::state->river_anomalies_file = fopen(river_anomalies_file_name, "a");
     embark_assist::survey::state->invalid_river_file = fopen(invalid_rivers_file_name, "a");
 
+    const auto empty = []() {};
+    state->regular_data_processing_result = std::async(std::launch::deferred, empty);
+    state->internal_incursion_processing_result = std::async(std::launch::deferred, empty);
+    state->external_incursion_processing_result = std::async(std::launch::deferred, empty);
+
     color_ostream_proxy out(Core::getInstance().getConsole());
     uint16_t pool_size = 0;
     for (auto biome : world->world_data->geo_biomes) {
         pool_size += biome->layers.size();
     }
-    //embark_assist::survey::state->layer_content_cache_entry_pool.reserve(pool_size);
-    //embark_assist::survey::state->layer_content_cache_entry_pool.resize(pool_size);
-
-    //embark_assist::survey::state->layer_content_cache.reserve(world->world_data->geo_biomes.size() * 16);
+    
+    /*embark_assist::survey::state->layer_content_cache_entry_pool.reserve(pool_size);
+    embark_assist::survey::state->layer_content_cache_entry_pool.resize(pool_size);
+    embark_assist::survey::state->layer_content_cache.reserve(world->world_data->geo_biomes.size() * 16);*/
 
     out.print("embark_assist::survey::setup: pool_size: %d, world->world_data->geo_biomes.size(): %d\n", pool_size, world->world_data->geo_biomes.size());
 }
@@ -1214,21 +1222,21 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                if (top_z >= bottom_z) {
 //                    last_bottom = bottom_z;
 //
-//                    /*if (process_layer_from_cache(layer, mid_level_tile, buffer_holder, key, bottom_z, elevation)) {
+//                    if (embark_assist::survey::process_layer_from_cache(layer, mid_level_tile, buffer_holder, key, bottom_z, elevation)) {
 //                        continue;
 //                    }
-//                    layer_content_cache_entry &cache_entry = state->layer_content_cache_entry_pool[state->layer_content_cache_entry_pool_index++];
-//                    if (state->layer_content_cache.count(layer) > 0) {
-//                        out.print("test\n");
+//                    embark_assist::survey::layer_content_cache_entry &cache_entry = embark_assist::survey::state->layer_content_cache_entry_pool[embark_assist::survey::state->layer_content_cache_entry_pool_index++];
+//                    if (embark_assist::survey::state->layer_content_cache.count(layer) > 0) {
+//                        out.print("should not happen!\n");
 //                    }
 //                    else {
-//                        state->layer_content_cache[layer] = &cache_entry;
-//                    }*/
+//                        embark_assist::survey::state->layer_content_cache[layer] = &cache_entry;
+//                    }
 //
 //                    if (!mid_level_tile.minerals[layer->mat_index]) {
 //                        buffer_holder.add_mineral(key, layer->mat_index);
 //                    }
-//                    //cache_entry.minerals.insert(layer->mat_index);
+//                    cache_entry.minerals.insert(layer->mat_index);
 //                    mid_level_tile.minerals[layer->mat_index] = true;
 //
 //                    end_check_m = static_cast<uint16_t>(world->raws.inorganics[layer->mat_index]->metal_ore.mat_index.size());
@@ -1237,7 +1245,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                        if (!mid_level_tile.metals[world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]]) {
 //                            buffer_holder.add_metal(key, world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]);
 //                        }
-//                        //cache_entry.metals.insert(world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]);
+//                        cache_entry.metals.insert(world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]);
 //                        mid_level_tile.metals[world->raws.inorganics[layer->mat_index]->metal_ore.mat_index[m]] = true;
 //                    }
 //
@@ -1247,7 +1255,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                            if (!mid_level_tile.sand) {
 //                                buffer_holder.add_sand(key);
 //                            }
-//                            //cache_entry.sand = true;
+//                            cache_entry.sand = true;
 //                            mid_level_tile.sand = true;
 //                        }
 //                    }
@@ -1256,7 +1264,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                        if (!mid_level_tile.economics[layer->mat_index]) {
 //                            buffer_holder.add_economic(key, layer->mat_index);
 //                        }
-//                        //cache_entry.economics.insert(layer->mat_index);
+//                        cache_entry.economics.insert(layer->mat_index);
 //                        mid_level_tile.economics[layer->mat_index] = true;
 //
 //                        end_check_m = static_cast<uint16_t>(world->raws.inorganics[layer->mat_index]->economic_uses.size());
@@ -1265,7 +1273,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                if (!mid_level_tile.clay) {
 //                                    buffer_holder.add_clay(key);
 //                                }
-//                                //cache_entry.clay = true;
+//                                cache_entry.clay = true;
 //                                mid_level_tile.clay = true;
 //                            }
 //
@@ -1273,7 +1281,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                if (!mid_level_tile.flux) {
 //                                    buffer_holder.add_flux(key);
 //                                }
-//                                //cache_entry.flux = true;
+//                                cache_entry.flux = true;
 //                                mid_level_tile.flux = true;
 //                            }
 //                        }
@@ -1283,7 +1291,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                if (!mid_level_tile.coal) {
 //                                    buffer_holder.add_coal(key);
 //                                }
-//                                //cache_entry.coal = true;
+//                                cache_entry.coal = true;
 //                                mid_level_tile.coal = true;
 //                                break;
 //                            }
@@ -1296,7 +1304,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                        if (!mid_level_tile.minerals[layer->vein_mat[m]]) {
 //                            buffer_holder.add_mineral(key, layer->vein_mat[m]);
 //                        }
-//                        //cache_entry.minerals.insert(layer->vein_mat[m]);
+//                        cache_entry.minerals.insert(layer->vein_mat[m]);
 //                        mid_level_tile.minerals[layer->vein_mat[m]] = true;
 //
 //                        end_check_n = static_cast<uint16_t>(world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index.size());
@@ -1305,7 +1313,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                            if (!mid_level_tile.metals[world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]]) {
 //                                buffer_holder.add_metal(key, world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]);
 //                            }
-//                            //cache_entry.metals.insert(world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]);
+//                            cache_entry.metals.insert(world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]);
 //                            mid_level_tile.metals[world->raws.inorganics[layer->vein_mat[m]]->metal_ore.mat_index[n]] = true;
 //                        }
 //
@@ -1313,7 +1321,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                            if (!mid_level_tile.economics[layer->vein_mat[m]]) {
 //                                buffer_holder.add_economic(key, layer->vein_mat[m]);
 //                            }
-//                            //cache_entry.economics.insert(layer->vein_mat[m]);
+//                            cache_entry.economics.insert(layer->vein_mat[m]);
 //                            mid_level_tile.economics[layer->vein_mat[m]] = true;
 //
 //                            end_check_n = static_cast<uint16_t>(world->raws.inorganics[layer->vein_mat[m]]->economic_uses.size());
@@ -1322,7 +1330,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                    if (!mid_level_tile.clay) {
 //                                        buffer_holder.add_clay(key);
 //                                    }
-//                                    //cache_entry.clay = true;
+//                                    cache_entry.clay = true;
 //                                    mid_level_tile.clay = true;
 //                                }
 //
@@ -1330,7 +1338,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                    if (!mid_level_tile.flux) {
 //                                        buffer_holder.add_flux(key);
 //                                    }
-//                                    //cache_entry.flux = true;
+//                                    cache_entry.flux = true;
 //                                    mid_level_tile.flux = true;
 //                                }
 //                            }
@@ -1340,7 +1348,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                                    if (!mid_level_tile.coal) {
 //                                        buffer_holder.add_coal(key);
 //                                    }
-//                                    //cache_entry.coal = true;
+//                                    cache_entry.coal = true;
 //                                    mid_level_tile.coal = true;
 //                                    break;
 //                                }
@@ -1349,7 +1357,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
 //                    }
 //
 //                    if (world->raws.inorganics[layer->mat_index]->flags.is_set(df::inorganic_flags::AQUIFER)) {
-//                        //cache_entry.is_aquifer_layer = true;
+//                        cache_entry.is_aquifer_layer = true;
 //                        if (bottom_z <= elevation - 3) {
 //                            if (!mid_level_tile.aquifer) {
 //                                buffer_holder.add_aquifer(key);
@@ -1424,6 +1432,17 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     //out.print("x,y: %02d,%02d\n", x, y);
 
     const uint32_t world_offset = index.get_key(x, y);
+    
+    // making sure that the previous async/thread is finished before we sreset the buffer_holder, as this is possibly still being used by the thread
+    if (state->regular_data_processing_result.valid()) {
+        state->regular_data_processing_result.get();
+    }
+
+    // making sure that the previous async/thread is finished before resetting mlt, as this is possibly still being used by the thread
+    if (state->internal_incursion_processing_result.valid()) {
+        state->internal_incursion_processing_result.get();
+    }
+
     embark_assist::key_buffer_holder::key_buffer_holder &buffer_holder = state->buffer_holder;
     buffer_holder.reset();
     uint32_t mlt_offset = 0;
@@ -1438,13 +1457,13 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         for (uint8_t i = 0; i < 16; i++) {
             for (uint8_t k = 0; k < 16; k++) {
                 embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
-                mid_level_tile.metals.assign(state->max_inorganic, false);
+                //mid_level_tile.metals.assign(state->max_inorganic, false);
                 // FIXME: profile performance difference between assign and fill
-                //std::fill(mid_level_tile.metals.begin(), mid_level_tile.metals.end(), false);
-                mid_level_tile.economics.assign(state->max_inorganic, false);
-                //std::fill(mid_level_tile.economics.begin(), mid_level_tile.economics.end(), false);
-                mid_level_tile.minerals.assign(state->max_inorganic, false);
-                //std::fill(mid_level_tile.minerals.begin(), mid_level_tile.minerals.end(), false);
+                std::fill(mid_level_tile.metals.begin(), mid_level_tile.metals.end(), false);
+                //mid_level_tile.economics.assign(state->max_inorganic, false);
+                std::fill(mid_level_tile.economics.begin(), mid_level_tile.economics.end(), false);
+                //mid_level_tile.minerals.assign(state->max_inorganic, false);
+                std::fill(mid_level_tile.minerals.begin(), mid_level_tile.minerals.end(), false);
             }
         }
     } else {
@@ -1455,8 +1474,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
 
     const auto _1_start_big_loop = std::chrono::steady_clock::now();
 
-    //auto survey_layers_result = std::async(std::launch::async, [&]() { survey_layers(geo_summary, world_data, world_tile, mlt, 
-    //    state->clay_reaction, state->flux_reaction, state->coals, buffer_holder, index); });
+    /*auto survey_layers_result = std::async(std::launch::async, [&]() { survey_layers(geo_summary, world_data, world_tile, mlt, 
+        state->clay_reaction, state->flux_reaction, state->coals, buffer_holder, index); });*/
 
     //survey_layers(geo_summary, world_data, world_tile, mlt, state->clay_reaction, state->flux_reaction, state->coals, buffer_holder, index);
 
@@ -1833,14 +1852,20 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             /* end here with comment to use survey_layers cache */
         }
     }
-    
-    // constructing an empty future to make sure there won't be an invalid access later on
-    std::future<void> internal_incursion_processing_result = std::future<void>::future();
-    if (!tile.surveyed) {
-        internal_incursion_processing_result = std::async(std::launch::async, [&]() { state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results, mlt, index); });
-    }
 
+    //std::shared_ptr<std::atomic_uint8_t> process_counter = std::make_shared<std::atomic_uint8_t>(0);
+
+    if (!tile.surveyed) {
+        //out.print("%llu - before start of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
+        state->incursion_processor.init_incursion_context(x, y, rtd);
+
+        embark_assist::defs::world_tile_data &survey_results_ref = *survey_results;
+        embark_assist::defs::mid_level_tiles &mlt_ref = *mlt;
+        state->internal_incursion_processing_result = std::async(std::launch::async, [&, world_offset, x, y]() { state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results_ref, mlt_ref, index); });
+    }
     const auto _2_start_river_workaround = std::chrono::steady_clock::now();
+    //out.print("%llu - after start of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 
     //out.print("max river_width: %d\n", max_river_width);
     //if (!has_river && has_actual_river) {
@@ -2201,20 +2226,29 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     elapsed_survey_seconds += end - start;
 
     if (!tile.surveyed) {
-        // FIXME: test if putting this here at the beginning is any faster/better and error free, otherwise move it back to the end of this if block
-        index.add(x, y, tile, mlt, buffer_holder);
+        // "casting" this to a reference - as the pointer will become invalid when passed on into a new thread...
+        const embark_assist::key_buffer_holder::key_buffer_holder &buffer_holder_ref = buffer_holder;
+        embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
+        state->regular_data_processing_result = std::async(std::launch::async, [&, x, y]() { index.add(x, y, rtd, buffer_holder_ref); });
 
         // making sure the async job is done before we process the "regular" survey data - to be sure it does operate on valid data, 
-        // which might not be the case if the cursor iterates on another world tile will the internal incursions are still being processed
-        internal_incursion_processing_result.get();
+        // which might not be the case if the cursor iterates on to another world tile will the internal incursions are still being processed
+        //state->internal_incursion_processing_result.get();
+        //out.print("%llu - after get of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        
+        // making sure that the previous async/thread is finished before we start a new one...
+        state->external_incursion_processing_result.get();
+
+        // "casting" this to a reference - as the pointer will become invalid when passed on into a new thread...
+        embark_assist::defs::world_tile_data &survey_results_ref = *survey_results;
 
         // as now all the required data has been collected in the world tile (north_corner_selection, ...)
         // starting to process the external incursions of the neighbours and potentially also the current tile
         // not operating on any transient data that gets changed during iteration we can let this run async/concurrent, even while the cursor iterates onto another world tile
-        // BUT: we have to make sure that the very last call of this is finished before we allow a search request...
-        // FIXME: how to do this? perhaps start/"request" a query again and again until all world tiles have been removed from the processing queue?
-        std::future<void> external_incursion_processing_result 
-            = std::async(std::launch::async, [&]() { state->incursion_processor.update_and_check_survey_counters_of_neighbouring_world_tiles(x, y, survey_results, index); });
+        // as the search is iterative and triggered by below method directly we don't have to queue anything
+        state->external_incursion_processing_result
+            = std::async(std::launch::async, [&, x, y]() { state->incursion_processor.update_and_check_survey_counters_of_neighbouring_world_tiles(x, y, survey_results_ref, index); });
+        //out.print("%llu - after start of external incursion async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     }
 
     // write all incursion relevant data into a csv file for every embark tile that has either (x == world_data->world_width - 1 AND i == 15) OR (y == world_data->world_height - 1 AND k == 15)
@@ -2380,7 +2414,7 @@ void adjust_coordinates(int16_t *x, int16_t *y, int8_t *i, int8_t *k) {
 
 //=================================================================================
 
-df::world_region_type embark_assist::survey::region_type_of(embark_assist::defs::world_tile_data *survey_results,
+df::world_region_type embark_assist::survey::region_type_of(const embark_assist::defs::world_tile_data *survey_results,
     int16_t x,
     int16_t y,
     int8_t i,
@@ -2406,7 +2440,7 @@ df::world_region_type embark_assist::survey::region_type_of(embark_assist::defs:
 
 //=================================================================================
 
-uint8_t  embark_assist::survey::translate_corner(embark_assist::defs::world_tile_data *survey_results,
+uint8_t embark_assist::survey::translate_corner(const embark_assist::defs::world_tile_data *survey_results,
     uint8_t corner_location,
     uint16_t x,
     uint16_t y,

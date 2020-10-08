@@ -17,6 +17,17 @@ using df::global::world;
 int embark_assist::key_buffer_holder::basic_key_buffer_holder <embark_assist::incursion::incursion_processor::size_of_external_incursion_buffer>::max_index = 0;
 int embark_assist::key_buffer_holder::basic_key_buffer_holder <embark_assist::incursion::incursion_processor::size_of_internal_incursion_buffer>::max_index = 0;
 int embark_assist::key_buffer_holder::basic_key_buffer_holder <256>::max_index = 0;
+//
+//namespace embark_assist {
+//    namespace incursion {
+//        //namespace incursion_processor {
+//            struct position {
+//                int16_t x;
+//                int16_t y;
+//            };
+//        //}
+//    }
+//}
 
 void log_incursion_source_target(const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, const std::string incursion_case, const uint32_t current_key, const uint32_t source_key, const uint32_t target_key) {
     if (x == world->world_data->world_width - 1 && (i == 14 || i == 15) || y == world->world_data->world_height - 1 && (k == 14 || k == 15)) {
@@ -48,6 +59,24 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
 
     if (source.aquifer) {
         buffer.add_aquifer(target_key);
+        //if (target_key == 11704880) {
+        // if (target_key == 73216) {
+        //if (target_key >= 1024 && target_key <= 1279) {
+        //if (target_key == 1144) {
+        //    auto t = std::chrono::high_resolution_clock::now();
+        //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    //out.print("embark_assist::incursion::incursion_processor::fill_buffer - aquifer incursion into tile 11704880 at %lld\n", static_cast<long long int>(t.time_since_epoch().count()));
+        //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - aquifer incursion into tile %u at %lld\n", target_key, static_cast<long long int>(t.time_since_epoch().count()));
+        //    //auto time_point = std::chrono::system_clock::now();
+        //    //auto now_c = std::chrono::system_clock::to_time_t(time_point);
+        //    //std::tm now_tm = *std::localtime(&now_c);
+        //    //char buff[70];
+        //    //if (strftime(buff, sizeof buff, "%c", &now_tm)) {
+        //    //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    //    //out.print("embark_assist::incursion::incursion_processor::fill_buffer - aquifer incursion into tile 11704880 at %s", buff);
+        //    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - aquifer incursion into tile 11704880 at %lld", static_cast<long long int>(t.time_since_epoch().count()));
+        //    //}
+        //}
     }
 
     if (source.clay) {
@@ -94,7 +123,7 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
 void embark_assist::incursion::incursion_processor::process_eastern_edge(
         const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
         const embark_assist::defs::mid_level_tile_basic &current_western_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile,
-        const embark_assist::defs::region_tile_datum &western_rtd, const embark_assist::defs::region_tile_datum eastern_rtd, 
+        const embark_assist::defs::region_tile_datum &western_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd, 
         const uint32_t western_target_key, const uint32_t eastern_target_key, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
 
     // easter edge to right/eastern neighbour
@@ -147,8 +176,8 @@ void embark_assist::incursion::incursion_processor::process_southern_east_corner
         const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
         const embark_assist::defs::mid_level_tile_basic &current_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile, 
         const embark_assist::defs::mid_level_tile_basic &southern_eastern_tile, const embark_assist::defs::mid_level_tile_basic &southern_tile,
-        const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum eastern_rtd, 
-        const embark_assist::defs::region_tile_datum south_eastern_rtd, const embark_assist::defs::region_tile_datum &southern_rtd,
+        const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd, 
+        const embark_assist::defs::region_tile_datum &south_eastern_rtd, const embark_assist::defs::region_tile_datum &southern_rtd,
         const uint32_t current_tile_key, const uint32_t eastern_tile_key, const uint32_t south_eastern_tile_key, const uint32_t southern_tile_key, 
         embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
 
@@ -245,7 +274,7 @@ void embark_assist::incursion::incursion_processor::process_southern_east_corner
 void embark_assist::incursion::incursion_processor::process_north_east_corner(
     const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
     const embark_assist::defs::mid_level_tile_basic &current_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile,
-    const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum eastern_rtd,
+    const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd,
     const uint32_t current_tile_key, const uint32_t eastern_tile_key, 
     embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
 
@@ -272,9 +301,9 @@ void embark_assist::incursion::incursion_processor::process_north_east_corner(
 }
 
 void embark_assist::incursion::incursion_processor::process_south_west_corner(
-    const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
+    const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, const embark_assist::defs::world_tile_data *survey_results,
     const embark_assist::defs::mid_level_tile_basic &current_tile, const embark_assist::defs::mid_level_tile_basic &southern_tile,
-    const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum southern_rtd,
+    const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &southern_rtd,
     const uint32_t current_tile_key, const uint32_t southern_tile_key,
     embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
 
@@ -350,9 +379,23 @@ void print_edges(const uint16_t x, const uint16_t y) {
     myfile2.close();
 }
 
+void embark_assist::incursion::incursion_processor::init_incursion_context(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd) {
+    embark_assist::defs::region_tile_position world_position;
+    uint8_t required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
+    uint8_t required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search;
+    retrieve_position_and_required_number_of_surveyed_neighbours(x, y, world_position, required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing, required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search);
+    // FIXME: do it like this
+    //retrieve_position_and_required_number_of_surveyed_neighbours(x, y, rtd.world_position, rtd.required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing, rtd.required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search);
+    rtd.world_position = world_position;
+    rtd.required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
+    rtd.required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search;
+}
+
 void embark_assist::incursion::incursion_processor::process_internal_incursions(
-        const uint32_t world_offset, const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results, 
-        embark_assist::defs::mid_level_tiles *mlt, embark_assist::defs::index_interface &index) {
+        const uint32_t world_offset, const int16_t x, const int16_t y, embark_assist::defs::world_tile_data &survey_results,
+        embark_assist::defs::mid_level_tiles &mlt_ref, embark_assist::defs::index_interface &index) {
+
+    embark_assist::defs::mid_level_tiles *mlt = &mlt_ref;
 
     // FIXME only for debugging - remove for release
     /*if ((x == 15 && y == 0) || (x == 16 && y == 0) || (x == 15 && y == 1)) {
@@ -373,13 +416,7 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
 
     color_ostream_proxy out(Core::getInstance().getConsole());
     const auto start = std::chrono::steady_clock::now();
-    embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
-
-    embark_assist::defs::region_tile_position world_position;
-    uint8_t required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
-    retrieve_position_and_required_number_of_surveyed_neighbours(x, y, world_position, required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing);
-    rtd.world_position = world_position;
-    rtd.required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing;
+    embark_assist::defs::region_tile_datum &rtd = survey_results.at(x)[y];
 
     for (uint8_t i = 0; i < 15; i++) {
         for (uint8_t k = 0; k < 15; k++) {
@@ -391,17 +428,17 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
             // easter edge to right/eastern neighbour
             const embark_assist::defs::mid_level_tile_basic &eastern_tile = mlt->at(i + 1)[k];
             const uint32_t eastern_tile_key = current_tile_key + 1;
-            process_eastern_edge(x, y, i, k, survey_results, current_tile, eastern_tile, rtd, rtd, current_tile_key, eastern_tile_key, buffer);
+            process_eastern_edge(x, y, i, k, &survey_results, current_tile, eastern_tile, rtd, rtd, current_tile_key, eastern_tile_key, buffer);
 
             // southern edge to bottom/southern neighbour
             const embark_assist::defs::mid_level_tile_basic &southern_tile = mlt->at(i)[k + 1];
             const uint32_t southern_tile_key = world_offset + (k + 1) * 16 + i;
-            process_southern_edge(x, y, i, k, survey_results, current_tile, southern_tile, rtd, rtd, current_tile_key, southern_tile_key, buffer);
+            process_southern_edge(x, y, i, k, &survey_results, current_tile, southern_tile, rtd, rtd, current_tile_key, southern_tile_key, buffer);
 
             const uint32_t south_eastern_tile_key = southern_tile_key + 1;
             const embark_assist::defs::mid_level_tile_basic &south_eastern_tile = mlt->at(i + 1)[k + 1];
             // south-east corner
-            process_southern_east_corner(x, y, i, k, survey_results, 
+            process_southern_east_corner(x, y, i, k, &survey_results,
                 current_tile, eastern_tile, south_eastern_tile, southern_tile, 
                 rtd, rtd, rtd, rtd, 
                 current_tile_key, eastern_tile_key, south_eastern_tile_key, southern_tile_key, buffer);
@@ -414,7 +451,7 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
         const embark_assist::defs::mid_level_tile_basic &southern_tile = mlt->at(15)[k + 1];
         const uint32_t current_tile_key = world_offset + k * 16 + 15;
         const uint32_t southern_tile_key = world_offset + (k + 1) * 16 + 15;
-        process_southern_edge(x, y, 15, k, survey_results, current_tile, southern_tile, rtd, rtd, current_tile_key, southern_tile_key, buffer);
+        process_southern_edge(x, y, 15, k, &survey_results, current_tile, southern_tile, rtd, rtd, current_tile_key, southern_tile_key, buffer);
     }
 
     // eastern edges of the southern most row
@@ -423,23 +460,23 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = mlt->at(i + 1)[15];
         const uint32_t current_tile_key = world_offset + 15 * 16 + i;
         const uint32_t eastern_tile_key = current_tile_key + 1;
-        process_eastern_edge(x, y, i, 15, survey_results, current_tile, eastern_tile, rtd, rtd, current_tile_key, eastern_tile_key, buffer);
+        process_eastern_edge(x, y, i, 15, &survey_results, current_tile, eastern_tile, rtd, rtd, current_tile_key, eastern_tile_key, buffer);
     }
 
     // cases sorted by frequency
     switch (rtd.world_position)
     {
     case embark_assist::defs::region_tile_position::north:
-        process_additional_internal_incursions_for_north_tile(x, y, survey_results, rtd, mlt, index, buffer);
+        process_additional_internal_incursions_for_north_tile(x, y, &survey_results, rtd, mlt, index, buffer);
         break;
 
     case embark_assist::defs::region_tile_position::west:
-        process_additional_internal_incursions_for_west_tile(x, y, survey_results, rtd, mlt, index, buffer);
+        process_additional_internal_incursions_for_west_tile(x, y, &survey_results, rtd, mlt, index, buffer);
         break;
 
     case embark_assist::defs::region_tile_position::north_west:
-        process_additional_internal_incursions_for_north_tile(x, y, survey_results, rtd, mlt, index, buffer);
-        process_additional_internal_incursions_for_west_tile(x, y, survey_results, rtd, mlt, index, buffer);
+        process_additional_internal_incursions_for_north_tile(x, y, &survey_results, rtd, mlt, index, buffer);
+        process_additional_internal_incursions_for_west_tile(x, y, &survey_results, rtd, mlt, index, buffer);
         break;
 
     // it seems for the other cases there is nothing to do here, or is there?
@@ -450,9 +487,12 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
 
     // add all data to the index
     index.add(buffer);
+    index.check_for_find_single_world_tile_matches(x, y, rtd, "internal incursion");
 
     const auto end = std::chrono::steady_clock::now();
     internal_elapsed += end - start;
+
+    //out.print("%llu - internal end of of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 }
 
 void embark_assist::incursion::incursion_processor::process_additional_internal_incursions_for_north_tile(
@@ -496,8 +536,9 @@ void embark_assist::incursion::incursion_processor::process_additional_internal_
 }
 
 void embark_assist::incursion::incursion_processor::retrieve_position_and_required_number_of_surveyed_neighbours(
-        const uint16_t x, const uint16_t y, embark_assist::defs::region_tile_position &world_position, 
-        uint8_t &required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing) {
+        const int16_t x, const int16_t y, embark_assist::defs::region_tile_position &world_position,
+        uint8_t &required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing,
+        uint8_t &required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search) {
 
     world_position = embark_assist::defs::region_tile_position::middle;
     required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 9;
@@ -505,42 +546,51 @@ void embark_assist::incursion::incursion_processor::retrieve_position_and_requir
         if (y == 0) {
             world_position = embark_assist::defs::region_tile_position::north_west;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 4;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 0;
         }
         else if (y == world->worldgen.worldgen_parms.dim_y - 1) {
             world_position = embark_assist::defs::region_tile_position::south_west;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 4;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 1;
         }
         else {
             world_position = embark_assist::defs::region_tile_position::west;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 6;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 1;
         }
     }
     else if (x == world->worldgen.worldgen_parms.dim_x - 1) {
         if (y == 0) {
             world_position = embark_assist::defs::region_tile_position::north_east;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 4;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 1;
         }
         else if (y == world->worldgen.worldgen_parms.dim_y - 1) {
             world_position = embark_assist::defs::region_tile_position::south_east;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 4;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 3;
         }
         else {
             world_position = embark_assist::defs::region_tile_position::east;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 6;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 3;
         }
     }
     else {
         if (y == 0) {
             world_position = embark_assist::defs::region_tile_position::north;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 6;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 1;
         }
         else if (y == world->worldgen.worldgen_parms.dim_y - 1) {
             world_position = embark_assist::defs::region_tile_position::south;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 6;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 3;
         }
         else {
             world_position = embark_assist::defs::region_tile_position::middle;
             required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing = 9;
+            required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search = 3;
         }
     }
 }
@@ -587,29 +637,49 @@ void  embark_assist::incursion::incursion_processor::retrieve_min_max_offsets(
     }
 }
 
+//void embark_assist::incursion::incursion_processor::increment(embark_assist::defs::region_tile_datum &neighbour) {
+//    // FIXME: is this lock really needed?
+//    const std::lock_guard<std::mutex> add_many_mutex_guard(lock);
+//    neighbour.number_of_contiguous_surveyed_world_tiles++;
+//}
+
 void embark_assist::incursion::incursion_processor::update_and_check_survey_counters_of_neighbouring_world_tiles(
-        const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results, 
-        embark_assist::defs::index_interface &index) {
+        const int16_t x, const int16_t y, embark_assist::defs::world_tile_data &survey_results, embark_assist::defs::index_interface &index) {
+
+    color_ostream_proxy out(Core::getInstance().getConsole());
 
     const auto start = std::chrono::steady_clock::now();
 
-    embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
+    const embark_assist::defs::region_tile_datum &rtd = survey_results.at(x)[y];
 
     int8_t min_x, max_x, min_y, max_y;
     retrieve_min_max_offsets(rtd.world_position, min_x, max_x, min_y, max_y);
 
+    //uint8_t position_index = 0;
+    //std::array <position, 9> positions;
+
     for (uint16_t pos_x = x - min_x; pos_x <= x + max_x; pos_x++) {
         for (uint16_t pos_y = y - min_y; pos_y <= y + max_y; pos_y++) {
-            embark_assist::defs::region_tile_datum &neighbour = survey_results->at(pos_x)[pos_y];
-            neighbour.number_of_contiguous_surveyed_world_tiles++;
+            embark_assist::defs::region_tile_datum &neighbour = survey_results.at(pos_x)[pos_y];
+            ++neighbour.number_of_contiguous_surveyed_world_tiles;
             if (neighbour.number_of_contiguous_surveyed_world_tiles == neighbour.required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing) {
-                process_external_incursions(pos_x, pos_y, survey_results, index);
+                process_external_incursions(pos_x, pos_y, &survey_results, index);
+                //positions[position_index].x = pos_x;
+                //positions[position_index++].y = pos_y;
             }
         }
     }
 
+    //for (uint8_t current_index = 0; current_index < position_index; current_index++) {
+    //    const position &pos = positions[current_index];
+    //    embark_assist::defs::region_tile_datum &neighbour = survey_results.at(pos.x)[pos.y];
+    //    index.check_for_find_single_world_tile_matches(pos.x, pos.y, neighbour);
+    //}
+
     const auto end = std::chrono::steady_clock::now();
     update_and_check_external_elapsed += end - start;
+
+    //out.print("%llu - internal end of external incursions async \n\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 }
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_eastern_column(
@@ -770,7 +840,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     }
 
     // special case, as the eastern neighbour is actually another region_tile_datum
-    // also BEWARE: never remove the "superfluous" brackets, defining a block, to keep the additional variables in a local scope
+    // also BEWARE: never remove the "superfluous" brackets, it is defining a block to keep the additional variables in a local scope
     {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.south_row[15];
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = eastern_neighbour_rtd.south_row[0];
@@ -800,7 +870,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 }
 
 void embark_assist::incursion::incursion_processor::process_external_incursions(
-        const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results, 
+        const int16_t x, const int16_t y, embark_assist::defs::world_tile_data *survey_results,
         embark_assist::defs::index_interface &index) {
 
     embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
@@ -863,6 +933,66 @@ void embark_assist::incursion::incursion_processor::process_external_incursions(
 
     index.add(buffer);
     rtd.totally_processed = true;
+    
+    // all outgoing (and activly pulled incoming) incursions processed
+    index.check_for_find_single_world_tile_matches(x, y, rtd, "actively outgoing external incursion");
+    // update relevant neighbors state concerning their passively incoming incursions
+    update_and_check_external_incursion_counters_of_neighbouring_world_tiles(x, y, survey_results, index);
+}
+
+void embark_assist::incursion::incursion_processor::update_and_check_external_incursion_counters_of_neighbouring_world_tiles(const int16_t x, const int16_t y, embark_assist::defs::world_tile_data *survey_results, embark_assist::defs::index_interface &index) {
+    embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
+
+    switch (rtd.world_position) {
+    case embark_assist::defs::region_tile_position::north_west:
+        // special case: the north east world tile never gets "pushed" incoming incursions, so it takes care of this itself
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x, y, survey_results->at(x)[y], index);
+    case embark_assist::defs::region_tile_position::north:
+    case embark_assist::defs::region_tile_position::middle:
+    case embark_assist::defs::region_tile_position::west: {
+        embark_assist::defs::region_tile_datum &eastern_neighbour = survey_results->at(x + 1)[y];
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x + 1, y, eastern_neighbour, index);
+
+        embark_assist::defs::region_tile_datum &south_eastern_neighbour = survey_results->at(x + 1)[y + 1];
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x + 1, y + 1, south_eastern_neighbour, index);
+
+        // debugging
+        if (x == 0 && y + 1 == 4) {
+            color_ostream_proxy out(Core::getInstance().getConsole());
+            auto t = std::chrono::high_resolution_clock::now();
+            out.print("embark_assist::incursion::incursion_processor::update_and_check_external_incursion_counters_of_neighbouring_world_tiles: x == 0 && y == 4 at %lld\n", static_cast<long long int>(t.time_since_epoch().count()));
+        }
+        embark_assist::defs::region_tile_datum &southern_neighbour = survey_results->at(x)[y + 1];
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x, y + 1, southern_neighbour, index);
+    }
+        break;
+
+    case embark_assist::defs::region_tile_position::north_east:
+    case embark_assist::defs::region_tile_position::east: {
+        embark_assist::defs::region_tile_datum &southern_neighbour = survey_results->at(x)[y + 1];
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x, y + 1, southern_neighbour, index);
+    }
+        break;
+
+    case embark_assist::defs::region_tile_position::south_west:
+    case embark_assist::defs::region_tile_position::south: {
+        embark_assist::defs::region_tile_datum &eastern_neighbour = survey_results->at(x + 1)[y];
+        update_and_check_external_incursion_counters_of_neighbouring_world_tile(x + 1, y, eastern_neighbour, index);
+    }
+        break;
+
+    case embark_assist::defs::region_tile_position::south_east:
+        // actually nothing to do at all
+        break;
+    }
+}
+
+void embark_assist::incursion::incursion_processor::update_and_check_external_incursion_counters_of_neighbouring_world_tile(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, embark_assist::defs::index_interface &index) {
+    ++rtd.number_of_neighboring_incursion_processed_world_tiles;
+    if (rtd.number_of_neighboring_incursion_processed_world_tiles >= rtd.required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search) {
+        // all passively incoming incursions processed
+        index.check_for_find_single_world_tile_matches(x, y, rtd, "passively incoming external incursion");
+    }
 }
 
 embark_assist::incursion::incursion_processor::incursion_processor(): internal_buffer(new internal_incursion_buffer()) {
