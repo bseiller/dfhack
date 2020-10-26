@@ -157,6 +157,10 @@ namespace embark_assist {
             }
 
             void add_evilness_level(const uint32_t key, const uint8_t evilness_level) {
+                if (evilness_level < 0 || evilness_level > 2) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("invalid evilness_level %d\n", evilness_level);
+                }
                 evilness_buffers[evilness_level][evilness_buffer_indices[evilness_level]++] = key;
                 if (evilness_buffer_indices[evilness_level] > N) {
                     color_ostream_proxy out(Core::getInstance().getConsole());

@@ -12,6 +12,9 @@
 #include "incursion_processor.h"
 #include "survey.h"
 
+#define edge_root_folder "faulty_edges/"
+#define edge_root_folder_path index_folder_name edge_root_folder
+
 using df::global::world;
 
 int embark_assist::key_buffer_holder::basic_key_buffer_holder <embark_assist::incursion::incursion_processor::size_of_external_incursion_buffer>::max_index = 0;
@@ -48,13 +51,47 @@ void log_incursion_source_target(const uint16_t x, const uint16_t y, const uint1
     }
 }
 
+void write_array2(std::ofstream &file, int8_t values[16][16]) {
+    for (int8_t y = 0; y < 16; y++) {
+        for (int8_t x = 0; x < 16; x++) {
+            file << std::to_string(values[x][y]) << ";";
+        }
+        file << "\n";
+    }
+}
+
+void write_biomes_edges_to_file(const uint32_t target_key, df::world_region_details::T_edges edges) {
+    const std::string x_string = std::to_string(target_key);
+
+    std::ofstream biome_corner = std::ofstream(edge_root_folder_path + x_string + "_biome_corner.csv", std::ios::out);
+    write_array2(biome_corner, edges.biome_corner);
+    biome_corner.close();
+
+    std::ofstream biome_x = std::ofstream(edge_root_folder_path + x_string + "_biome_x.csv", std::ios::out);
+    write_array2(biome_x, edges.biome_x);
+    biome_x.close();
+
+    std::ofstream biome_y = std::ofstream(edge_root_folder_path + x_string + "_biome_y.csv", std::ios::out);
+    write_array2(biome_y, edges.biome_y);
+    biome_y.close();
+}
+
 void embark_assist::incursion::incursion_processor::fill_buffer(
         embark_assist::defs::key_buffer_holder_basic_interface &buffer, const embark_assist::defs::mid_level_tile_basic &source,
         const bool is_flat,
         const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key) {
 
+    const bool check_index = false;
+
     if (!is_flat) {
         buffer.add_unflat(target_key);
+
+        // FIXME: debug code, to be removed
+        //if (check_index && !unflat.contains(target_key)) {
+        //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much unflat: %d\n", target_key);
+        //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+        //}
     }
 
     if (source.aquifer) {
@@ -77,10 +114,24 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         //    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - aquifer incursion into tile 11704880 at %lld", static_cast<long long int>(t.time_since_epoch().count()));
         //    //}
         //}
+
+        // FIXME: debug code, to be removed
+        //if (check_index && !aquifer.contains(target_key)) {
+        //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much aquifer: %d\n", target_key);
+        //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+        //}
     }
 
     if (source.clay) {
         buffer.add_clay(target_key);
+
+        // FIXME: debug code, to be removed
+        //if (check_index && !clay.contains(target_key)) {
+        //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much clay: %d\n", target_key);
+        //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+        //}
     }
 
     if (source.sand) {
@@ -88,8 +139,26 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
     }
 
     buffer.add_soil_depth(target_key, source.soil_depth);
+    // FIXME: debug code, to be removed
+    //if (check_index && source.soil_depth == 0 && !soil0.contains(target_key)) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much soil0: %d\n", target_key);
+    //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+    //}
     buffer.add_savagery_level(target_key, source.savagery_level);
+    // FIXME: debug code, to be removed
+    //if (check_index && source.savagery_level == 0 && !savagery0.contains(target_key)) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much savagery0: %d\n", target_key);
+    //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+    //}
     buffer.add_evilness_level(target_key, source.evilness_level);
+    // FIXME: debug code, to be removed
+    //if (check_index && source.evilness_level == 0 && !evilness0.contains(target_key)) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much evilness0: %d\n", target_key);
+    //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+    //}
 
     // needs additional processing!
     const int16_t biome_id = rtd.biome[source.biome_offset];
@@ -98,6 +167,12 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         out.print("invalid biome_id %d\n", biome_id);
     }
     buffer.add_biome(target_key, biome_id);
+    // FIXME: debug code, to be removed
+    //if (check_index && biome_id == 0 && !biome0.contains(target_key)) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much biome0: %d\n", target_key);
+    //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
+    //}
 
     // TODO: find a home for this "conversion"/extraction, that can also be found in survey.cpp => embark_assist::survey::survey_mid_level_tile, around line 1463
     const df::world_region_type region_type = world->world_data->regions[rtd.biome_index[source.biome_offset]]->type;
@@ -404,15 +479,13 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
     }*/
 
     // FIXME only for debugging of world edge corner incursions- remove for release
-    if ((x == 256 && y == 246)) {
-    //if ((x == 4 || x == 5) && y == 5) {
-        print_edges(x, y);
-    }
+    //if ((x == 256 && y == 246)) {
+    ////if ((x == 4 || x == 5) && y == 5) {
+    //    print_edges(x, y);
+    //}
 
     // TODO: make sure we don't want to run this async/threaded/concurrent, otherwise we need to remove the class member "internal_buffer" and replace it with a local instance, so every call get its own instance
-    // embark_assist::defs::key_buffer_holder_basic_interface &buffer = internal_incursion_buffer();
-    embark_assist::defs::key_buffer_holder_basic_interface &buffer = *internal_buffer;
-    buffer.reset();
+    embark_assist::defs::key_buffer_holder_basic_interface &buffer = internal_incursion_buffer();
 
     color_ostream_proxy out(Core::getInstance().getConsole());
     const auto start = std::chrono::steady_clock::now();
@@ -933,7 +1006,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions(
 
     index.add(buffer);
     rtd.totally_processed = true;
-    
+
     // all outgoing (and activly pulled incoming) incursions processed
     index.check_for_find_single_world_tile_matches(x, y, rtd, "actively outgoing external incursion");
     // update relevant neighbors state concerning their passively incoming incursions
@@ -957,11 +1030,11 @@ void embark_assist::incursion::incursion_processor::update_and_check_external_in
         update_and_check_external_incursion_counters_of_neighbouring_world_tile(x + 1, y + 1, south_eastern_neighbour, index);
 
         // debugging
-        if (x == 0 && y + 1 == 4) {
-            color_ostream_proxy out(Core::getInstance().getConsole());
-            auto t = std::chrono::high_resolution_clock::now();
-            out.print("embark_assist::incursion::incursion_processor::update_and_check_external_incursion_counters_of_neighbouring_world_tiles: x == 0 && y == 4 at %lld\n", static_cast<long long int>(t.time_since_epoch().count()));
-        }
+        //if (x == 0 && y + 1 == 4) {
+        //    color_ostream_proxy out(Core::getInstance().getConsole());
+        //    auto t = std::chrono::high_resolution_clock::now();
+        //    out.print("embark_assist::incursion::incursion_processor::update_and_check_external_incursion_counters_of_neighbouring_world_tiles: x == 0 && y == 4 at %lld\n", static_cast<long long int>(t.time_since_epoch().count()));
+        //}
         embark_assist::defs::region_tile_datum &southern_neighbour = survey_results->at(x)[y + 1];
         update_and_check_external_incursion_counters_of_neighbouring_world_tile(x, y + 1, southern_neighbour, index);
     }
@@ -996,7 +1069,76 @@ void embark_assist::incursion::incursion_processor::update_and_check_external_in
 }
 
 embark_assist::incursion::incursion_processor::incursion_processor(): internal_buffer(new internal_incursion_buffer()) {
+    // FIXME: debug code, to be removed
+    /*{
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/0_hasAquifier.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
 
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        aquifer = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/358_is_unflat_by_incursion.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        unflat = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/7_soil_level_0.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        soil0 = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/3_hasClay.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        clay = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/26_savagery_level_0.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        savagery0 = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/29_evilness_level_0.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        evilness0 = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }
+
+    {
+        std::string filePath = "e:/games/df/PeridexisErrant's Starter Pack 0.44.12-r06/Dwarf Fortress 0.44.12/data/init/embark_assistant_indexes/_new_matching_code_region4_all_asnyc_incursions_but_no_overrun_run7/287_biome_0.index";
+        std::ifstream indexFile(filePath, std::ios::in | std::ios::binary);
+
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(indexFile), {});
+        biome0 = std::move(Roaring::readSafe((const char*)buffer.data(), buffer.size()));
+
+        indexFile.close();
+    }*/
 }
 
 embark_assist::incursion::incursion_processor::~incursion_processor() {

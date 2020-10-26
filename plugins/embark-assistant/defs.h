@@ -134,8 +134,8 @@ namespace embark_assist {
             mid_level_tile_basic south_row[16];
             mid_level_tile_basic west_column[16];
             mid_level_tile_basic east_column[16];
-            uint8_t north_corner_selection[16]; //  0 - 3. For some reason DF stores everything needed for incursion
-            uint8_t west_corner_selection[16];  //  detection in 17:th row/colunm data in the region details except
+            //uint8_t north_corner_selection[16]; //  0 - 3. For some reason DF stores everything needed for incursion
+            //uint8_t west_corner_selection[16];  //  detection in 17:th row/colunm data in the region details except
                                                 //  this info, so we have to go to neighboring world tiles to fetch it.
             df::world_region_type region_type[16][16];  //  Required for incursion override detection. We could store only the
                                                 //  edges, but storing it for every tile allows for a unified fetching
@@ -148,8 +148,15 @@ namespace embark_assist {
             uint8_t required_number_of_neighboring_incursion_processed_world_tiles_for_iterative_search;
             bool totally_processed = false;
             std::unique_ptr<std::atomic_uint8_t> process_counter{ new std::atomic_uint8_t(0) };
-            uint8_t northern_row_biome_x[16]; /*!< 0=Reference is N, 1=Reference is current tile (adopted by S edge to the N) */
-            uint8_t western_column_biome_y[16]; /*!< 0=Reference is W, 1=Reference is current tile (Adopted by E edge to the W) */
+            //uint8_t northern_row_biome_x[16]; /*!< 0=Reference is N, 1=Reference is current tile (adopted by S edge to the N) */
+            //uint8_t western_column_biome_y[16]; /*!< 0=Reference is W, 1=Reference is current tile (Adopted by E edge to the W) */
+
+            // retaining the whole biome_edge and corner data in region_tile_datum to make asnychronous/concurrent accessing/processing possible
+            // accessing world_data->region_details[0]->edges.biome_x/y/corner would lead to invalid data as the world cursor will have moved on
+            // and world_data->region_details[0] now contains the data of another world tile
+            int8_t biome_corner[16][16]; /*!< 0=Reference is NW, 1=Reference is N, 2=Reference is W, 3=Reference is current tile */
+            int8_t biome_x[16][16]; /*!< 0=Reference is N, 1=Reference is current tile (adopted by S edge to the N) */
+            int8_t biome_y[16][16]; /*!< 0=Reference is W, 1=Reference is current tile (Adopted by E edge to the W) */
         };
 
         struct geo_datum {
@@ -429,7 +436,7 @@ namespace embark_assist {
                 virtual void optimize(bool debugOutput) = 0;
                 virtual void find_all_matches(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const = 0;
                 virtual void check_for_find_single_world_tile_matches(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const string &prefix) = 0;
-                virtual void find_single_world_tile_matches(const int16_t x, const int16_t y) const = 0;
+                virtual void find_matches_in_surveyed_world_tiles() const = 0;
                 virtual const uint32_t get_key(const int16_t x, const int16_t y) const = 0;
                 virtual const uint32_t get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const = 0;
                 virtual ~index_interface(){}

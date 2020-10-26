@@ -2,6 +2,8 @@
 
 #include "basic_key_buffer_holder.h"
 #include "defs.h"
+// only for debuggin
+#include "roaring.hh"
 
 namespace embark_assist {
     namespace incursion {
@@ -35,6 +37,14 @@ namespace embark_assist {
             // for debugging/performance profiling
             std::chrono::duration<double> internal_elapsed = std::chrono::seconds(0);
             std::chrono::duration<double> update_and_check_external_elapsed = std::chrono::seconds(0);
+            // FIXME: debug code, to be removed
+            //Roaring aquifer;
+            //Roaring unflat;
+            //Roaring soil0;
+            //Roaring clay;
+            //Roaring savagery0;
+            //Roaring evilness0;
+            //Roaring biome0;
 
             // FIXME: is this lock really needed?
             //mutable std::mutex lock;

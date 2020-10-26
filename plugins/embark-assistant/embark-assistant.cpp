@@ -52,6 +52,7 @@ namespace embark_assist {
             embark_assist::index::Index index{ world, match_results, match_iterator.finder };
             //embark_assist::index::Index *index;
             bool testing = false;
+            embark_assist::defs::mid_level_tiles mlt;
         };
 
         static states *state = nullptr;
@@ -62,9 +63,15 @@ namespace embark_assist {
         //===============================================================================
 
         void embark_update() {
+            // not updating the embark screen/data during an active find/match/search phase
+            // which leads to better performance and probably prevents nasty hard to track errors
+            if (state != nullptr && state->match_iterator.active) {
+                return;
+            }
+
             auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
-            embark_assist::defs::mid_level_tiles mlt;
-            embark_assist::survey::initiate(&mlt);
+            embark_assist::defs::mid_level_tiles &mlt = state->mlt;
+            //embark_assist::survey::initiate(&mlt);
 
             embark_assist::survey::survey_mid_level_tile(&state->geo_summary,
                 &state->survey_results,
@@ -123,9 +130,9 @@ namespace embark_assist {
                     &state->match_results);
 
                 // FIXME: remove the following if block containing "find_all_matches" as we don't need it anymore once the iterative search during the survey phase is properly implemented
-                if (!state->match_iterator.active) {
-                    state->index.find_all_matches(state->match_iterator.finder, state->match_results);
-                }
+                //if (!state->match_iterator.active) {
+                //    state->index.find_all_matches(state->match_iterator.finder, state->match_results);
+                //}
                 embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
             }
 
@@ -421,8 +428,8 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
     embark_assist::survey::survey_region_sites(&embark_assist::main::state->region_sites);
     embark_assist::overlay::set_sites(&embark_assist::main::state->region_sites);
 
-    embark_assist::defs::mid_level_tiles mlt;
-    embark_assist::survey::initiate(&mlt);
+    embark_assist::defs::mid_level_tiles &mlt = embark_assist::main::state->mlt;
+    //embark_assist::survey::initiate(&mlt);*/
     embark_assist::survey::survey_mid_level_tile(&embark_assist::main::state->geo_summary, &embark_assist::main::state->survey_results, &mlt, embark_assist::main::state->index);
     embark_assist::survey::survey_embark(&mlt, &embark_assist::main::state->survey_results, &embark_assist::main::state->site_info, false);
     embark_assist::overlay::set_embark(&embark_assist::main::state->site_info);

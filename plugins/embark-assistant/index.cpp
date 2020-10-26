@@ -117,7 +117,7 @@ namespace embark_assist {
 }
 
 embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_results &match_results, const embark_assist::defs::finders &finder)
-    : match_results(match_results), 
+    : match_results(match_results),
     finder(finder),
     capacity(std::ceil(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * NUMBER_OF_EMBARK_TILES / NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL)),
     hasAquifer(roaring_bitmap_create_with_capacity(capacity)),
@@ -150,6 +150,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     positions.reserve(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y);
 
     keyMapper = new embark_assist::index::key_position_mapper::KeyPositionMapper(world->world_data->world_width, world->world_data->world_height);
+    completely_surveyed_positions = new surveyed_world_tiles_positions(this, world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y);
 
     number_of_waterfall_drops.assign(0);
 
@@ -513,9 +514,16 @@ void embark_assist::index::Index::optimize(bool debugOutput) {
 void embark_assist::index::Index::shutdown() {
     embark_assist::inorganics::inorganics_information::reset();
     world = nullptr;
+    if (keyMapper != nullptr) {
+        delete keyMapper;
+    }
     if (iterative_query_plan != nullptr) {
         delete iterative_query_plan;
     }
+    if (completely_surveyed_positions != nullptr) {
+        delete completely_surveyed_positions;
+    }
+
     feature_set_counter = 0;
     entryCounter = 0;
     max_inorganic = 0;
@@ -588,6 +596,7 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of unique entries: %I64d\n", uniqueKeys.cardinality());
     fprintf(outfile, "number of hasAquifer entries: %I64d\n", hasAquifer.cardinality());
     this->writeIndexToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
+    // this->writeCoordsToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
     fprintf(outfile, "number of hasRiver entries: %I64d\n", hasRiver.cardinality());
     this->writeIndexToDisk(hasRiver, std::to_string(index_prefix++) + "_hasRiver");
     fprintf(outfile, "number of hasClay entries: %I64d\n", hasClay.cardinality());
@@ -1243,6 +1252,9 @@ void embark_assist::index::Index::init_for_iterative_find() {
             delete iterative_query_plan;
             iterative_query_plan = nullptr;
         }
+
+        embark_assist::survey::clear_results(&this->match_results);
+
         iterative_query_plan = create_query_plan(finder, false);
         find_context = new embark_assist::index::find_context(finder);
 
@@ -1279,21 +1291,33 @@ void embark_assist::index::Index::init_for_iterative_find() {
 void embark_assist::index::Index::check_for_find_single_world_tile_matches(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const string &prefix) {
     processed_single_world_tiles_file << x << "," << y << "-" << prefix << '\n';
 
-    if (x == 0 && y == 4) {
-        color_ostream_proxy out(Core::getInstance().getConsole());
-        auto t = std::chrono::high_resolution_clock::now();
-        out.print("embark_assist::index::Index::check_for_find_single_world_tile_matches: x == 0 && y == 4 at %lld - %s\n", static_cast<long long int>(t.time_since_epoch().count()), prefix);
-    }
+    //if (x == 0 && y == 4) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    auto t = std::chrono::high_resolution_clock::now();
+    //    out.print("embark_assist::index::Index::check_for_find_single_world_tile_matches: x == 0 && y == 4 at %lld - %s\n", static_cast<long long int>(t.time_since_epoch().count()), prefix);
+    //}
 
     const uint8_t counter = rtd.process_counter.get()->fetch_add(1, memory_order::memory_order_relaxed);
     // fetch_add always returns the previous value, so 3 is "enough" even if 4 would be easier to understand...
     if (counter >= 3) {
         find_single_world_tiles_file << x << "," << y << "-" << prefix << '\n';
         //processed_world_tiles_with_sync.fetch_add(1);
-        find_single_world_tile_matches(x, y);
+        //find_single_world_tile_matches(x, y);
+        completely_surveyed_positions->emplace(x, y);
+
     }
     processed_world_all.fetch_add(1);
     //process_counter.reset();
+}
+
+void embark_assist::index::Index::find_matches_in_surveyed_world_tiles() const {
+    find_result = std::async(std::launch::async, [=]() {
+        std::vector<position> surveyed_positions;
+        completely_surveyed_positions->get_positions(surveyed_positions);
+        for (const position position : surveyed_positions) {
+            find_single_world_tile_matches(position.x, position.y);
+        }
+    });
 }
 
 void embark_assist::index::Index::find_single_world_tile_matches(const int16_t x, const int16_t y) const {
@@ -1312,9 +1336,12 @@ void embark_assist::index::Index::find_single_world_tile_matches(const int16_t x
     //    //out.print("embark_assist::index::Index::find_single_world_tile_matches: x == 226 && y == 186 at %lld\n", static_cast<long long int>(t.time_since_epoch().count()));
     //    out.print("embark_assist::index::Index::find_single_world_tile_matches: x == 0 && y == 4 (%u) at %lld\n", world_offset, static_cast<long long int>(t.time_since_epoch().count()));
     //}
-    std::vector<uint32_t> keys(1024);
+    std::vector<uint32_t> keys{};
+    keys.reserve(1024);
     iterative_query_plan->sort_queries();
     iterative_query_plan->get_most_significant_ids(world_offset, keys);
+
+    find_context->number_of_significant_ids += keys.size();
 
     match_results[x][y].preliminary_match = false;
     iterate_most_significant_keys(*find_context, match_results, *iterative_query_plan, keys);
@@ -1325,12 +1352,16 @@ void embark_assist::index::Index::find_single_world_tile_matches(const int16_t x
     if (containsEntries()) {
         const std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         color_ostream_proxy out(Core::getInstance().getConsole());
-        out.print("embark_assist::index::Index::find_single_world_tile_matches: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles\n", std::ctime(&end_time), find_context->totalElapsed.count(), find_context->number_of_iterations, find_context->number_of_matches, find_context->number_of_matched_worldtiles);
+        out.print("embark_assist::index::Index::find_single_world_tile_matches: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles - with %d significant ids in total\n", std::ctime(&end_time), find_context->totalElapsed.count(), find_context->number_of_iterations, find_context->number_of_matches, find_context->number_of_matched_worldtiles, find_context->number_of_significant_ids);
         out.print("embark_assist::index::Index::find_single_world_tile_matches: took %f seconds to create query plan, took %f seconds total to calculate embark variants, took %f seconds total to execute query plan \n", find_context->queryPlanCreatedElapsed.count(), find_context->embarkVariantsCreated.count(), find_context->queryElapsed.count());
         if (iterative_query_plan != nullptr) {
             delete iterative_query_plan;
             iterative_query_plan = nullptr;
             write_matches_to_file("iterative_search_matches", match_results, world);
+        }
+
+        if (find_context != nullptr) {
+            delete find_context;
         }
     }
 }
@@ -1711,4 +1742,35 @@ void embark_assist::index::Index::writeIndexToDisk(const GuardedRoaring& roaring
     auto endTime = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+}
+
+void embark_assist::index::Index::writeCoordsToDisk(const GuardedRoaring& roaring, const std::string prefix) const {
+    const uint64_t cardinality = roaring.cardinalityGuarded();
+    uint32_t* most_significant_ids = new uint32_t[cardinality];
+    roaring.toUint32ArrayGuarded(most_significant_ids);
+    const std::vector<uint32_t>* keys = new std::vector<uint32_t>(most_significant_ids, most_significant_ids + cardinality);
+
+    auto myfile = std::ofstream(index_folder_name + prefix + "_coords.txt", std::ios::out);
+
+    int16_t prev_x = -1;
+    int16_t prev_y = -1;
+
+    uint16_t x = 0;
+    uint16_t y = 0;
+    uint16_t i = 0;
+    uint16_t k = 0;
+
+    for (const uint32_t key : *keys) {
+        keyMapper->get_position(key, x, y, i, k);
+        if (x != prev_x || y != prev_y) {
+            myfile << "\nx:" << x << "/y:" << y << "\n";
+            prev_x = x;
+            prev_y = y;
+        }
+        myfile << " i:" << i << "/k:" << k << "(" << key << ")";
+    }
+
+    myfile.close();
+    delete keys;
+    delete most_significant_ids;
 }

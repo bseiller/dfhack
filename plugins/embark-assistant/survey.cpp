@@ -67,6 +67,9 @@
 #include "survey.h"
 #include "key_buffer_holder.h"
 
+#define edge_root_folder "region4_edges/"
+#define edge_root_folder_path index_folder_name edge_root_folder
+
 using namespace DFHack;
 using namespace df::enums;
 using namespace Gui;
@@ -1395,6 +1398,36 @@ void log_incursion_data(std::ofstream &file,
         << "\n";
 }
 
+void write_array(std::ofstream &file, int8_t values[16][16]) {
+    for (int8_t y = 0; y < 16; y++) {
+        for (int8_t x = 0; x < 16; x++) {
+            file << std::to_string(values[x][y]) << ";";
+        }
+        file << "\n";
+    }
+}
+
+void write_biomes_edges_to_file(int16_t x, int16_t y,  df::world_region_details::T_edges edges) {
+    //std::copy(iterInStart, iterInEnd, iterOutStart);
+    //embark_assist::defs::region_tile_datum tile;
+    //std::copy(&edges.biome_x[0][0], &edges.biome_x[0][0] + 16 * 16, &tile.biome_x[0][0]);
+    
+    const std::string x_string = std::to_string(x);
+    const std::string y_string = std::to_string(y);
+
+    std::ofstream biome_corner = std::ofstream(edge_root_folder_path + x_string + "/" + y_string + "_biome_corner.csv", std::ios::out);
+    write_array(biome_corner, edges.biome_corner);
+    biome_corner.close();
+
+    std::ofstream biome_x = std::ofstream(edge_root_folder_path + x_string + "/" + y_string + "_biome_x.csv", std::ios::out);
+    write_array(biome_x, edges.biome_x);
+    biome_x.close();
+
+    std::ofstream biome_y = std::ofstream(edge_root_folder_path + x_string + "/" + y_string + "_biome_y.csv", std::ios::out);
+    write_array(biome_y, edges.biome_y);
+    biome_y.close();
+}
+
 void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
     embark_assist::defs::mid_level_tiles *mlt,
@@ -1432,26 +1465,30 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     //out.print("x,y: %02d,%02d\n", x, y);
 
     const uint32_t world_offset = index.get_key(x, y);
+
+    // write_biomes_edges_to_file(x, y, details->edges);
     
-    // making sure that the previous async/thread is finished before we sreset the buffer_holder, as this is possibly still being used by the thread
+    // making sure that the previous async/thread is finished before resetting buffer_holder, as this is possibly still being used by the thread
     if (state->regular_data_processing_result.valid()) {
         state->regular_data_processing_result.get();
     }
-
-    // making sure that the previous async/thread is finished before resetting mlt, as this is possibly still being used by the thread
-    if (state->internal_incursion_processing_result.valid()) {
-        state->internal_incursion_processing_result.get();
-    }
+    //state->regular_data_processing_result.wait();
 
     embark_assist::key_buffer_holder::key_buffer_holder &buffer_holder = state->buffer_holder;
     buffer_holder.reset();
-    uint32_t mlt_offset = 0;
 
     for (uint16_t i = 0; i < state->max_inorganic; i++) {
         tile.metals[i] = false;
         tile.economics[i] = false;
         tile.minerals[i] = false;
     }
+
+    for (uint8_t i = 1; i < 10; i++) tile.biome_index[i] = -1;
+
+    // needed for asynchronous/concurrent incursion processing
+    std::copy(&details->edges.biome_x[0][0], &details->edges.biome_x[0][0] + 16 * 16, &tile.biome_x[0][0]);
+    std::copy(&details->edges.biome_y[0][0], &details->edges.biome_y[0][0] + 16 * 16, &tile.biome_y[0][0]);
+    std::copy(&details->edges.biome_corner[0][0], &details->edges.biome_corner[0][0] + 16 * 16, &tile.biome_corner[0][0]);
 
     if (mlt->at(0).at(0).metals.size() == state->max_inorganic) {
         for (uint8_t i = 0; i < 16; i++) {
@@ -1470,9 +1507,19 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         embark_assist::survey::initiate(mlt);
     }
 
-    for (uint8_t i = 1; i < 10; i++) tile.biome_index[i] = -1;
+    // making sure that the previous async/thread is finished before resetting mlt, as this is possibly still being used by the thread
+    if (state->internal_incursion_processing_result.valid()) {
+        state->internal_incursion_processing_result.get();
+    }
+    //state->internal_incursion_processing_result.wait();
+
+    if (state->external_incursion_processing_result.valid()) {
+        state->external_incursion_processing_result.get();
+    }
+    //state->external_incursion_processing_result.wait();
 
     const auto _1_start_big_loop = std::chrono::steady_clock::now();
+    uint32_t mlt_offset = 0;
 
     /*auto survey_layers_result = std::async(std::launch::async, [&]() { survey_layers(geo_summary, world_data, world_tile, mlt, 
         state->clay_reaction, state->flux_reaction, state->coals, buffer_holder, index); });*/
@@ -1853,8 +1900,6 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         }
     }
 
-    //std::shared_ptr<std::atomic_uint8_t> process_counter = std::make_shared<std::atomic_uint8_t>(0);
-
     if (!tile.surveyed) {
         //out.print("%llu - before start of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         embark_assist::defs::region_tile_datum &rtd = survey_results->at(x)[y];
@@ -1863,6 +1908,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         embark_assist::defs::world_tile_data &survey_results_ref = *survey_results;
         embark_assist::defs::mid_level_tiles &mlt_ref = *mlt;
         state->internal_incursion_processing_result = std::async(std::launch::async, [&, world_offset, x, y]() { state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results_ref, mlt_ref, index); });
+        //state->internal_incursion_processing_result = std::async(std::launch::async, [&, world_offset, x, y]() { state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results, mlt, index); });
+        //state->incursion_processor.process_internal_incursions(world_offset, x, y, survey_results_ref, mlt_ref, index);
     }
     const auto _2_start_river_workaround = std::chrono::steady_clock::now();
     //out.print("%llu - after start of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
@@ -2206,10 +2253,10 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         //west_column.minerals.resize(0);
         //east_column.minerals.resize(0);
 
-        tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
-        tile.northern_row_biome_x[i] = world_data->region_details[0]->edges.biome_x[i][0];
-        tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
-        tile.western_column_biome_y[i] = world_data->region_details[0]->edges.biome_y[0][i];
+        //tile.north_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[i][0];
+        //tile.northern_row_biome_x[i] = world_data->region_details[0]->edges.biome_x[i][0];
+        //tile.west_corner_selection[i] = world_data->region_details[0]->edges.biome_corner[0][i];
+        //tile.western_column_biome_y[i] = world_data->region_details[0]->edges.biome_y[0][i];
     }
 
     // TODO: remove this, if there is no output because of inequal region_types
@@ -2237,7 +2284,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         //out.print("%llu - after get of async \n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         
         // making sure that the previous async/thread is finished before we start a new one...
-        state->external_incursion_processing_result.get();
+        //if (state->external_incursion_processing_result.valid()) {
+        //    state->external_incursion_processing_result.get();
+        //}
 
         // "casting" this to a reference - as the pointer will become invalid when passed on into a new thread...
         embark_assist::defs::world_tile_data &survey_results_ref = *survey_results;
@@ -2308,6 +2357,11 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     //        }
     //    }
     //}
+
+    //if (state->internal_incursion_processing_result.valid()) {
+    //    state->internal_incursion_processing_result.get();
+    //}
+    // state->internal_incursion_processing_result.wait();
 
     tile.surveyed = true;
 
@@ -2507,13 +2561,16 @@ uint8_t embark_assist::survey::translate_corner(const embark_assist::defs::world
     }
 
     if (effective_x == x && effective_y == y) {
-        effective_corner = world_data->region_details[0]->edges.biome_corner[effective_i][effective_k];
+        //effective_corner = world_data->region_details[0]->edges.biome_corner[effective_i][effective_k];
+        effective_corner = survey_results->at(effective_x).at(effective_y).biome_corner[effective_i][effective_k];
     }
     else if (effective_y != y) {
-        effective_corner = survey_results->at(effective_x).at(effective_y).north_corner_selection[effective_i];
+        // effective_corner = survey_results->at(effective_x).at(effective_y).north_corner_selection[effective_i];
+        effective_corner = survey_results->at(effective_x).at(effective_y).biome_corner[effective_i][0];
     }
     else {
-        effective_corner = survey_results->at(effective_x).at(effective_y).west_corner_selection[effective_k];
+        // effective_corner = survey_results->at(effective_x).at(effective_y).west_corner_selection[effective_k];
+        effective_corner = survey_results->at(effective_x).at(effective_y).biome_corner[0][effective_k];
     }
 
     nw_region_type = embark_assist::survey::region_type_of(survey_results, x, y, effective_i - 1, effective_k - 1);
@@ -2740,7 +2797,8 @@ uint8_t embark_assist::survey::translate_ns_edge(embark_assist::defs::world_tile
 
     if (own_edge) {
         // the edge belongs to the currently processed tile thus its counterpart is the north tile (k - 1)
-        effective_edge = world_data->region_details[0]->edges.biome_x[i][k];
+        //effective_edge = world_data->region_details[0]->edges.biome_x[i][k];
+        effective_edge = survey_results->at(x).at(y).biome_x[i][k];
         // region_type_of actually properly handles the case that we need information from the world tile north (y - 1) and returns df::world_region_type::Lake in case of y < 0, which prevents incursion processing
         south_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         north_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k - 1);
@@ -2749,14 +2807,16 @@ uint8_t embark_assist::survey::translate_ns_edge(embark_assist::defs::world_tile
         // the edge belongs to the tile south of the currently processed tile thus its counterpart is the south tile (k + 1)
         // here the case that we need information from the next world tile south is being handled properly
         if (k < 15) {
-            effective_edge = world_data->region_details[0]->edges.biome_x[i][k + 1];
+            //effective_edge = world_data->region_details[0]->edges.biome_x[i][k + 1];
+            effective_edge = survey_results->at(x).at(y).biome_x[i][k + 1];
         }
         else {
             // TODO: is that right?
             if (y + 1 == world_data->world_height) {
                 return 4;
             }
-            effective_edge = survey_results->at(x).at(y + 1).northern_row_biome_x[i];
+            //effective_edge = survey_results->at(x).at(y + 1).northern_row_biome_x[i];
+            effective_edge = survey_results->at(x).at(y + 1).biome_x[i][0];
         }
         
         north_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
@@ -2828,7 +2888,8 @@ uint8_t embark_assist::survey::translate_ew_edge(embark_assist::defs::world_tile
 
     if (own_edge) {
         // the edge belongs to the currently processed tile thus its counterpart is the west tile (i - 1)
-        effective_edge = world_data->region_details[0]->edges.biome_y[i][k];
+        //effective_edge = world_data->region_details[0]->edges.biome_y[i][k];
+        effective_edge = survey_results->at(x).at(y).biome_y[i][k];
         // region_type_of actually properly handles the case that we need information from the world tile west (x - 1)
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i - 1, k);
@@ -2837,14 +2898,16 @@ uint8_t embark_assist::survey::translate_ew_edge(embark_assist::defs::world_tile
         // the edge belongs to the tile east of the currently processed tile thus its counterpart is the east tile (i + 1)
         // here the case that we need information from the next world tile east (x + 1) is being handled properly
         if (i < 15) {
-            effective_edge = world_data->region_details[0]->edges.biome_y[i + 1][k];
+            //effective_edge = world_data->region_details[0]->edges.biome_y[i + 1][k];
+            effective_edge = survey_results->at(x).at(y).biome_y[i + 1][k];
         }
         else {
             // TODO: is that right?
             if (x + 1 == world_data->world_width) {
                 return 4;
             }
-            effective_edge = survey_results->at(x + 1).at(y).western_column_biome_y[k];
+            //effective_edge = survey_results->at(x + 1).at(y).western_column_biome_y[k];
+            effective_edge = survey_results->at(x + 1).at(y).biome_y[0][k];
         }
         west_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         east_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i + 1, k);

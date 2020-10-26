@@ -2133,6 +2133,8 @@ namespace embark_assist {
             //    finder,
             //    match_results);
 
+            index.find_matches_in_surveyed_world_tiles();
+
             elapsed_survey_total_seconds += std::chrono::steady_clock::now() - start;
         }
     }

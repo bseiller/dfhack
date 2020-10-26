@@ -1,11 +1,12 @@
 #pragma once
 
 #include <unordered_map>
+#include <future>
 
 #include "defs.h"
+#include "guarded_roaring.h"
 #include "inorganics_information.h"
 #include "key_position_mapper.h"
-#include "guarded_roaring.h"
 #include "roaring.hh"
 
 namespace embark_assist {
@@ -58,6 +59,7 @@ namespace embark_assist {
 
             std::vector<Roaring> embarks;
             uint32_t embark_tile_key_buffer[256];
+            uint32_t number_of_significant_ids = 0;
             uint32_t number_of_iterations = 0;
             uint32_t number_of_matches = 0;
             uint32_t number_of_matched_worldtiles = 0;
@@ -91,6 +93,8 @@ namespace embark_assist {
                 virtual void sort_queries() const = 0;
         };
 
+        class surveyed_world_tiles_positions;
+
         class Index final : public embark_assist::defs::index_interface {
         private:
             static const uint32_t NUMBER_OF_EMBARK_TILES = 16 * 16;
@@ -107,15 +111,19 @@ namespace embark_assist {
             uint16_t max_inorganic = 0;
             uint32_t capacity;
 
-            embark_assist::index::key_position_mapper::KeyPositionMapper *keyMapper;
+            embark_assist::index::key_position_mapper::KeyPositionMapper *keyMapper = nullptr;
 
             mutable uint32_t entryCounter = 0;
             uint16_t feature_set_counter = 0;
 
             uint32_t maxKeyValue = 0;
             uint32_t previous_key = -1;
-            
-            // following 3 are for debugging - remove for release
+
+            mutable std::future<void> find_result;
+            //std::unique_ptr<std::future<void>> test;
+            surveyed_world_tiles_positions *completely_surveyed_positions = nullptr;
+
+            // following 4 are for debugging - remove for release
             GuardedRoaring uniqueKeys;
             // TODO: remove, just here for debugging
             mutable embark_assist::defs::match_results match_results_comparison;
@@ -175,7 +183,9 @@ namespace embark_assist {
             // void addInorganic(std::vector<uint16_t, Roaring*> &indexMap, uint16_t metal_index);
             std::string getInorganicName(const uint16_t index, const std::unordered_map<uint16_t, std::string> &ingorganicNames, std::string name) const;
             void embark_assist::index::Index::writeIndexToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
+            void embark_assist::index::Index::writeCoordsToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
             uint16_t calculate_embark_variants(const uint32_t position_id, const uint16_t embark_size_x, const uint16_t embark_size_y, std::vector<Roaring> &embarks, uint32_t buffer[], embark_tile_tracker &tracker) const;
+            void find_single_world_tile_matches(const int16_t x, const int16_t y) const;
             void iterate_most_significant_keys(embark_assist::index::find_context &find_context, embark_assist::defs::match_results &match_results_matcher, const query_plan_interface &query_plan, const std::vector<uint32_t> &keys) const;
             const embark_assist::index::query_plan_interface* embark_assist::index::Index::create_query_plan(const embark_assist::defs::finders &finder, const bool init_most_significant_ids) const;
             // const std::vector<uint32_t>* embark_assist::index::Index::get_keys(const GuardedRoaring &index) const;
@@ -194,9 +204,46 @@ namespace embark_assist {
             virtual void optimize(bool debugOutput) final override;
             virtual void find_all_matches(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const final override;
             virtual void check_for_find_single_world_tile_matches(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const string &prefix) final override;
-            virtual void find_single_world_tile_matches(const int16_t x, const int16_t y) const final override;
+            virtual void find_matches_in_surveyed_world_tiles() const final override;
             virtual const uint32_t get_key(const int16_t x, const int16_t y) const final override;
             virtual const uint32_t get_key(const int16_t x, const int16_t y, const uint16_t i, const uint16_t k) const final override;
         };
+
+        // FIXME: either move this into a own header file or integrate the code directly into Index...
+        class surveyed_world_tiles_positions {
+        public:
+
+            surveyed_world_tiles_positions(embark_assist::index::Index *index, uint32_t number_of_world_tiles): index(index), maxEntryCounter(number_of_world_tiles) {
+            }
+
+            void emplace(int16_t x, int16_t y) {
+                const std::lock_guard<std::mutex> modify_mutex_guard(lock);
+                positions.emplace_back(position{ x, y });
+
+                // this is to handle the special case where/when world tile positions have only been fully processed after the last call of 
+                // "index.find_matches_in_surveyed_world_tiles();" in the matcher::match_world_tile
+                ++entryCounter;
+                if (entryCounter == maxEntryCounter) {
+                    index->find_matches_in_surveyed_world_tiles();
+                }
+            }
+
+            void get_positions(std::vector<position> &buffer) {
+                const std::lock_guard<std::mutex> modify_mutex_guard(lock);
+                if (!positions.empty()) {
+                    positions.swap(buffer);
+                }
+            }
+
+        private:
+            std::mutex lock;
+            std::vector<position> positions;
+
+            uint32_t entryCounter = 0;
+            uint32_t maxEntryCounter = 0;
+
+            embark_assist::index::Index *index;
+        };
     }
+
 }
