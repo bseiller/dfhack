@@ -96,6 +96,21 @@ namespace embark_assist {
             result->queries.push_back(q);
         }
 
+        void create_and_add_all_query(const GuardedRoaring &index, const std::vector<const GuardedRoaring*> &exclusion_indices, embark_assist::index::query_plan *result) {
+            const embark_assist::query::query_interface *q = new embark_assist::query::single_index_multiple_exclusions_all_query(index, exclusion_indices);
+            result->queries.push_back(q);
+        }
+
+        void create_and_add_partial_query(const GuardedRoaring &index, embark_assist::index::query_plan *result) {
+            const embark_assist::query::query_interface *q = new embark_assist::query::single_index_partial_query(index);
+            result->queries.push_back(q);
+        }
+
+        void create_and_add_not_all_query(const GuardedRoaring &index, embark_assist::index::query_plan *result) {
+            const embark_assist::query::query_interface *q = new embark_assist::query::single_index_not_all_query(index);
+            result->queries.push_back(q);
+        }
+
         void create_savagery_evilness_queries(
             const embark_assist::defs::evil_savagery_values evil_savagery_values[4], const std::array<GuardedRoaring, 3> &index_array,
             const uint8_t savageryEvilnessLevel, embark_assist::index::query_plan *result) {
@@ -109,8 +124,42 @@ namespace embark_assist {
                     create_and_add_absent_query(index, result);
                 }
                 else if (finderValue == embark_assist::defs::evil_savagery_values::All) {
-                    create_and_add_all_query(index, result);
+                    std::vector<const GuardedRoaring*> exclusion_indices;
+                    for (const GuardedRoaring &exclusion_index : index_array) {
+                        // if the current exclusion_index is not the primary index we added it to the exclusion_indices
+                        if (&exclusion_index != &index) {
+                            exclusion_indices.push_back(&exclusion_index);
+                        }
+                    }
+                    create_and_add_all_query(index, exclusion_indices, result);
                 }
+            }
+        }
+
+        void create_and_add_present_or_absent_query(const embark_assist::defs::present_absent_ranges &range, const GuardedRoaring &index, embark_assist::index::query_plan *result) {
+            if (range == embark_assist::defs::present_absent_ranges::Present) {
+                create_and_add_present_query(index, result);
+            }
+            else if (range == embark_assist::defs::present_absent_ranges::Absent) {
+                create_and_add_absent_query(index, result);
+            }
+        }
+
+        void create_and_add_region_type_query(int8_t region_type_index, std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_types, embark_assist::index::query_plan *result) {
+            if (region_type_index != -1) {
+                create_and_add_present_query(region_types[region_type_index], result);
+            }
+        }
+
+        void create_and_add_biome_type_query(int8_t biome_type_index, std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biomes, embark_assist::index::query_plan *result) {
+            if (biome_type_index != -1) {
+                create_and_add_present_query(biomes[biome_type_index], result);
+            }
+        }
+
+        void create_and_add_inorganics_query(int16_t inorganics_index, const std::vector<GuardedRoaring*> inorganics_indices, embark_assist::index::query_plan *result) {
+            if (inorganics_index != -1) {
+                create_and_add_present_query(*inorganics_indices[inorganics_index], result);
             }
         }
     }
@@ -199,8 +248,10 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
 
     // FIXME: remove, just here for debugging
     match_results_comparison.resize(world->worldgen.worldgen_parms.dim_x);
+    iterative_match_results_comparison.resize(world->worldgen.worldgen_parms.dim_x);
     for (uint16_t i = 0; i < world->worldgen.worldgen_parms.dim_x; i++) {
         match_results_comparison[i].resize(world->worldgen.worldgen_parms.dim_y);
+        iterative_match_results_comparison[i].resize(world->worldgen.worldgen_parms.dim_y);
     }
 }
 
@@ -595,8 +646,8 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of times add was called: %d\n", entryCounter);
     fprintf(outfile, "number of unique entries: %I64d\n", uniqueKeys.cardinality());
     fprintf(outfile, "number of hasAquifer entries: %I64d\n", hasAquifer.cardinality());
+    this->writeCoordsToDisk(hasAquifer, std::to_string(index_prefix) + "_hasAquifier");
     this->writeIndexToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
-    // this->writeCoordsToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
     fprintf(outfile, "number of hasRiver entries: %I64d\n", hasRiver.cardinality());
     this->writeIndexToDisk(hasRiver, std::to_string(index_prefix++) + "_hasRiver");
     fprintf(outfile, "number of hasClay entries: %I64d\n", hasClay.cardinality());
@@ -635,6 +686,7 @@ const void embark_assist::index::Index::outputContents() const {
     level_post_fix = 0;
     for (auto& index : savagery_level) {
         fprintf(outfile, "number of savagery_level#%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_savagery_level_" + std::to_string(level_post_fix));
         this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_savagery_level_" + std::to_string(level_post_fix++));
     }
 
@@ -817,7 +869,7 @@ uint16_t embark_assist::index::Index::calculate_embark_variants(const uint32_t p
             for (uint16_t current_k = current_k_offset; current_k < current_k_offset + embark_size_y; current_k++) {
                 const uint32_t current_position_id_region_and_k_offset = position_id_region_offset + current_k * 16;
 
-                // following line should replace the inner loop completly => FIXME verify/test this
+                // following line could/should replace the inner loop completly => FIXME verify/test this and its performance
                 //std::iota(&embark_tile_key_buffer[buffer_position], &embark_tile_key_buffer[buffer_position + embark_size_x], current_position_id_region_and_k_offset + current_i_offset);
                 //buffer_position += embark_size_x;
 
@@ -902,18 +954,26 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     // FIXME: be aware, that there are special (corner) cases if a criteria makes assumptions about more than one tile e.g. "All", "Absent", "Partial"
     // - if this query is the most significant one we need another query as helper to verify that all the other tiles also (not) have a aquifer...
     // This is true for all criteria with exclusive/absolute (all/none, absent, ...) meaning
-    // actually it is fine to keep the query in the case of "all" and "absent" by
+    // actually it is fine to keep the query in the case of "all", "absent" and "partial" by
     // q->flag_for_keeping();
     // which will allow the query plan to use the query again which will make sure all embark candiates have or haven't an aquifer...
-    if (finder.aquifer == embark_assist::defs::aquifer_ranges::Present) {
+    if (finder.aquifer == embark_assist::defs::aquifer_ranges::All) {
+        create_and_add_all_query(hasAquifer, result);
+    } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Present) {
         create_and_add_present_query(hasAquifer, result);
-    }
-    else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Absent) {
+    } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Partial) {
+        create_and_add_partial_query(hasAquifer, result);
+    } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Not_All) {
+        create_and_add_not_all_query(hasAquifer, result);
+    } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Absent) {
         create_and_add_absent_query(hasAquifer, result);
     }
-    else if (finder.aquifer == embark_assist::defs::aquifer_ranges::All) {
-        create_and_add_all_query(hasAquifer, result);
-    }
+
+    // FIXME: implement min/max river size
+
+    // FIXME: put waterfall query creation here => method call
+
+    // FIXME: put flat/unflat query creation here => method call
 
     if (finder.clay == embark_assist::defs::present_absent_ranges::Present) {
         create_and_add_present_query(hasClay, result);
@@ -921,12 +981,52 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     else if (finder.clay == embark_assist::defs::present_absent_ranges::Absent) {
         create_and_add_absent_query(hasClay, result);
     }
+    // FIXME: replace with this!
+    // create_and_add_present_or_absent_query(finder.clay, hasClay, result);
 
     if (finder.sand == embark_assist::defs::present_absent_ranges::Present) {
         create_and_add_present_query(hasSand, result);
     }
     else if (finder.sand == embark_assist::defs::present_absent_ranges::Absent) {
         create_and_add_absent_query(hasSand, result);
+    }
+    // FIXME: replace with this!
+    // create_and_add_present_or_absent_query(finder.sand, hasSand, result);
+
+    // FIXME: test those!
+    create_and_add_present_or_absent_query(finder.flux, hasFlux, result);
+    create_and_add_present_or_absent_query(finder.coal, hasCoal, result);
+
+    // FIXME: implement min/max soil + min_soil everywhere => method call
+
+    // FIXME: implement freezing
+
+    // FIXME: implement blood rain
+
+    // FIXME: implement syndrome rain
+
+    // FIXME: implement reanimation
+
+    // FIXME: implement min/max adamintine/spire => method call
+
+    // FIXME: put min/max magma query creation here => method call
+
+    // FIXME: implement min/max biome count here => method call
+
+    if (finder.region_type_1 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_1], result);
+    }
+    // FIXME: replace with this
+    //create_and_add_region_type_query(finder.region_type_1, region_type, result);
+    //create_and_add_region_type_query(finder.region_type_2, region_type, result);
+    //create_and_add_region_type_query(finder.region_type_3, region_type, result);
+
+    if (finder.region_type_2 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_2], result);
+    }
+
+    if (finder.region_type_3 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_3], result);
     }
 
     if (finder.biome_1 != -1) {
@@ -940,22 +1040,16 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     if (finder.biome_3 != -1) {
         create_and_add_present_query(this->biome[finder.biome_3], result);
     }
-
-    if (finder.region_type_1 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_1], result);
-    }
-
-    if (finder.region_type_2 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_2], result);
-    }
-
-    if (finder.region_type_3 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_3], result);
-    }
+    // FIXME: replace with this
+    //create_and_add_biome_type_query(finder.biome_1, biome, result);
+    //create_and_add_biome_type_query(finder.biome_2, biome, result);
+    //create_and_add_biome_type_query(finder.biome_3, biome, result);
 
     if (finder.metal_1 != -1) {
         create_and_add_present_query(*metals[finder.metal_1], result);
     }
+    // FIXME: replace all creation of inorganics queries with this
+    //create_and_add_inorganics_query(finder.metal_1, metals, result);
 
     if (finder.metal_2 != -1) {
         create_and_add_present_query(*metals[finder.metal_2], result);
@@ -1009,8 +1103,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             result->queries.push_back(q);
         }
     }
-
-    // FIXME: add finder.magma_max
 
     if (finder.min_waterfall > 0) {
         const int8_t waterfall_depth = finder.min_waterfall;
@@ -1147,7 +1239,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }, []() -> uint32_t {
             return embark_assist::query::abstract_query::get_world_size();
         }, []() -> const std::vector<uint32_t>* {
-            // FIXME: this is very bad, 64MB RAM bad for a 257x257 region => change return type of method to iterator and implement differnt iterators
+            // FIXME: this is very bad, 64MB RAM bad for a 257x257 region => change return type of method to iterator and implement different iterators
             return embark_assist::query::abstract_query::get_world_keys();
         }, [](const uint32_t world_offset, std::vector<uint32_t> &keys) -> void {
             embark_assist::query::abstract_query::get_all_world_tile_keys(world_offset, keys);
@@ -1176,19 +1268,31 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     return result;
 }
 
-void output_embark_matches(std::ofstream &myfile, const embark_assist::defs::matches &match) {
+void embark_assist::index::Index::output_embark_tiles(std::ofstream &myfile, const uint16_t x, const uint16_t y, uint16_t start_i, uint16_t start_k) const {
+    myfile << "[";
+    for (uint16_t k = start_k; k < start_k + finder.y_dim; k++) {
+        for (uint16_t i = start_i; i < start_i + finder.x_dim; i++) {
+            const uint32_t key = keyMapper->key_of(x, y, i, k);
+            myfile << " "<< key;
+        }
+    }
+    myfile << " ]" << "\n";
+}
+
+void embark_assist::index::Index::output_embark_matches(std::ofstream &myfile, const uint16_t x, const uint16_t y, const embark_assist::defs::matches &match) const {
     for (uint16_t i = 0; i < 16; i++) {
         for (uint16_t k = 0; k < 16; k++) {
             if (match.mlt_match[i][k]) {
-                myfile << " i:" << i << "/k:" << k;
+                const uint32_t key = keyMapper->key_of(x, y, i, k);
+                myfile << " i:" << i << "/k:" << k << "\t(" << key << ")";
+                output_embark_tiles(myfile, x, y, i, k);
             }
         }
     }
 }
 
 // TODO: remove, just here for debugging
-void compare_matches(df::world *world, const embark_assist::defs::match_results &match_results_matcher, const embark_assist::defs::match_results &match_results_index) {
-    const std::string prefix = "match_result_delta";
+void embark_assist::index::Index::compare_matches(const std::string prefix, df::world *world, const embark_assist::defs::match_results &match_results_matcher, const embark_assist::defs::match_results &match_results_index) const {
     auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out);
 
     for (uint16_t x = 0; x < world->worldgen.worldgen_parms.dim_x; x++) {
@@ -1197,11 +1301,11 @@ void compare_matches(df::world *world, const embark_assist::defs::match_results 
                 myfile << "\nx:" << x << "/y:" << y;
                 if (match_results_matcher[x][y].contains_match) {
                     myfile << " unique world tile matcher result\n";
-                    output_embark_matches(myfile, match_results_matcher[x][y]);
+                    output_embark_matches(myfile, x, y, match_results_matcher[x][y]);
                 }
                 else {
                     myfile << " unique world tile index result\n";
-                    output_embark_matches(myfile, match_results_index[x][y]);
+                    output_embark_matches(myfile, x, y, match_results_index[x][y]);
                 }
             }
             else {
@@ -1213,7 +1317,8 @@ void compare_matches(df::world *world, const embark_assist::defs::match_results 
                                 myfile << "\nx:" << x << "/y:" << y << " common world tile result\n";
                                 is_first = false;
                             }
-                            myfile << " i:" << i << "/k:" << k;
+                            const uint32_t key = keyMapper->key_of(x, y, i, k);
+                            myfile << " i:" << i << "/k:" << k << " (" << key << ")";
                             if (match_results_matcher[x][y].mlt_match[i][k]) {
                                 myfile << " unique embark tile matcher result\n";
                             }
@@ -1231,14 +1336,14 @@ void compare_matches(df::world *world, const embark_assist::defs::match_results 
 }
 
 // TODO: remove, just here for debugging
-void write_matches_to_file(const std::string prefix, const embark_assist::defs::match_results &matches, df::world *world) {
+void embark_assist::index::Index::write_matches_to_file(const std::string prefix, const embark_assist::defs::match_results &matches, df::world *world) const {
     auto myfile = std::ofstream(index_folder_name + prefix, std::ios::out);
 
     for (uint16_t x = 0; x < world->worldgen.worldgen_parms.dim_x; x++) {
         for (uint16_t y = 0; y < world->worldgen.worldgen_parms.dim_y; y++) {
             if (matches[x][y].contains_match) {
                 myfile << "\nx:" << x << "/y:" << y << "\n";
-                output_embark_matches(myfile, matches[x][y]);
+                output_embark_matches(myfile, x, y, matches[x][y]);
             }
         }
     }
@@ -1254,6 +1359,7 @@ void embark_assist::index::Index::init_for_iterative_find() {
         }
 
         embark_assist::survey::clear_results(&this->match_results);
+        embark_assist::survey::clear_results(&iterative_match_results_comparison);
 
         iterative_query_plan = create_query_plan(finder, false);
         find_context = new embark_assist::index::find_context(finder);
@@ -1343,6 +1449,8 @@ void embark_assist::index::Index::find_single_world_tile_matches(const int16_t x
 
     find_context->number_of_significant_ids += keys.size();
 
+    embark_assist::defs::match_results &match_results = this->iterative_match_results_comparison;
+
     match_results[x][y].preliminary_match = false;
     iterate_most_significant_keys(*find_context, match_results, *iterative_query_plan, keys);
 
@@ -1372,15 +1480,16 @@ void embark_assist::index::Index::find_all_matches(const embark_assist::defs::fi
     // FIXME: remove the if-return, as the case won't exist any more once "find_single_world_tile_matches" is properly implemented
     // don't do a complete find run if there just was an iterative find run 
     if (iterative_query_plan != nullptr) {
-        out.print("embark_assist::index::Index::find_all_matches: early exit as the iterative search is being run");
-        return;
+        out.print("embark_assist::index::Index::find_all_matches: early exit as the iterative search is being run\n");
+        // FIXME: reactivate this again
+        //return;
     }
 
     // TODO: remove, just here for debugging
     embark_assist::survey::clear_results(&this->match_results_comparison);
 
-    //embark_assist::defs::match_results &match_results = this->match_results_comparison;
-    embark_assist::defs::match_results &match_results = match_results_matcher;
+    embark_assist::defs::match_results &match_results = this->match_results_comparison;
+    //embark_assist::defs::match_results &match_results = match_results_matcher;
 
     const auto innerStartTime = std::chrono::steady_clock::now();
     const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1473,26 +1582,33 @@ void embark_assist::index::Index::find_all_matches(const embark_assist::defs::fi
             }
         }
     }
+    const uint32_t number_of_significant_ids = query_plan->get_most_significant_ids().size();
+
     delete query_plan;
 
     const auto innerEnd = std::chrono::steady_clock::now();
     const std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     const std::chrono::duration<double> elapsed_seconds = innerEnd - innerStartTime;
-    out.print("embark_assist::index::Index::find_all_matches: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches, number_of_matched_worldtiles);
+    out.print("embark_assist::index::Index::find_all_matches: finished index query search at %s with elapsed time: %f seconds with %d iterations and %d matches in %d world tiles - with %d significant ids in total\n", std::ctime(&end_time), elapsed_seconds.count(), number_of_iterations, number_of_matches, number_of_matched_worldtiles, number_of_significant_ids);
     out.print("embark_assist::index::Index::find_all_matches: took %f seconds to create query plan, took %f seconds total to calculate embark variants, took %f seconds total to execute query plan \n", queryPlanCreatedElapsed.count(), embarkVariantsCreated.count(), queryElapsed.count());
 
     out.print("### embark_assist::index::Index::vector elevation query total took %f seconds ###\n", vector_elevation_query_seconds.count());
 
     vector_elevation_query_seconds = std::chrono::seconds(0);
 
-    // TODO: remove, just here for debugging
-    //compare_matches(world, match_results_matcher, match_results_comparison);
+    // TODO: remove, just here for debugging    
+    compare_matches("match_result_delta", world, match_results_matcher, match_results_comparison);
+    compare_matches("iterative_match_result_delta", world, iterative_match_results_comparison, match_results_comparison);
 
+    //write_matches_to_file("iterative_search_matches", iterative_match_results_comparison, world);
     write_matches_to_file("full_search_matches", match_results, world);
+    write_matches_to_file("matcher_search_matches", match_results_matcher, world);
 }
 
 // FIXME refactor methods iterate_most_significant_keys and find_all_matches to use the same code...
 void embark_assist::index::Index::iterate_most_significant_keys(embark_assist::index::find_context &find_context, embark_assist::defs::match_results &match_results_matcher, const query_plan_interface &query_plan, const std::vector<uint32_t> &keys) const {
+
+    embark_assist::defs::match_results &local_match_results = match_results_matcher;
     color_ostream_proxy out(Core::getInstance().getConsole());
     //const auto innerStartTime = std::chrono::steady_clock::now();
     //const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1530,8 +1646,8 @@ void embark_assist::index::Index::iterate_most_significant_keys(embark_assist::i
                 //match_results_matcher[x][y].contains_match = true;
                 //match_results_matcher[x][y].preliminary_match = false;
                 // TODO: just for debugging, reactivate above lines
-                match_results[x][y].contains_match = true;
-                match_results[x][y].preliminary_match = false;
+                local_match_results[x][y].contains_match = true;
+                local_match_results[x][y].preliminary_match = false;
 
                 //if (match_results_matcher[x][y].mlt_match[i][k]) {
                 //    out.print("embark_assist::index::Index::find_all_matches: found same match as matcher:");
@@ -1543,7 +1659,7 @@ void embark_assist::index::Index::iterate_most_significant_keys(embark_assist::i
 
                 //match_results_matcher[x][y].mlt_match[i][k] = true;
                 // TODO: just for debugging, reactivate above line
-                match_results[x][y].mlt_match[i][k] = true;
+                local_match_results[x][y].mlt_match[i][k] = true;
 
                 //out.print("key: %d / position x:%d y:%d i:%d k:%d\n", smallest_key, x,y,i,k);
                 find_context.number_of_matches++;
@@ -1767,7 +1883,7 @@ void embark_assist::index::Index::writeCoordsToDisk(const GuardedRoaring& roarin
             prev_x = x;
             prev_y = y;
         }
-        myfile << " i:" << i << "/k:" << k << "(" << key << ")";
+        myfile << " i:" << i << "/k:" << k << " (" << key << ")";
     }
 
     myfile.close();

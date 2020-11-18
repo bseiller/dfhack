@@ -16,9 +16,6 @@ namespace embark_assist {
             // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
             virtual const std::vector<uint32_t>* get_keys() const = 0;
             virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const = 0;
-            // FIXME: add method to query for significant keys within the key range of a world tile
-            // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
-            // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
             virtual bool is_to_be_deleted_after_key_extraction() const = 0;
             virtual void flag_for_keeping() = 0;
         };
@@ -97,6 +94,7 @@ namespace embark_assist {
             }
 
             static const std::vector<uint32_t>* get_world_keys() {
+                // FIXME: this is very bad, 64MB RAM bad for a 257x257 region => change return type of method to iterator and implement different iterators
                 std::vector<uint32_t>* dest = new std::vector<uint32_t>(abstract_query::size_of_world);
                 // fill with number starting 0 till size of world...
                 std::iota(dest->begin(), dest->end(), 0);
@@ -233,10 +231,6 @@ namespace embark_assist {
             virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
                 return keys_strategy.get_world_tile_keys(index, world_offset, keys);
             };
-
-            // FIXME: add method to query for significant keys within the key range of a world tile
-            // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
-            // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
         };
 
         class single_index_run_intersect : public single_index_run_strategy {
@@ -256,25 +250,43 @@ namespace embark_assist {
 
         class single_index_run_partial : public single_index_run_strategy {
             bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                // intersection testing is faster than cardinality checking - so we optimize for the negative case
                 if (index.intersectGuarded(embark_candidate)) {
                     // there is at least one match for sure
                     // but we don't want all tiles to have this attribute => <
+                    // const uint64_t and_cardinality = index.and_cardinalityGuarded(embark_candidate);
                     if (index.and_cardinalityGuarded(embark_candidate) < abstract_query::get_embark_size()) {
                         return true;
                     }
+                    //else {
+                    //    //color_ostream_proxy out(Core::getInstance().getConsole());
+                    //    //out.print("### single_index_run_partial embark_candidate all matching %s ###\n", embark_candidate.toString());
+                    //    const auto test = embark_candidate.toString();
+                    //    int i = 0;
+                    //}
+                    // else "fallthrough" to final return
                 }
+                //else {
+                //    //color_ostream_proxy out(Core::getInstance().getConsole());
+                //    //out.print("### single_index_run_partial embark_candidate none matching %s ###\n", embark_candidate.toString());
+                //    const auto test = embark_candidate.toString();
+                //    int i = 0;
+                //}
+                // there are no matches which is not ok
                 return false;
             }
         };
 
         class single_index_run_not_all : public single_index_run_strategy {
             bool run(const GuardedRoaring &index, const Roaring &embark_candidate) const {
+                // intersection testing is faster than cardinality checking - so we optimize for the negative case
                 if (index.intersectGuarded(embark_candidate)) {
                     // there is at least one match for sure
-                    // but we don't want all tiles to have this attribute => <
-                    if (index.and_cardinalityGuarded(embark_candidate) < abstract_query::get_embark_size()) {
-                        return true;
+                    // but we don't want all tiles to have this attribute => returning false if they do
+                    if (index.and_cardinalityGuarded(embark_candidate) == abstract_query::get_embark_size()) {
+                        return false;
                     }
+                    // else "fallthrough" to final return
                 }
                 // there are no matches which is just as fine
                 return true;
@@ -299,6 +311,12 @@ namespace embark_assist {
             }
         };
 
+        class single_index_world_cardinality : public single_index_count_entries_strategy {
+            uint32_t get_number_of_entries(const GuardedRoaring &index) const {
+                return embark_assist::query::abstract_query::get_world_size();
+            }
+        };
+
         class single_index_array_keys : public single_index_get_keys_strategy {
             const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) const {
                 return single_index_query::get_keys(index);
@@ -319,24 +337,42 @@ namespace embark_assist {
             }
         };
 
+        class single_index_array_all_world_keys : public single_index_get_keys_strategy {
+            const std::vector<uint32_t>* get_keys(const GuardedRoaring &index) const {
+                return embark_assist::query::abstract_query::get_world_keys();
+            }
+
+            void get_world_tile_keys(const GuardedRoaring &index, const uint32_t world_offset, std::vector<uint32_t> &keys) const {
+                embark_assist::query::abstract_query::get_all_world_tile_keys(world_offset, keys);
+            }
+        };
+
         class query_strategies {
         public:
             static const single_index_run_intersect SINGLE_INDEX_RUN_INTERSECT;
             static const single_index_run_all SINGLE_INDEX_RUN_ALL;
+            static const single_index_run_partial SINGLE_INDEX_RUN_PARTIAL;
+            static const single_index_run_not_all SINGLE_INDEX_RUN_NOT_ALL;
             static const single_index_run_not_intersect SINGLE_INDEX_RUN_NOT_INTERSECT;
             static const single_index_count_cardinality SINGLE_INDEX_COUNT_CARDINALITY;
             static const single_index_count_inverted_cardinality SINGLE_INDEX_INVERTED_CARDINALITY;
+            static const single_index_world_cardinality SINGLE_INDEX_WORLD_CARDINALITY;
             static const single_index_array_keys SINGLE_INDEX_ARRAY_KEYS;
             static const single_index_array_inverted_keys SINGLE_INDEX_INVERTED_ARRAY_KEYS;
+            static const single_index_array_all_world_keys SINGLE_INDEX_ALL_WORLD_ARRAY_KEYS;
         };
 
         const single_index_run_intersect query_strategies::SINGLE_INDEX_RUN_INTERSECT = single_index_run_intersect();
         const single_index_run_all query_strategies::SINGLE_INDEX_RUN_ALL = single_index_run_all();
+        const single_index_run_partial query_strategies::SINGLE_INDEX_RUN_PARTIAL = single_index_run_partial();
+        const single_index_run_not_all query_strategies::SINGLE_INDEX_RUN_NOT_ALL = single_index_run_not_all();
         const single_index_run_not_intersect query_strategies::SINGLE_INDEX_RUN_NOT_INTERSECT = single_index_run_not_intersect();
         const single_index_count_cardinality query_strategies::SINGLE_INDEX_COUNT_CARDINALITY = single_index_count_cardinality();
         const single_index_count_inverted_cardinality query_strategies::SINGLE_INDEX_INVERTED_CARDINALITY = single_index_count_inverted_cardinality();
+        const single_index_world_cardinality query_strategies::SINGLE_INDEX_WORLD_CARDINALITY = single_index_world_cardinality();
         const single_index_array_keys query_strategies::SINGLE_INDEX_ARRAY_KEYS = single_index_array_keys();
         const single_index_array_inverted_keys query_strategies::SINGLE_INDEX_INVERTED_ARRAY_KEYS = single_index_array_inverted_keys();
+        const single_index_array_all_world_keys query_strategies::SINGLE_INDEX_ALL_WORLD_ARRAY_KEYS = single_index_array_all_world_keys();
 
         class single_index_present_query : public single_index_query {
         public:
@@ -364,6 +400,97 @@ namespace embark_assist {
             single_index_all_query(const GuardedRoaring &index)
                 : single_index_query(index,
                     query_strategies::SINGLE_INDEX_RUN_ALL,
+                    query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
+                    query_strategies::SINGLE_INDEX_ARRAY_KEYS) {
+                flag_for_keeping();
+            }
+        };
+
+        class single_index_partial_query : public single_index_query {
+        public:
+            single_index_partial_query(const GuardedRoaring &index)
+                : single_index_query(index,
+                    query_strategies::SINGLE_INDEX_RUN_PARTIAL,
+                    query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
+                    query_strategies::SINGLE_INDEX_ARRAY_KEYS) {
+                flag_for_keeping();
+            }
+        };
+
+        class single_index_not_all_query : public single_index_query {
+        public:
+            single_index_not_all_query(const GuardedRoaring &index)
+                : single_index_query(index,
+                    query_strategies::SINGLE_INDEX_RUN_NOT_ALL,
+                    query_strategies::SINGLE_INDEX_WORLD_CARDINALITY,
+                    query_strategies::SINGLE_INDEX_ALL_WORLD_ARRAY_KEYS) {
+                flag_for_keeping();
+            }
+        };
+
+        class single_index_multiple_exclusions_run_strategy {
+        public:
+            virtual bool run(const GuardedRoaring &index, const std::vector<const GuardedRoaring*> &exclusion_indices, const Roaring &embark_candidate) const = 0;
+        };
+
+        class single_index_multiple_exclusions_run_all : public single_index_multiple_exclusions_run_strategy {
+            bool run(const GuardedRoaring &index, const std::vector<const GuardedRoaring*> &exclusion_indices, const Roaring &embark_candidate) const {
+                if (index.intersectGuarded(embark_candidate)) {
+                    for (auto exclusion_index : exclusion_indices) {
+                        if (exclusion_index->intersectGuarded(embark_candidate)) {
+                            return false;
+                        }
+                    }
+                    return index.and_cardinalityGuarded(embark_candidate) == abstract_query::get_embark_size();
+                }
+                return false;
+            }
+        };
+
+        class single_index_multiple_exclusions_query_strategies {
+        public:
+            static const single_index_multiple_exclusions_run_all SINGLE_INDEX_MULTIPLE_EXCLUSIONS_RUN_ALL;
+        };
+
+        const single_index_multiple_exclusions_run_all single_index_multiple_exclusions_query_strategies::SINGLE_INDEX_MULTIPLE_EXCLUSIONS_RUN_ALL = single_index_multiple_exclusions_run_all();
+
+        class single_index_multiple_exclusions_query : public abstract_query {
+        private:
+            const GuardedRoaring &index;
+            const std::vector<const GuardedRoaring*> exclusion_indices;
+            const single_index_multiple_exclusions_run_strategy &run_strategy;
+            const single_index_count_entries_strategy &count_strategy;
+            const single_index_get_keys_strategy &keys_strategy;
+        public:
+            single_index_multiple_exclusions_query(const GuardedRoaring &index,
+                const std::vector<const GuardedRoaring*> &exclusion_indices,
+                const single_index_multiple_exclusions_run_strategy &run_strategy,
+                const single_index_count_entries_strategy &count_strategy,
+                const single_index_get_keys_strategy &keys_strategy) : index(index), exclusion_indices(exclusion_indices), run_strategy(run_strategy), count_strategy(count_strategy), keys_strategy(keys_strategy) {
+            }
+
+            virtual bool run(const Roaring &embark_candidate) const {
+                return run_strategy.run(index, exclusion_indices, embark_candidate);
+            };
+
+            virtual uint32_t get_number_of_entries() const {
+                return count_strategy.get_number_of_entries(index);
+            };
+            // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
+            virtual const std::vector<uint32_t>* get_keys() const {
+                return keys_strategy.get_keys(index);
+            };
+
+            virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
+                return keys_strategy.get_world_tile_keys(index, world_offset, keys);
+            };
+        };
+
+        class single_index_multiple_exclusions_all_query : public single_index_multiple_exclusions_query {
+        public:
+            single_index_multiple_exclusions_all_query(const GuardedRoaring &index, const std::vector<const GuardedRoaring*> &exclusion_indices)
+                : single_index_multiple_exclusions_query(index, exclusion_indices,
+                    single_index_multiple_exclusions_query_strategies::SINGLE_INDEX_MULTIPLE_EXCLUSIONS_RUN_ALL,
                     query_strategies::SINGLE_INDEX_COUNT_CARDINALITY,
                     query_strategies::SINGLE_INDEX_ARRAY_KEYS) {
                 flag_for_keeping();
@@ -476,6 +603,7 @@ namespace embark_assist {
             virtual uint32_t get_number_of_entries() const {
                 return count_strategy.get_number_of_entries(context);
             };
+
             // FIXME: return a smart iterator instead of a complete vector to allow for partial handling / delta steps
             virtual const std::vector<uint32_t>* get_keys() const {
                 return keys_strategy.get_keys(context);
@@ -484,10 +612,6 @@ namespace embark_assist {
             virtual const void get_world_tile_keys(const uint32_t world_offset, std::vector<uint32_t>& keys) const {
                 keys_strategy.get_world_tile_keys(context, world_offset, keys);
             };
-
-            // FIXME: add method to query for significant keys within the key range of a world tile
-            // virtual const std::vector<uint32_t>* get_keys_in_range(uint32_t start, uint32_t end) const = 0;
-            // or virtual const bool has_keys_in_range(uint32_t start, uint32_t end) const = 0;
         };
 
         class multiple_indices_run_intersect : public multiple_indices_run_strategy {
@@ -541,6 +665,7 @@ namespace embark_assist {
                     multi_indices_query_strategies::MULTI_INDICES_RUN_INTERSECT,
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
+                // if there is a max value we need to keep the query to verify that all matches are within the min-max-bound
                 if (context.max != context.indices.cend()) {
                     flag_for_keeping();
                 }

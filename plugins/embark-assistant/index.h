@@ -126,6 +126,7 @@ namespace embark_assist {
             // following 4 are for debugging - remove for release
             GuardedRoaring uniqueKeys;
             // TODO: remove, just here for debugging
+            mutable embark_assist::defs::match_results iterative_match_results_comparison;
             mutable embark_assist::defs::match_results match_results_comparison;
             std::atomic_uint32_t processed_world_tiles_with_sync{ 0 };
             std::atomic_uint32_t processed_world_all{ 0 };
@@ -182,8 +183,12 @@ namespace embark_assist {
             void init_inorganic_indices();
             // void addInorganic(std::vector<uint16_t, Roaring*> &indexMap, uint16_t metal_index);
             std::string getInorganicName(const uint16_t index, const std::unordered_map<uint16_t, std::string> &ingorganicNames, std::string name) const;
-            void embark_assist::index::Index::writeIndexToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
-            void embark_assist::index::Index::writeCoordsToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
+            void writeIndexToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
+            void writeCoordsToDisk(const GuardedRoaring &roaring, const std::string prefix) const;
+            void write_matches_to_file(const std::string prefix, const embark_assist::defs::match_results &matches, df::world *world) const;
+            void output_embark_matches(std::ofstream &myfile, const uint16_t x, const uint16_t y, const embark_assist::defs::matches &match) const;
+            void output_embark_tiles(std::ofstream &myfile, const uint16_t x, const uint16_t y, uint16_t start_i, uint16_t start_k) const;
+            void compare_matches(const std::string prefix, df::world *world, const embark_assist::defs::match_results &match_results_matcher, const embark_assist::defs::match_results &match_results_index) const;
             uint16_t calculate_embark_variants(const uint32_t position_id, const uint16_t embark_size_x, const uint16_t embark_size_y, std::vector<Roaring> &embarks, uint32_t buffer[], embark_tile_tracker &tracker) const;
             void find_single_world_tile_matches(const int16_t x, const int16_t y) const;
             void iterate_most_significant_keys(embark_assist::index::find_context &find_context, embark_assist::defs::match_results &match_results_matcher, const query_plan_interface &query_plan, const std::vector<uint32_t> &keys) const;
