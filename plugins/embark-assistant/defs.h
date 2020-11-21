@@ -391,8 +391,8 @@ namespace embark_assist {
         public:
             virtual void add_unflat(const uint32_t key) = 0;
             virtual void get_unflat_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
-            virtual void add_aquifer(const uint32_t key) = 0;
-            virtual void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_aquifer(const uint32_t key, const bool has_aquifer) = 0;
+            virtual void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer, const bool has_aquifer) const = 0;
             virtual void add_clay(const uint32_t key) = 0;
             virtual void get_clay_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_sand(const uint32_t key) = 0;
@@ -423,8 +423,6 @@ namespace embark_assist {
             virtual void get_river_size_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_RIVER_SIZES> *&indices, const std::array<uint32_t *, ARRAY_SIZE_FOR_RIVER_SIZES> *&buffers) const = 0;
             virtual void get_waterfall_drop_buffers(const std::array<uint16_t, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&indices, const std::array<std::array<std::pair<uint32_t, uint32_t>, 480>, ARRAY_SIZE_FOR_WATERFALL_DROPS> *&buffers) const = 0;
             virtual void get_no_waterfall_buffers(uint16_t &index, const uint32_t *&buffer) const = 0;
-            virtual void add_mapped_elevation(const uint32_t key, const uint8_t mapped_index) = 0;
-            virtual void set_current_initial_offset(uint32_t initial_offset) = 0;
             virtual void get_mapped_elevation_buffer(uint16_t &index, const uint8_t *&buffer, uint32_t &initial_offset) const = 0;
         };
 

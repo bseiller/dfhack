@@ -132,6 +132,7 @@ namespace embark_assist {
             std::atomic_uint32_t processed_world_all{ 0 };
 
             GuardedRoaring hasAquifer;
+            GuardedRoaring hasNoAquifer;
             GuardedRoaring hasClay;
             GuardedRoaring hasCoal;
             GuardedRoaring hasFlux;

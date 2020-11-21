@@ -46,9 +46,6 @@ namespace embark_assist {
             //Roaring evilness0;
             //Roaring biome0;
 
-            // FIXME: is this lock really needed?
-            //mutable std::mutex lock;
-
             void retrieve_position_and_required_number_of_surveyed_neighbours(const int16_t x, const int16_t y, embark_assist::defs::region_tile_position &world_position, 
                 uint8_t &required_number_of_contiguous_surveyed_world_tiles_for_incursion_processing,
                 uint8_t &required_number_of_contiguous_incursion_processed_world_tiles_for_iterative_search);

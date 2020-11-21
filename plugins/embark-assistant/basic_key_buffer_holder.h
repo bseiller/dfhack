@@ -19,6 +19,11 @@ namespace embark_assist {
             uint32_t aquiferBuffer[N];
             uint16_t aquifierBufferIndex = 0;
 
+            // TODO: make this one member each as with savagery, evilness, soil ...
+            // as there will be the need for another aquifer buffer in the new version => none, light, heavy 
+            uint32_t noAquiferBuffer[N];
+            uint16_t noAquifierBufferIndex = 0;
+
             uint32_t clayBuffer[N];
             uint16_t clayBufferIndex = 0;
 
@@ -91,17 +96,32 @@ namespace embark_assist {
                 buffer = unflatBuffer;
             }
 
-            void add_aquifer(const uint32_t key) {
-                aquiferBuffer[aquifierBufferIndex++] = key;
-                if (aquifierBufferIndex > N) {
-                    color_ostream_proxy out(Core::getInstance().getConsole());
-                    out.print("aquiferBuffer buffer overflow %d\n", aquifierBufferIndex);
+            void add_aquifer(const uint32_t key, const bool has_aquifer) {
+                if (has_aquifer) {
+                    aquiferBuffer[aquifierBufferIndex++] = key;
+                    if (aquifierBufferIndex > N) {
+                        color_ostream_proxy out(Core::getInstance().getConsole());
+                        out.print("aquiferBuffer buffer overflow %d\n", aquifierBufferIndex);
+                    }
+                }
+                else {
+                    noAquiferBuffer[noAquifierBufferIndex++] = key;
+                    if (noAquifierBufferIndex > N) {
+                        color_ostream_proxy out(Core::getInstance().getConsole());
+                        out.print("noAquiferBuffer buffer overflow %d\n", noAquifierBufferIndex);
+                    }
                 }
             }
 
-            void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer) const override {
-                index = aquifierBufferIndex;
-                buffer = aquiferBuffer;
+            void get_aquifer_buffer(uint16_t &index, const uint32_t *&buffer, const bool has_aquifer) const override {
+                if (has_aquifer) {
+                    index = aquifierBufferIndex;
+                    buffer = aquiferBuffer;
+                }
+                else {
+                    index = noAquifierBufferIndex;
+                    buffer = noAquiferBuffer;
+                }
             }
 
             void add_clay(const uint32_t key) {
@@ -202,6 +222,7 @@ namespace embark_assist {
             void init() {
                 unflatBufferIndex = 0;
                 aquifierBufferIndex = 0;
+                noAquifierBufferIndex = 0;
                 clayBufferIndex = 0;
                 sandBufferIndex = 0;
                 std::fill(savagery_buffer_indices.begin(), savagery_buffer_indices.end(), 0);
@@ -223,6 +244,7 @@ namespace embark_assist {
                 // only for debugging
                 uint32_t max_buffer = 0;
                 max_buffer = std::max<int>(aquifierBufferIndex, max_buffer);
+                max_buffer = std::max<int>(noAquifierBufferIndex, max_buffer);
                 max_buffer = std::max<int>(clayBufferIndex, max_buffer);
                 max_buffer = std::max<int>(sandBufferIndex, max_buffer);
 

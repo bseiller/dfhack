@@ -32,6 +32,7 @@ int embark_assist::key_buffer_holder::basic_key_buffer_holder <256>::max_index =
 //    }
 //}
 
+// FIXME: for debugging only
 void log_incursion_source_target(const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, const std::string incursion_case, const uint32_t current_key, const uint32_t source_key, const uint32_t target_key) {
     if (x == world->world_data->world_width - 1 && (i == 14 || i == 15) || y == world->world_data->world_height - 1 && (k == 14 || k == 15)) {
 
@@ -51,6 +52,7 @@ void log_incursion_source_target(const uint16_t x, const uint16_t y, const uint1
     }
 }
 
+// FIXME: for debugging only
 void write_array2(std::ofstream &file, int8_t values[16][16]) {
     for (int8_t y = 0; y < 16; y++) {
         for (int8_t x = 0; x < 16; x++) {
@@ -60,6 +62,7 @@ void write_array2(std::ofstream &file, int8_t values[16][16]) {
     }
 }
 
+// FIXME: for debugging only
 void write_biomes_edges_to_file(const uint32_t target_key, df::world_region_details::T_edges edges) {
     const std::string x_string = std::to_string(target_key);
 
@@ -74,6 +77,15 @@ void write_biomes_edges_to_file(const uint32_t target_key, df::world_region_deta
     std::ofstream biome_y = std::ofstream(edge_root_folder_path + x_string + "_biome_y.csv", std::ios::out);
     write_array2(biome_y, edges.biome_y);
     biome_y.close();
+}
+
+// FIXME: for debugging only
+void write_savagery_2_incursions_to_file(const uint32_t target_key) {
+    const std::string x_string = "";
+
+    std::ofstream file = std::ofstream(index_folder_name + x_string + "_savagery_2_incursions.txt", std::ios::out | std::ios::app);
+    file << target_key << "\n";
+    file.close();
 }
 
 void embark_assist::incursion::incursion_processor::fill_buffer(
@@ -94,8 +106,8 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         //}
     }
 
-    if (source.aquifer) {
-        buffer.add_aquifer(target_key);
+    //if (source.aquifer) {
+        buffer.add_aquifer(target_key, source.aquifer);
         //if (target_key == 11704880) {
         // if (target_key == 73216) {
         //if (target_key >= 1024 && target_key <= 1279) {
@@ -121,7 +133,7 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much aquifer: %d\n", target_key);
         //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
         //}
-    }
+    //}
 
     if (source.clay) {
         buffer.add_clay(target_key);
@@ -146,6 +158,9 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
     //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
     //}
     buffer.add_savagery_level(target_key, source.savagery_level);
+    //if (source.savagery_level == 2 && target_key >= 71936 && target_key <= 72191) {
+    //    write_savagery_2_incursions_to_file(target_key);
+    //}
     // FIXME: debug code, to be removed
     //if (check_index && source.savagery_level == 0 && !savagery0.contains(target_key)) {
     //    color_ostream_proxy out(Core::getInstance().getConsole());
@@ -709,12 +724,6 @@ void  embark_assist::incursion::incursion_processor::retrieve_min_max_offsets(
             break;
     }
 }
-
-//void embark_assist::incursion::incursion_processor::increment(embark_assist::defs::region_tile_datum &neighbour) {
-//    // FIXME: is this lock really needed?
-//    const std::lock_guard<std::mutex> add_many_mutex_guard(lock);
-//    neighbour.number_of_contiguous_surveyed_world_tiles++;
-//}
 
 void embark_assist::incursion::incursion_processor::update_and_check_survey_counters_of_neighbouring_world_tiles(
         const int16_t x, const int16_t y, embark_assist::defs::world_tile_data &survey_results, embark_assist::defs::index_interface &index) {

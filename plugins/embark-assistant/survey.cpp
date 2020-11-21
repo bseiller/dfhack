@@ -1428,6 +1428,14 @@ void write_biomes_edges_to_file(int16_t x, int16_t y,  df::world_region_details:
     biome_y.close();
 }
 
+void write_savagery_2_to_file(const uint32_t target_key) {
+    const std::string x_string = "";
+
+    std::ofstream file = std::ofstream(index_folder_name + x_string + "_savagery_2_native.txt", std::ios::out | std::ios::app);
+    file << target_key << "\n";
+    file.close();
+}
+
 void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
     embark_assist::defs::mid_level_tiles *mlt,
@@ -1569,6 +1577,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 mid_level_tile.savagery_level = 2;
             }
             buffer_holder.add_savagery_level(key, mid_level_tile.savagery_level);
+            /*if (mid_level_tile.savagery_level == 2 && key >= 71936 && key <= 72191) {
+                write_savagery_2_to_file(key);
+            }*/
             mid_level_tile.evilness_level = region_map_entry.evilness / 33;
             if (mid_level_tile.evilness_level == 3) {
                 mid_level_tile.evilness_level = 2;
@@ -1888,14 +1899,16 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                     if (world->raws.inorganics[layer->mat_index]->flags.is_set(df::inorganic_flags::AQUIFER)) {
                         //cache_entry.is_aquifer_layer = true;
                         if (bottom_z <= elevation - 3) {
-                            if (!mid_level_tile.aquifer) {
-                                buffer_holder.add_aquifer(key);
-                            }
+                            // moved to the end of the inner loop as we need a final value for the attribut aquifer
+                            /*if (!mid_level_tile.aquifer) {
+                                buffer_holder.add_aquifer(key, true);
+                            }*/
                             mid_level_tile.aquifer = true;
                         }
                     }
                 }
             }
+            buffer_holder.add_aquifer(key, mid_level_tile.aquifer);
             /* end here with comment to use survey_layers cache */
         }
     }

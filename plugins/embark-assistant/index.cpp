@@ -170,6 +170,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     finder(finder),
     capacity(std::ceil(world->worldgen.worldgen_parms.dim_x * world->worldgen.worldgen_parms.dim_y * NUMBER_OF_EMBARK_TILES / NUMBER_OF_EMBARK_TILES_IN_FEATURE_SHELL)),
     hasAquifer(roaring_bitmap_create_with_capacity(capacity)),
+    hasNoAquifer(roaring_bitmap_create_with_capacity(capacity)),
     hasClay(roaring_bitmap_create_with_capacity(capacity)),
     hasCoal(roaring_bitmap_create_with_capacity(capacity)),
     hasFlux(roaring_bitmap_create_with_capacity(capacity)),
@@ -210,6 +211,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     static_indices.push_back(&no_waterfall);
 
     static_indices.push_back(&hasAquifer);
+    static_indices.push_back(&hasNoAquifer);
     static_indices.push_back(&hasClay);
     static_indices.push_back(&hasSand);
     static_indices.push_back(&is_unflat_by_incursion);
@@ -437,9 +439,16 @@ void embark_assist::index::Index::add(const embark_assist::defs::key_buffer_hold
 
     uint16_t aquiferBufferIndex(0);
     const uint32_t *aquiferBuffer;
-    buffer_holder.get_aquifer_buffer(aquiferBufferIndex, aquiferBuffer);
+    buffer_holder.get_aquifer_buffer(aquiferBufferIndex, aquiferBuffer, true);
     if (aquiferBufferIndex > 0) {
         hasAquifer.addManyGuarded(aquiferBufferIndex, aquiferBuffer);
+    }
+
+    uint16_t noAquiferBufferIndex(0);
+    const uint32_t *noAquiferBuffer;
+    buffer_holder.get_aquifer_buffer(noAquiferBufferIndex, noAquiferBuffer, false);
+    if (noAquiferBufferIndex > 0) {
+        hasNoAquifer.addManyGuarded(noAquiferBufferIndex, noAquiferBuffer);
     }
 
     uint16_t clayBufferIndex(0);
@@ -648,6 +657,9 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of hasAquifer entries: %I64d\n", hasAquifer.cardinality());
     this->writeCoordsToDisk(hasAquifer, std::to_string(index_prefix) + "_hasAquifier");
     this->writeIndexToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
+    fprintf(outfile, "number of hasNoAquifer entries: %I64d\n", hasNoAquifer.cardinality());
+    this->writeCoordsToDisk(hasNoAquifer, std::to_string(index_prefix)  + "_1_hasNoAquifer");
+    this->writeIndexToDisk(hasNoAquifer, std::to_string(index_prefix) + "_1_hasNoAquifer");
     fprintf(outfile, "number of hasRiver entries: %I64d\n", hasRiver.cardinality());
     this->writeIndexToDisk(hasRiver, std::to_string(index_prefix++) + "_hasRiver");
     fprintf(outfile, "number of hasClay entries: %I64d\n", hasClay.cardinality());
@@ -958,7 +970,8 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     // q->flag_for_keeping();
     // which will allow the query plan to use the query again which will make sure all embark candiates have or haven't an aquifer...
     if (finder.aquifer == embark_assist::defs::aquifer_ranges::All) {
-        create_and_add_all_query(hasAquifer, result);
+        std::vector<const GuardedRoaring*> exclusion_indices = { &hasNoAquifer };
+        create_and_add_all_query(hasAquifer, exclusion_indices, result);
     } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Present) {
         create_and_add_present_query(hasAquifer, result);
     } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Partial) {
@@ -966,7 +979,8 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Not_All) {
         create_and_add_not_all_query(hasAquifer, result);
     } else if (finder.aquifer == embark_assist::defs::aquifer_ranges::Absent) {
-        create_and_add_absent_query(hasAquifer, result);
+        std::vector<const GuardedRoaring*> exclusion_indices = { &hasAquifer };
+        create_and_add_all_query(hasNoAquifer, exclusion_indices, result);
     }
 
     // FIXME: implement min/max river size
@@ -1681,6 +1695,8 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     fprintf(outfile, "hasAquifer bytesize: %zd\n", hasAquifer.getSizeInBytes());
     //fprintf(outfile, "hasAquifer.roaring.high_low_container.size: %d\n", hasAquifer.roaring.high_low_container.size);
     //fprintf(outfile, "hasAquifer.roaring.high_low_container.allocation_size: %d\n", hasAquifer.roaring.high_low_container.allocation_size);
+    byteSize += hasNoAquifer.getSizeInBytes();
+    fprintf(outfile, "hasNoAquifer bytesize: %zd\n", hasNoAquifer.getSizeInBytes());
     byteSize += hasRiver.getSizeInBytes();
     fprintf(outfile, "hasRiver bytesize: %zd\n", hasRiver.getSizeInBytes());
 
