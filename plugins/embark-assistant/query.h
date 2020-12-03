@@ -6,7 +6,6 @@
 
 namespace embark_assist {
     namespace query {
-
         using embark_assist::roaring::GuardedRoaring;
 
         class query_interface {
@@ -178,7 +177,6 @@ namespace embark_assist {
                 //    index.rangeUint32ArrayGuarded(key_buffer, first_key_position - 1, 256);
                 //    int i = 0;
                 //}
-
             }
 
             // FIXME: this is likely to be very costly in terms of memory and performance => implement custom iterator that knows about the world size/range and returns only
@@ -582,7 +580,7 @@ namespace embark_assist {
                 uint32_t key_buffer[256];
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     const GuardedRoaring &index = (*iter);
-                    
+
                     const uint64_t first_key_position = index.rankGuarded(world_offset);
 
                     const uint32_t world_offset_end = world_offset + 255;
@@ -631,6 +629,32 @@ namespace embark_assist {
             }
         };
 
+        // doing it differntly here than in single_index_run_all
+        // instead of using cardinality and compare to embark_size we just make sure that there are no matches outside of the allowed range...
+        class multiple_indices_run_all : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                bool intersects = false;
+
+                // making sure there are no matches below the specified min level
+                for (std::vector<GuardedRoaring>::const_iterator possible_exclusion_index = context.indices.cbegin(); possible_exclusion_index < context.min; std::advance(possible_exclusion_index, 1)) {
+                    if (possible_exclusion_index->intersectGuarded(embark_candidate)) {
+                        return false;
+                    }
+                }
+
+                for (auto iter = context.min; iter != context.max && !intersects; ++iter) {
+                    intersects |= (*iter).intersectGuarded(embark_candidate);
+                }
+                if (intersects && context.max != context.indices.cend()) {
+                    for (auto iter = context.max; iter != context.indices.cend() && intersects; ++iter) {
+                        // mustn't intersect, otherwise there is a hit beyond max
+                        intersects = intersects && !(*iter).intersectGuarded(embark_candidate);
+                    }
+                }
+                return intersects;
+            }
+        };
+
         class multiple_indices_count_cardinality : public multiple_indices_count_entries_strategy {
             uint32_t get_number_of_entries(const multiple_indices_query_context context) const {
                 return multiple_indices_query::get_cardinality(context);
@@ -650,17 +674,19 @@ namespace embark_assist {
         class multi_indices_query_strategies {
         public:
             static const multiple_indices_run_intersect MULTI_INDICES_RUN_INTERSECT;
+            static const multiple_indices_run_all MULTI_INDICES_RUN_ALL;
             static const multiple_indices_count_cardinality MULTI_INDICES_COUNT_CARDINALITY;
             static const multiple_indices_array_keys MULTI_INDICES_ARRAY_KEYS;
         };
 
         const multiple_indices_run_intersect multi_indices_query_strategies::MULTI_INDICES_RUN_INTERSECT = multiple_indices_run_intersect();
+        const multiple_indices_run_all multi_indices_query_strategies::MULTI_INDICES_RUN_ALL = multiple_indices_run_all();
         const multiple_indices_count_cardinality multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY = multiple_indices_count_cardinality();
         const multiple_indices_array_keys multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS = multiple_indices_array_keys();
 
-        class multiple_index_min_max_in_range_query : public multiple_indices_query {
+        class multiple_index_min_max_present_in_range_query : public multiple_indices_query {
         public:
-            multiple_index_min_max_in_range_query(const multiple_indices_query_context context)
+            multiple_index_min_max_present_in_range_query(const multiple_indices_query_context context)
                 : multiple_indices_query(context,
                     multi_indices_query_strategies::MULTI_INDICES_RUN_INTERSECT,
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
@@ -669,6 +695,18 @@ namespace embark_assist {
                 if (context.max != context.indices.cend()) {
                     flag_for_keeping();
                 }
+            }
+        };
+
+        class multiple_index_min_max_all_in_range_query : public multiple_indices_query {
+        public:
+            multiple_index_min_max_all_in_range_query(const multiple_indices_query_context context)
+                : multiple_indices_query(context,
+                    multi_indices_query_strategies::MULTI_INDICES_RUN_ALL,
+                    multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
+                    multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
+                // MULTI_INDICES_RUN_ALL makes it necessary to check every embark candiate
+                flag_for_keeping();
             }
         };
     }

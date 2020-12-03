@@ -140,7 +140,7 @@ namespace embark_assist {
             GuardedRoaring hasSand;
             GuardedRoaring is_unflat_by_incursion;
             std::vector<uint8_t> mapped_elevations;
-            std::array<GuardedRoaring, embark_assist::defs::SOIL_DEPTH_LEVELS> soil;
+            std::vector<GuardedRoaring> soil;
             std::vector<GuardedRoaring> river_size;
             std::vector<GuardedRoaring> magma_level;
             std::array<GuardedRoaring, 4> adamantine_level;

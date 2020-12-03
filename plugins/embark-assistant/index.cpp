@@ -186,6 +186,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     metal_names(inorganics_info.get_metal_names()),
     economic_names(inorganics_info.get_economic_names()),
     mineral_names(inorganics_info.get_mineral_names()),
+    soil(embark_assist::defs::SOIL_DEPTH_LEVELS),
     river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
     magma_level(4){
 
@@ -1002,7 +1003,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
 
         if (max > min) {
-            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_in_range_query(
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
                 embark_assist::query::multiple_indices_query_context(river_size, min, max));
             result->queries.push_back(q);
         }
@@ -1035,6 +1036,35 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     create_and_add_present_or_absent_query(finder.coal, hasCoal, result);
 
     // FIXME: implement min/max soil + min_soil everywhere => method call
+    if (finder.soil_min != embark_assist::defs::soil_ranges::NA || finder.soil_max != embark_assist::defs::soil_ranges::NA) {
+        std::vector<GuardedRoaring>::const_iterator min = soil.cbegin();
+        if (finder.soil_min != embark_assist::defs::soil_ranges::NA) {
+            const int8_t soil_min = static_cast<uint64_t>(finder.soil_min);
+            std::advance(min, soil_min);
+        }
+
+        std::vector<GuardedRoaring>::const_iterator max = soil.cend();
+        if (finder.soil_max != embark_assist::defs::soil_ranges::NA) {
+            const int8_t soil_max = static_cast<uint64_t>(finder.soil_max);
+            // we start at the beginning to get the proper max value
+            max = soil.cbegin();
+            // + 1 as we include the actually selected soil level
+            std::advance(max, soil_max + 1);
+        }
+
+        if (max > min) {
+            // only if soil_min_everywhere is specified AND there is also a min value specified
+            if (finder.soil_min_everywhere == embark_assist::defs::all_present_ranges::All && min != soil.cbegin()) {
+                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_all_in_range_query(
+                    embark_assist::query::multiple_indices_query_context(soil, min, max));
+                result->queries.push_back(q);
+            } else{
+                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
+                    embark_assist::query::multiple_indices_query_context(soil, min, max));
+                result->queries.push_back(q);
+            }
+        }
+    }
 
     // FIXME: implement freezing
 
@@ -1137,7 +1167,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
 
         if (max > min) {
-            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_in_range_query(
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
                 embark_assist::query::multiple_indices_query_context(magma_level, min, max));
             result->queries.push_back(q);
         }
