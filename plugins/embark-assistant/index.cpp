@@ -186,6 +186,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     metal_names(inorganics_info.get_metal_names()),
     economic_names(inorganics_info.get_economic_names()),
     mineral_names(inorganics_info.get_mineral_names()),
+    river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
     magma_level(4){
 
     this->world = world;
@@ -656,10 +657,10 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of unique entries: %I64d\n", uniqueKeys.cardinality());
     fprintf(outfile, "number of hasAquifer entries: %I64d\n", hasAquifer.cardinality());
     this->writeCoordsToDisk(hasAquifer, std::to_string(index_prefix) + "_hasAquifier");
-    this->writeIndexToDisk(hasAquifer, std::to_string(index_prefix++) + "_hasAquifier");
+    this->writeIndexToDisk(hasAquifer, std::to_string(index_prefix) + "_hasAquifier");
     fprintf(outfile, "number of hasNoAquifer entries: %I64d\n", hasNoAquifer.cardinality());
     this->writeCoordsToDisk(hasNoAquifer, std::to_string(index_prefix)  + "_1_hasNoAquifer");
-    this->writeIndexToDisk(hasNoAquifer, std::to_string(index_prefix) + "_1_hasNoAquifer");
+    this->writeIndexToDisk(hasNoAquifer, std::to_string(index_prefix++) + "_1_hasNoAquifer");
     fprintf(outfile, "number of hasRiver entries: %I64d\n", hasRiver.cardinality());
     this->writeIndexToDisk(hasRiver, std::to_string(index_prefix++) + "_hasRiver");
     fprintf(outfile, "number of hasClay entries: %I64d\n", hasClay.cardinality());
@@ -680,6 +681,7 @@ const void embark_assist::index::Index::outputContents() const {
     level_post_fix = 0;
     for (auto& index : river_size) {
         fprintf(outfile, "number of river_size#%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_river_size_" + std::to_string(level_post_fix));
         this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_river_size_" + std::to_string(level_post_fix++));
     }
 
@@ -983,7 +985,28 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         create_and_add_all_query(hasNoAquifer, exclusion_indices, result);
     }
 
-    // FIXME: implement min/max river size
+    if (finder.min_river != embark_assist::defs::river_ranges::NA || finder.max_river != embark_assist::defs::river_ranges::NA) {
+        std::vector<GuardedRoaring>::const_iterator min = river_size.cbegin();
+        if (finder.min_river != embark_assist::defs::river_ranges::NA){
+            const int8_t min_river = static_cast<uint64_t>(finder.min_river);
+            std::advance(min, min_river);
+        }
+
+        std::vector<GuardedRoaring>::const_iterator max = river_size.cend();
+        if (finder.max_river != embark_assist::defs::river_ranges::NA) {
+            const int8_t max_river = static_cast<uint64_t>(finder.max_river);
+            // we start at the beginning to get the proper max value
+            max = river_size.cbegin();
+            // + 1 as we include the actually selected river size level
+            std::advance(max, max_river + 1);
+        }
+
+        if (max > min) {
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_in_range_query(
+                embark_assist::query::multiple_indices_query_context(river_size, min, max));
+            result->queries.push_back(q);
+        }
+    }
 
     // FIXME: put waterfall query creation here => method call
 
@@ -1107,7 +1130,9 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         std::vector<GuardedRoaring>::const_iterator max = magma_level.end();
         if (finder.magma_max != embark_assist::defs::magma_ranges::NA) {
             const int8_t magma_max = static_cast<uint64_t>(finder.magma_max);
+            // we start at the beginning to get the proper max value
             max = magma_level.cbegin();
+            // + 1 as we include the actually selected magma level
             std::advance(max, magma_max + 1);
         }
 
