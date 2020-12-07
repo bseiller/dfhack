@@ -28,7 +28,6 @@ namespace embark_assist {
         static const uint8_t SOIL_DEPTH_LEVELS = 5;
         static const uint8_t ARRAY_SIZE_FOR_BIOMES = ENUM_LAST_ITEM(biome_type) + 1;
         static const uint8_t ARRAY_SIZE_FOR_REGION_TYPES = ENUM_LAST_ITEM(world_region_type) + 1;
-        //static const uint16_t ARRAY_SIZE_FOR_ELEVATION_INDICES = 256;
         static const uint8_t ARRAY_SIZE_FOR_RIVER_SIZES = 6;
         // 1-9 drops + everything > 9 => == 9, index 0 is never used
         static const uint8_t ARRAY_SIZE_FOR_WATERFALL_DROPS = 10;

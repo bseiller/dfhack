@@ -22,6 +22,11 @@ namespace embark_assist {
         extern uint32_t number_of_layer_cache_misses;
         extern uint32_t number_of_layer_cache_hits;
 
+        enum class output_coordinates {
+            SHOW_COORDINATES,
+            DONT_SHOW_COORDINATES
+        };
+
         void setup(uint16_t max_inorganic);
 
         df::coord2d get_last_pos();
@@ -36,7 +41,8 @@ namespace embark_assist {
         void survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
             embark_assist::defs::world_tile_data *survey_results,
             embark_assist::defs::mid_level_tiles *mlt,
-            embark_assist::defs::index_interface &index);
+            embark_assist::defs::index_interface &index,
+            const output_coordinates output_coordinates);
 
         df::coord2d apply_offset(uint16_t x, uint16_t y, int8_t offset);
 

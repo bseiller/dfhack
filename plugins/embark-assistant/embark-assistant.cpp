@@ -76,7 +76,8 @@ namespace embark_assist {
             embark_assist::survey::survey_mid_level_tile(&state->geo_summary,
                 &state->survey_results,
                 &mlt,
-                state->index);
+                state->index,
+                embark_assist::survey::output_coordinates::SHOW_COORDINATES);
 
             embark_assist::survey::survey_embark(&mlt,
                 &state->survey_results,
@@ -114,7 +115,10 @@ namespace embark_assist {
         void match() {
             color_ostream_proxy out(Core::getInstance().getConsole());
 
-            if (state->index.containsEntries()) {
+            // FIXME: debug code remove again
+            const bool isTesting = true;
+
+            if (!isTesting && state->index.containsEntries()) {
                 // should prevent subsequent survey phases, once the first survey phase is complete and the index is primed
                 out.print("embark_assistant::match: index already contains all entries - directly searching/finding matches\n");
                 // embark_assist::main::clear_match();
@@ -130,9 +134,9 @@ namespace embark_assist {
                     &state->match_results);
 
                 // FIXME: remove the following if block containing "find_all_matches" as we don't need it anymore once the iterative search during the survey phase is properly implemented
-                //if (!state->match_iterator.active) {
-                //    state->index.find_all_matches(state->match_iterator.finder, state->match_results);
-                //}
+                if (isTesting && !state->match_iterator.active) {
+                    state->index.find_all_matches(state->match_iterator.finder, state->match_results);
+                }
                 embark_assist::overlay::match_progress(count, &state->match_results, !state->match_iterator.active);
             }
 
@@ -144,6 +148,7 @@ namespace embark_assist {
                 embark_assist::overlay::set_mid_level_tile_match(state->match_results.at(screen->location.region_pos.x).at(screen->location.region_pos.y).mlt_match);
             }
 
+            // testing == true means the code loops over all available embark profiles and writes the results/deltas between matcher and index results into a separate file
             if (state->testing) {
                 // as long as there is another profile advance to next profile file name
                 // FIXME: use next profile file name from encapsulated logic/class/iterator
@@ -430,7 +435,7 @@ command_result embark_assistant(color_ostream &out, std::vector <std::string> & 
 
     embark_assist::defs::mid_level_tiles &mlt = embark_assist::main::state->mlt;
     //embark_assist::survey::initiate(&mlt);*/
-    embark_assist::survey::survey_mid_level_tile(&embark_assist::main::state->geo_summary, &embark_assist::main::state->survey_results, &mlt, embark_assist::main::state->index);
+    embark_assist::survey::survey_mid_level_tile(&embark_assist::main::state->geo_summary, &embark_assist::main::state->survey_results, &mlt, embark_assist::main::state->index, embark_assist::survey::output_coordinates::SHOW_COORDINATES);
     embark_assist::survey::survey_embark(&mlt, &embark_assist::main::state->survey_results, &embark_assist::main::state->site_info, false);
     embark_assist::overlay::set_embark(&embark_assist::main::state->site_info);
 

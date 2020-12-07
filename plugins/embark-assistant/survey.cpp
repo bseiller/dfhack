@@ -1059,10 +1059,7 @@ embark_assist::defs::river_sizes map_river_width_to_size(const int16_t river_wid
         }
         return embark_assist::defs::river_sizes::Brook;
     }
-    else if (river_width == 3) {
-        return embark_assist::defs::river_sizes::Brook;
-    }
-    else if (river_width > 3 && river_width <= 6) {
+    else if (river_width <= 6) {
         return embark_assist::defs::river_sizes::Stream;
     }
     else if (river_width > 6 && river_width <= 11) {
@@ -1436,10 +1433,15 @@ void write_savagery_2_to_file(const uint32_t target_key) {
     file.close();
 }
 
+int32_t calculate_flow(const int16_t width) {
+    return (width - 1) * 40000 / 46;
+}
+
 void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data *geo_summary,
     embark_assist::defs::world_tile_data *survey_results,
     embark_assist::defs::mid_level_tiles *mlt,
-    embark_assist::defs::index_interface &index) {
+    embark_assist::defs::index_interface &index,
+    const output_coordinates output_coordinates) {
 //                color_ostream_proxy out(Core::getInstance().getConsole());
     const auto start = std::chrono::steady_clock::now();
     auto screen = Gui::getViewscreenByType<df::viewscreen_choose_start_sitest>(0);
@@ -1470,7 +1472,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
     const bool is_brook = world_data->region_map[x][y].flags.is_set(df::region_map_entry_flags::is_brook);
     color_ostream_proxy out(Core::getInstance().getConsole());
     //out.print("x,y: %02d,%02d, has_river: %d, is_brook: %d, tile.river_size: %d - ", x, y, has_river, is_brook, tile.river_size);
-    //out.print("x,y: %02d,%02d\n", x, y);
+    if (output_coordinates == output_coordinates::SHOW_COORDINATES) {
+        out.print("x,y: %02d,%02d\n", x, y);
+    }
 
     const uint32_t world_offset = index.get_key(x, y);
 
@@ -1690,6 +1694,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 has_river_inner = true;
                 has_actual_river = true;
                 inner_river_width = details->rivers_vertical.x_max[i][k] - details->rivers_vertical.x_min[i][k];
+                if (details->rivers_vertical.x_min[i][k] != 0) {
+                    ++inner_river_width;
+                }
                 max_river_width = std::max(max_river_width, inner_river_width);
             }
             else if (details->rivers_horizontal.active[i][k] != 0) {
@@ -1699,6 +1706,9 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 has_river_inner = true;
                 has_actual_river = true;
                 inner_river_width = details->rivers_horizontal.y_max[i][k] - details->rivers_horizontal.y_min[i][k];
+                if (details->rivers_horizontal.y_min[i][k] != 0) {
+                    ++inner_river_width;
+                }
                 max_river_width = std::max(max_river_width, inner_river_width);
             }
 
@@ -1710,7 +1720,8 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 //fprintf(state->rivers_file, "%02d;%02d;%02d;%02d;%d;%d\n", x, y, i, k, inner_river_width, river_size);
                 //
                 //if (tile.river_size != river_size) {
-                //    fprintf(state->river_anomalies_file, "%02d;%02d;%02d;%02d;%d;%d;%d\n", x, y, i, k, inner_river_width, river_size, tile.river_size);
+                //    const int32_t flow = calculate_flow(inner_river_width);
+                //    fprintf(state->river_anomalies_file, "%02d;%02d;%02d;%02d;%d;%d;%d;%d\n", x, y, i, k, inner_river_width, river_size, tile.river_size, flow);
                 //}
             }
 
@@ -1952,15 +1963,27 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 mlt->at(i - 1).at(k).river_elevation = mlt->at(i).at(k).river_elevation;
 
                 inner_river_width = details->rivers_horizontal.y_max[i][k] - details->rivers_horizontal.y_min[i][k];
+                if (details->rivers_horizontal.y_min[i][k] != 0) {
+                    ++inner_river_width;
+                }
 
                 if (mlt->at(i - 1).at(k).river_elevation > mlt->at(i - 1).at(k + 1).river_elevation) {
                     mlt->at(i - 1).at(k).river_elevation = mlt->at(i - 1).at(k + 1).river_elevation;
                     inner_river_width = details->rivers_horizontal.y_max[i - 1][k + 1] - details->rivers_horizontal.y_min[i - 1][k + 1];
+                    if (details->rivers_horizontal.y_min[i - 1][k + 1] != 0) {
+                        ++inner_river_width;
+                    }
                 }
 
                 const embark_assist::defs::river_sizes river_size = map_river_width_to_size(inner_river_width, tile.river_size, is_brook);
                 const uint32_t key = world_offset + k * 16 + (i - 1);
                 buffer_holder.add_river_size(key, river_size);
+                //fprintf(state->rivers_file, "%02d;%02d;%02d;%02d;%d;%d\n", x, y, i, k, inner_river_width, river_size);
+
+                //if (tile.river_size != river_size) {
+                //    const int32_t flow = calculate_flow(inner_river_width);
+                //    fprintf(state->river_anomalies_file, "%02d;%02d;%02d;%02d;%d;%d;%d;%d\n", x, y, i, k, inner_river_width, river_size, tile.river_size, flow);
+                //}
             }
         }
     }
@@ -1973,9 +1996,18 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 mlt->at(i).at(k - 1).river_elevation = mlt->at(i).at(k).river_elevation;
 
                 inner_river_width = details->rivers_horizontal.y_max[i][k] - details->rivers_horizontal.y_min[i][k];
+                if (details->rivers_horizontal.y_min[i][k] != 0) {
+                    ++inner_river_width;
+                }
                 const embark_assist::defs::river_sizes river_size = map_river_width_to_size(inner_river_width, tile.river_size, is_brook);
                 const uint32_t key = world_offset + (k - 1) * 16 + i;
                 buffer_holder.add_river_size(key, river_size);
+                //fprintf(state->rivers_file, "%02d;%02d;%02d;%02d;%d;%d\n", x, y, i, k, inner_river_width, river_size);
+
+                //if (tile.river_size != river_size) {
+                //    const int32_t flow = calculate_flow(inner_river_width);
+                //    fprintf(state->river_anomalies_file, "%02d;%02d;%02d;%02d;%d;%d;%d;%d\n", x, y, i, k, inner_river_width, river_size, tile.river_size, flow);
+                //}
             }
         }
     }
@@ -1988,9 +2020,16 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 mlt->at(i - 1).at(k).river_elevation = mlt->at(i).at(k).river_elevation;
 
                 inner_river_width = details->rivers_horizontal.y_max[i][k] - details->rivers_horizontal.y_min[i][k];
+                if (details->rivers_horizontal.y_min[i][k] != 0) {
+                    ++inner_river_width;
+                }
                 const embark_assist::defs::river_sizes river_size = map_river_width_to_size(inner_river_width, tile.river_size, is_brook);
                 const uint32_t key = world_offset + k * 16 + (i - 1);
                 buffer_holder.add_river_size(key, river_size);
+                //if (tile.river_size != river_size) {
+                //    const int32_t flow = calculate_flow(inner_river_width);
+                //    fprintf(state->river_anomalies_file, "%02d;%02d;%02d;%02d;%d;%d;%d;%d\n", x, y, i, k, inner_river_width, river_size, tile.river_size, flow);
+                //}
             }
         }
     }
@@ -3057,6 +3096,7 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
     int16_t elevation = 0;
     uint16_t x = screen->location.region_pos.x;
     uint16_t y = screen->location.region_pos.y;
+
     std::vector<bool> metals(state->max_inorganic);
     std::vector<bool> economics(state->max_inorganic);
     std::vector<bool> minerals(state->max_inorganic);
@@ -3069,6 +3109,9 @@ void embark_assist::survey::survey_embark(embark_assist::defs::mid_level_tiles *
         state->local_max_x = screen->location.embark_pos_max.x;
         state->local_max_y = screen->location.embark_pos_max.y;
     }
+
+    color_ostream_proxy out(Core::getInstance().getConsole());
+    out.print("i,k: %02d,%02d\n", state->local_min_x, state->local_min_y);
 
     state->x = x;
     state->y = y;

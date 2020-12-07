@@ -1083,9 +1083,17 @@ namespace embark_assist {
             if (!result.uneven && finder->flat == embark_assist::defs::yes_no_ranges::No) return false;
 
             //  Clay
+            // fix to make sure that sand that comes from incursions is considered on subsequent searches
+            if (result.clay_found && region_tile_datum.clay_count == 0) {
+                region_tile_datum.clay_count++;
+            }
             if (finder->clay == embark_assist::defs::present_absent_ranges::Present && !result.clay_found) return false;
 
             //  Sand
+            // fix to make sure that sand that comes from incursions is considered on subsequent searches
+            if (result.sand_found && region_tile_datum.sand_count == 0) {
+                region_tile_datum.sand_count++;
+            }
             if (finder->sand == embark_assist::defs::present_absent_ranges::Present && !result.sand_found) return false;
 
             //  Flux
@@ -2116,22 +2124,19 @@ namespace embark_assist {
             const auto start = std::chrono::steady_clock::now();
 
 //            color_ostream_proxy out(Core::getInstance().getConsole());
-            //embark_assist::defs::mid_level_tiles mlt;
-            //embark_assist::survey::initiate(&mlt);
 
             embark_assist::survey::survey_mid_level_tile(geo_summary,
                 survey_results,
                 &state->mlt,
-                //&mlt,
-                index);
+                index,
+                embark_assist::survey::output_coordinates::DONT_SHOW_COORDINATES);
 
-            //mid_level_tile_match(survey_results,
-            //    &state->mlt,
-            //   //&mlt,
-            //    x,
-            //    y,
-            //    finder,
-            //    match_results);
+            mid_level_tile_match(survey_results,
+                &state->mlt,
+                x,
+                y,
+                finder,
+                match_results);
 
             index.find_matches_in_surveyed_world_tiles();
 
