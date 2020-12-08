@@ -145,6 +145,15 @@ namespace embark_assist {
             }
         }
 
+        void create_and_add_present_or_absent_query(const embark_assist::defs::yes_no_ranges &range, const GuardedRoaring &index, embark_assist::index::query_plan *result) {
+            if (range == embark_assist::defs::yes_no_ranges::Yes) {
+                create_and_add_present_query(index, result);
+            }
+            else if (range == embark_assist::defs::yes_no_ranges::No) {
+                create_and_add_absent_query(index, result);
+            }
+        }
+
         void create_and_add_region_type_query(int8_t region_type_index, std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_types, embark_assist::index::query_plan *result) {
             if (region_type_index != -1) {
                 create_and_add_present_query(region_types[region_type_index], result);
@@ -176,6 +185,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     hasFlux(roaring_bitmap_create_with_capacity(capacity)),
     hasRiver(roaring_bitmap_create_with_capacity(capacity)),
     hasSand(roaring_bitmap_create_with_capacity(capacity)),
+    has_blood_rain(roaring_bitmap_create_with_capacity(capacity)),
     is_unflat_by_incursion(roaring_bitmap_create_with_capacity(capacity)),
     no_waterfall(roaring_bitmap_create_with_capacity(capacity)),
     uniqueKeys(roaring_bitmap_create_with_capacity(capacity)),
@@ -216,6 +226,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     static_indices.push_back(&hasNoAquifer);
     static_indices.push_back(&hasClay);
     static_indices.push_back(&hasSand);
+    static_indices.push_back(&has_blood_rain);
     static_indices.push_back(&is_unflat_by_incursion);
 
     for (auto& index : soil) {
@@ -303,6 +314,13 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_a
     buffer_holder.get_flux_buffer(fluxBufferIndex, fluxBuffer);
     if (fluxBufferIndex > 0) {
         hasFlux.addManyGuarded(fluxBufferIndex, fluxBuffer);
+    }
+
+    uint16_t blood_rain_buffer_index(0);
+    const uint32_t *blood_rain_buffer;
+    buffer_holder.get_blood_rain_buffer(blood_rain_buffer_index, blood_rain_buffer);
+    if (blood_rain_buffer_index > 0) {
+        has_blood_rain.addManyGuarded(blood_rain_buffer_index, blood_rain_buffer);
     }
 
     const std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> * river_indices;
@@ -792,6 +810,9 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "total number of mapped_elevations entries: %I64d\n", mapped_elevations.size());
     // FIXME: write mapped_elevations vector to disk
 
+    fprintf(outfile, "number of has_blood_rain entries: %I64d\n", has_blood_rain.cardinality());
+    this->writeIndexToDisk(has_blood_rain, std::to_string(index_prefix++) + "_has_blood_rain");
+
     fclose(outfile);
 
     const std::string prefix = "keys_in_order";
@@ -1069,6 +1090,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     // FIXME: implement freezing
 
     // FIXME: implement blood rain
+    create_and_add_present_or_absent_query(finder.blood_rain, has_blood_rain, result);
 
     // FIXME: implement syndrome rain
 
@@ -1763,6 +1785,8 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     fprintf(outfile, "hasFlux bytesize: %zd\n", hasFlux.getSizeInBytes());
     byteSize += hasSand.getSizeInBytes();
     fprintf(outfile, "hasSand bytesize: %zd\n", hasSand.getSizeInBytes());
+    byteSize += has_blood_rain.getSizeInBytes();
+    fprintf(outfile, "has_blood_rain bytesize: %zd\n", has_blood_rain.getSizeInBytes());
     byteSize += no_waterfall.getSizeInBytes();
     fprintf(outfile, "no_waterfall bytesize: %zd\n", no_waterfall.getSizeInBytes());
     byteSize += is_unflat_by_incursion.getSizeInBytes();

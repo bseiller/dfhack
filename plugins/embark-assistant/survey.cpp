@@ -1576,6 +1576,10 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             }
             buffer_holder.add_region_type(key, region_type_id);
 
+            if (tile.blood_rain[mid_level_tile.biome_offset]) {
+                buffer_holder.add_blood_rain(key);
+            }
+
             mid_level_tile.savagery_level = region_map_entry.savagery / 33;
             if (mid_level_tile.savagery_level == 3) {
                 mid_level_tile.savagery_level = 2;

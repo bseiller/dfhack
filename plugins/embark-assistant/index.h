@@ -139,6 +139,7 @@ namespace embark_assist {
             GuardedRoaring hasRiver;
             GuardedRoaring hasSand;
             GuardedRoaring is_unflat_by_incursion;
+            GuardedRoaring has_blood_rain;
             std::vector<uint8_t> mapped_elevations;
             std::vector<GuardedRoaring> soil;
             std::vector<GuardedRoaring> river_size;

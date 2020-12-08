@@ -414,6 +414,7 @@ namespace embark_assist {
         public:
             virtual void get_coal_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void get_flux_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void get_adamantine_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
             virtual void get_magma_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
             virtual void get_metal_buffers(const std::vector<uint16_t> *&indices, const std::vector<uint32_t*> *&buffers) const = 0;
