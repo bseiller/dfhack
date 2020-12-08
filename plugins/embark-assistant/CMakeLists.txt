@@ -28,6 +28,7 @@ SET(PROJECT_HDRS
     index.h
     inorganics_information.h
     key_buffer_holder.h
+    key_buffer_holder_interface.h
     key_position_mapper.h
     matcher.h
     overlay.h

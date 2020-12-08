@@ -1,12 +1,13 @@
 #pragma once
 
 #include "defs.h"
+#include "key_buffer_holder_interface.h"
 
 namespace embark_assist {
     namespace key_buffer_holder {
 
         template<int N>
-        class basic_key_buffer_holder : public virtual embark_assist::defs::key_buffer_holder_basic_interface {
+        class basic_key_buffer_holder : public virtual embark_assist::key_buffer_holder::key_buffer_holder_basic_interface {
 
             const uint16_t BUFFER_SIZE = N;
 

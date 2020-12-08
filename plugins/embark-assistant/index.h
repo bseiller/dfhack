@@ -206,8 +206,8 @@ namespace embark_assist {
             void init_for_iterative_find();
             void shutdown();
             virtual const bool containsEntries() const final override;
-            virtual void add(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) final override;
-            virtual void add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) final override;
+            virtual void add(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const embark_assist::key_buffer_holder::key_buffer_holder_interface &buffer_holder) final override;
+            virtual void add(const embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer_holder) final override;
             virtual void optimize(bool debugOutput) final override;
             virtual void find_all_matches(const embark_assist::defs::finders &finder, embark_assist::defs::match_results &match_results) const final override;
             virtual void check_for_find_single_world_tile_matches(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const string &prefix) final override;

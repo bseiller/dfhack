@@ -288,7 +288,7 @@ const uint32_t embark_assist::index::Index::get_key(const int16_t x, const int16
     return keyMapper->key_of(x, y, i, k);
 }
 
-void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const embark_assist::defs::key_buffer_holder_interface &buffer_holder) {
+void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_assist::defs::region_tile_datum &rtd, const embark_assist::key_buffer_holder::key_buffer_holder_interface &buffer_holder) {
     color_ostream_proxy out(Core::getInstance().getConsole());
     const auto innerStartTime = std::chrono::steady_clock::now();
 
@@ -447,7 +447,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_a
     innerElapsed_seconds += innerEnd - innerStartTime;
 }
 
-void embark_assist::index::Index::add(const embark_assist::defs::key_buffer_holder_basic_interface &buffer_holder) {
+void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer_holder) {
     // FIXME: time/profile this method, especially the parts that loop over arrays
 
     uint16_t unflatBufferIndex(0);

@@ -20,7 +20,7 @@ namespace embark_assist {
 #pragma warning( push )
 #pragma warning( disable : 4250 )
 
-        class key_buffer_holder : public virtual embark_assist::defs::key_buffer_holder_interface, public embark_assist::key_buffer_holder::basic_key_buffer_holder<256> {
+        class key_buffer_holder : public virtual embark_assist::key_buffer_holder::key_buffer_holder_interface, public embark_assist::key_buffer_holder::basic_key_buffer_holder<256> {
             uint16_t max_inorganic;
             const std::vector<bool> *is_relevant_mineral;
 

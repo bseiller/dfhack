@@ -89,7 +89,7 @@ void write_savagery_2_incursions_to_file(const uint32_t target_key) {
 }
 
 void embark_assist::incursion::incursion_processor::fill_buffer(
-        embark_assist::defs::key_buffer_holder_basic_interface &buffer, const embark_assist::defs::mid_level_tile_basic &source,
+        embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer, const embark_assist::defs::mid_level_tile_basic &source,
         const bool is_flat,
         const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key) {
 
@@ -200,7 +200,7 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
 }
 
 void embark_assist::incursion::incursion_processor::fill_buffer(
-        embark_assist::defs::key_buffer_holder_basic_interface  &buffer, const embark_assist::defs::mid_level_tile_basic &source, 
+        embark_assist::key_buffer_holder::key_buffer_holder_basic_interface  &buffer, const embark_assist::defs::mid_level_tile_basic &source, 
         const bool are_flat[3],
         const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3]) {
     // FIXME: haha this is very naive solution and could be optimized by adapting the above method fill_buffer to take an array of keys and a length for the array/number of arguments...
@@ -214,7 +214,7 @@ void embark_assist::incursion::incursion_processor::process_eastern_edge(
         const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
         const embark_assist::defs::mid_level_tile_basic &current_western_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile,
         const embark_assist::defs::region_tile_datum &western_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd, 
-        const uint32_t western_target_key, const uint32_t eastern_target_key, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+        const uint32_t western_target_key, const uint32_t eastern_target_key, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     // easter edge to right/eastern neighbour
     const uint8_t eastern_edge = embark_assist::survey::translate_ew_edge(survey_results, false, x, y, i, k);
@@ -240,7 +240,7 @@ void embark_assist::incursion::incursion_processor::process_southern_edge(
         const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results,
         const embark_assist::defs::mid_level_tile_basic &current_northern_tile, const embark_assist::defs::mid_level_tile_basic &southern_tile,
         const embark_assist::defs::region_tile_datum &northern_rtd, const embark_assist::defs::region_tile_datum &southern_rtd, 
-        const uint32_t northern_target_key, const uint32_t southern_target_key, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+        const uint32_t northern_target_key, const uint32_t southern_target_key, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     // southern edge to bottom/southern neighbour
     const uint8_t southern_edge = embark_assist::survey::translate_ns_edge(survey_results, false, x, y, i, k);
@@ -269,7 +269,7 @@ void embark_assist::incursion::incursion_processor::process_southern_east_corner
         const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd, 
         const embark_assist::defs::region_tile_datum &south_eastern_rtd, const embark_assist::defs::region_tile_datum &southern_rtd,
         const uint32_t current_tile_key, const uint32_t eastern_tile_key, const uint32_t south_eastern_tile_key, const uint32_t southern_tile_key, 
-        embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+        embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::mid_level_tile_basic *source = nullptr;
     const embark_assist::defs::region_tile_datum *source_rtd;
@@ -366,7 +366,7 @@ void embark_assist::incursion::incursion_processor::process_north_east_corner(
     const embark_assist::defs::mid_level_tile_basic &current_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile,
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_rtd,
     const uint32_t current_tile_key, const uint32_t eastern_tile_key, 
-    embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::mid_level_tile_basic *source = nullptr;
     const embark_assist::defs::region_tile_datum *source_rtd;
@@ -395,7 +395,7 @@ void embark_assist::incursion::incursion_processor::process_south_west_corner(
     const embark_assist::defs::mid_level_tile_basic &current_tile, const embark_assist::defs::mid_level_tile_basic &southern_tile,
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &southern_rtd,
     const uint32_t current_tile_key, const uint32_t southern_tile_key,
-    embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::mid_level_tile_basic *source = nullptr;
     const embark_assist::defs::region_tile_datum *source_rtd;
@@ -500,7 +500,7 @@ void embark_assist::incursion::incursion_processor::process_internal_incursions(
     //}
 
     // TODO: make sure we don't want to run this async/threaded/concurrent, otherwise we need to remove the class member "internal_buffer" and replace it with a local instance, so every call get its own instance
-    embark_assist::defs::key_buffer_holder_basic_interface &buffer = internal_incursion_buffer();
+    embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer = internal_incursion_buffer();
 
     color_ostream_proxy out(Core::getInstance().getConsole());
     const auto start = std::chrono::steady_clock::now();
@@ -587,7 +587,7 @@ void embark_assist::incursion::incursion_processor::process_additional_internal_
     const uint16_t x, const uint16_t y, 
     embark_assist::defs::world_tile_data *survey_results, const embark_assist::defs::region_tile_datum &current_rtd, 
     embark_assist::defs::mid_level_tiles *mlt,
-    embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
     // additional processing 
     // process north east corners of northern row
     for (uint8_t i = 0; i < 15; i++) {
@@ -607,7 +607,7 @@ void embark_assist::incursion::incursion_processor::process_additional_internal_
     const uint16_t x, const uint16_t y,
     embark_assist::defs::world_tile_data *survey_results, const embark_assist::defs::region_tile_datum &current_rtd,
     embark_assist::defs::mid_level_tiles *mlt,
-    embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
     // additional processing 
     // process south west corners of western row
     for (uint8_t k = 0; k < 15; k++) {
@@ -767,7 +767,7 @@ void embark_assist::incursion::incursion_processor::update_and_check_survey_coun
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_eastern_column(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_neighbour_rtd,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     for (uint8_t k = 0; k < 15; k++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.east_column[k];
@@ -799,7 +799,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_southern_row(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &south_rtd,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     for (uint8_t i = 0; i < 15; i++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.south_row[i];
@@ -832,7 +832,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_middle_tile(
         const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
-        const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+        const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::region_tile_datum &current_rtd = survey_results->at(x)[y];
 
@@ -871,7 +871,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_north_tile(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::region_tile_datum &current_rtd = survey_results->at(x)[y];
 
@@ -890,7 +890,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_east_tile(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     // processing the south-east corners of the eastern-column (process_external_incursions_for_eastern_column) does not make any sense here
     // as translate_corner always returns 4 (=> self reference) for the south-east corner (corner_location = 8) at the eastern edge of the world
@@ -903,7 +903,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_south_tile(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
     // only east edge and south-east-corners of east column
     const embark_assist::defs::region_tile_datum &current_rtd = survey_results->at(x)[y];
     const embark_assist::defs::region_tile_datum &eastern_neighbour_rtd = survey_results->at(x + 1)[y];
@@ -934,7 +934,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_west_tile(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
-    const embark_assist::defs::index_interface &index, embark_assist::defs::key_buffer_holder_basic_interface &buffer) {
+    const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
     const embark_assist::defs::region_tile_datum &current_rtd = survey_results->at(x)[y];
 
