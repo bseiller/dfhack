@@ -951,28 +951,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     embark_assist::index::query_plan *result = new embark_assist::index::query_plan();
 
-    //if (finder.aquifer == embark_assist::defs::aquifer_ranges::Present) {
-    //    // TODO: be aware, that there are special (corner) cases if a criteria makes assumptions about more than one tile e.g. "All", "Absent", "Partial"
-    //    // - if this query is the most significant one we need another query as helper to verify that all the other tiles also (not) have a aquifer...
-    //    // This is true for all criteria with exclusive/absolute (all/none, absent, ...) meaning
-    //    // actually it is fine to keep the query in the case of "all" and "absent" by
-    //    // q->flag_for_keeping();
-    //    // which will allow the query plan to use the query again which will make sure all embark candiates have or haven't an aquifer...
-    //    const GuardedRoaring &hasAquifer = this->hasAquifer;
-    //    const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([&hasAquifer](const Roaring &embark_candidate) -> bool {
-    //        // std::cout << "hasAquifer.and_cardinality" << std::endl;
-    //        return hasAquifer.and_cardinalityGuarded(embark_candidate) > 0;
-    //    }, [&hasAquifer]() -> uint32_t {
-    //        // std::cout << "hasAquifer.cardinality" << std::endl;
-    //        return hasAquifer.cardinality();
-    //    }, [&hasAquifer, &scope]() -> const std::vector<uint32_t>* {
-    //        return embark_assist::query::single_index_present_query::get_keys(hasAquifer);
-    //    }, [&hasAquifer, &scope](const uint32_t world_offset, std::vector<uint32_t>& keys) -> void {
-    //        embark_assist::query::single_index_present_query::get_world_tile_keys(hasAquifer, world_offset, keys);
-    //    });
-    //    result->queries.push_back(q);
-    //}
-
     // savagery queries
     const uint8_t lowSavageryEvilness = static_cast<uint8_t>(embark_assist::defs::evil_savagery_ranges::Low);
     create_savagery_evilness_queries(finder.savagery, savagery_level, lowSavageryEvilness, result);
@@ -1027,175 +1005,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         if (max > min) {
             const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
                 embark_assist::query::multiple_indices_query_context(river_size, min, max));
-            result->queries.push_back(q);
-        }
-    }
-
-    // FIXME: put waterfall query creation here => method call
-
-    // FIXME: put flat/unflat query creation here => method call
-
-    if (finder.clay == embark_assist::defs::present_absent_ranges::Present) {
-        create_and_add_present_query(hasClay, result);
-    }
-    else if (finder.clay == embark_assist::defs::present_absent_ranges::Absent) {
-        create_and_add_absent_query(hasClay, result);
-    }
-    // FIXME: replace with this!
-    // create_and_add_present_or_absent_query(finder.clay, hasClay, result);
-
-    if (finder.sand == embark_assist::defs::present_absent_ranges::Present) {
-        create_and_add_present_query(hasSand, result);
-    }
-    else if (finder.sand == embark_assist::defs::present_absent_ranges::Absent) {
-        create_and_add_absent_query(hasSand, result);
-    }
-    // FIXME: replace with this!
-    // create_and_add_present_or_absent_query(finder.sand, hasSand, result);
-
-    // FIXME: test those!
-    create_and_add_present_or_absent_query(finder.flux, hasFlux, result);
-    create_and_add_present_or_absent_query(finder.coal, hasCoal, result);
-
-    // FIXME: implement min/max soil + min_soil everywhere => method call
-    if (finder.soil_min != embark_assist::defs::soil_ranges::NA || finder.soil_max != embark_assist::defs::soil_ranges::NA) {
-        std::vector<GuardedRoaring>::const_iterator min = soil.cbegin();
-        if (finder.soil_min != embark_assist::defs::soil_ranges::NA) {
-            const int8_t soil_min = static_cast<uint64_t>(finder.soil_min);
-            std::advance(min, soil_min);
-        }
-
-        std::vector<GuardedRoaring>::const_iterator max = soil.cend();
-        if (finder.soil_max != embark_assist::defs::soil_ranges::NA) {
-            const int8_t soil_max = static_cast<uint64_t>(finder.soil_max);
-            // we start at the beginning to get the proper max value
-            max = soil.cbegin();
-            // + 1 as we include the actually selected soil level
-            std::advance(max, soil_max + 1);
-        }
-
-        if (max > min) {
-            // only if soil_min_everywhere is specified AND there is also a min value specified
-            if (finder.soil_min_everywhere == embark_assist::defs::all_present_ranges::All && min != soil.cbegin()) {
-                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_all_in_range_query(
-                    embark_assist::query::multiple_indices_query_context(soil, min, max));
-                result->queries.push_back(q);
-            } else{
-                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
-                    embark_assist::query::multiple_indices_query_context(soil, min, max));
-                result->queries.push_back(q);
-            }
-        }
-    }
-
-    // FIXME: implement freezing
-
-    // FIXME: implement blood rain
-    create_and_add_present_or_absent_query(finder.blood_rain, has_blood_rain, result);
-
-    // FIXME: implement syndrome rain
-
-    // FIXME: implement reanimation
-
-    if (finder.spire_count_min != -1 || finder.spire_count_max != -1) {
-        const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_cardinality_query(
-            embark_assist::query::multiple_indices_query_context(adamantine_level, adamantine_level.cbegin(), adamantine_level.cend(), finder.spire_count_min, finder.spire_count_max));
-        result->queries.push_back(q);
-    }
-
-    // FIXME: put min/max magma query creation here => method call
-
-    // FIXME: implement min/max biome count here => method call
-
-    if (finder.region_type_1 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_1], result);
-    }
-    // FIXME: replace with this
-    //create_and_add_region_type_query(finder.region_type_1, region_type, result);
-    //create_and_add_region_type_query(finder.region_type_2, region_type, result);
-    //create_and_add_region_type_query(finder.region_type_3, region_type, result);
-
-    if (finder.region_type_2 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_2], result);
-    }
-
-    if (finder.region_type_3 != -1) {
-        create_and_add_present_query(this->region_type[finder.region_type_3], result);
-    }
-
-    if (finder.biome_1 != -1) {
-        create_and_add_present_query(this->biome[finder.biome_1], result);
-    }
-
-    if (finder.biome_2 != -1) {
-        create_and_add_present_query(this->biome[finder.biome_2], result);
-    }
-
-    if (finder.biome_3 != -1) {
-        create_and_add_present_query(this->biome[finder.biome_3], result);
-    }
-    // FIXME: replace with this
-    //create_and_add_biome_type_query(finder.biome_1, biome, result);
-    //create_and_add_biome_type_query(finder.biome_2, biome, result);
-    //create_and_add_biome_type_query(finder.biome_3, biome, result);
-
-    if (finder.metal_1 != -1) {
-        create_and_add_present_query(*metals[finder.metal_1], result);
-    }
-    // FIXME: replace all creation of inorganics queries with this
-    //create_and_add_inorganics_query(finder.metal_1, metals, result);
-
-    if (finder.metal_2 != -1) {
-        create_and_add_present_query(*metals[finder.metal_2], result);
-    }
-
-    if (finder.metal_3 != -1) {
-        create_and_add_present_query(*metals[finder.metal_3], result);
-    }
-
-    if (finder.economic_1 != -1) {
-        create_and_add_present_query(*economics[finder.economic_1], result);
-    }
-
-    if (finder.economic_2 != -1) {
-        create_and_add_present_query(*economics[finder.economic_2], result);
-    }
-
-    if (finder.economic_3 != -1) {
-        create_and_add_present_query(*economics[finder.economic_3], result);
-    }
-
-    if (finder.mineral_1 != -1) {
-        create_and_add_present_query(*minerals[finder.mineral_1], result);
-    }
-
-    if (finder.mineral_2 != -1) {
-        create_and_add_present_query(*minerals[finder.mineral_2], result);
-    }
-
-    if (finder.mineral_3 != -1) {
-        create_and_add_present_query(*minerals[finder.mineral_3], result);
-    }
-
-    if (finder.magma_min != embark_assist::defs::magma_ranges::NA || finder.magma_max != embark_assist::defs::magma_ranges::NA) {
-        std::vector<GuardedRoaring>::const_iterator min = magma_level.cbegin();
-        if (finder.magma_min != embark_assist::defs::magma_ranges::NA) {
-            const int8_t magma_min = static_cast<uint64_t>(finder.magma_min);
-            std::advance(min, magma_min);
-        }
-
-        std::vector<GuardedRoaring>::const_iterator max = magma_level.end();
-        if (finder.magma_max != embark_assist::defs::magma_ranges::NA) {
-            const int8_t magma_max = static_cast<uint64_t>(finder.magma_max);
-            // we start at the beginning to get the proper max value
-            max = magma_level.cbegin();
-            // + 1 as we include the actually selected magma level
-            std::advance(max, magma_max + 1);
-        }
-
-        if (max > min) {
-            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
-                embark_assist::query::multiple_indices_query_context(magma_level, min, max));
             result->queries.push_back(q);
         }
     }
@@ -1342,6 +1151,169 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         });
         q->flag_for_keeping();
         result->queries.push_back(q);
+    }
+
+    if (finder.clay == embark_assist::defs::present_absent_ranges::Present) {
+        create_and_add_present_query(hasClay, result);
+    }
+    else if (finder.clay == embark_assist::defs::present_absent_ranges::Absent) {
+        create_and_add_absent_query(hasClay, result);
+    }
+    // FIXME: replace with this!
+    // create_and_add_present_or_absent_query(finder.clay, hasClay, result);
+
+    if (finder.sand == embark_assist::defs::present_absent_ranges::Present) {
+        create_and_add_present_query(hasSand, result);
+    }
+    else if (finder.sand == embark_assist::defs::present_absent_ranges::Absent) {
+        create_and_add_absent_query(hasSand, result);
+    }
+    // FIXME: replace with this!
+    // create_and_add_present_or_absent_query(finder.sand, hasSand, result);
+
+    // FIXME: test those!
+    create_and_add_present_or_absent_query(finder.flux, hasFlux, result);
+    create_and_add_present_or_absent_query(finder.coal, hasCoal, result);
+
+    // FIXME: implement min/max soil + min_soil everywhere => method call
+    if (finder.soil_min != embark_assist::defs::soil_ranges::NA || finder.soil_max != embark_assist::defs::soil_ranges::NA) {
+        std::vector<GuardedRoaring>::const_iterator min = soil.cbegin();
+        if (finder.soil_min != embark_assist::defs::soil_ranges::NA) {
+            const int8_t soil_min = static_cast<uint64_t>(finder.soil_min);
+            std::advance(min, soil_min);
+        }
+
+        std::vector<GuardedRoaring>::const_iterator max = soil.cend();
+        if (finder.soil_max != embark_assist::defs::soil_ranges::NA) {
+            const int8_t soil_max = static_cast<uint64_t>(finder.soil_max);
+            // we start at the beginning to get the proper max value
+            max = soil.cbegin();
+            // + 1 as we include the actually selected soil level
+            std::advance(max, soil_max + 1);
+        }
+
+        if (max > min) {
+            // only if soil_min_everywhere is specified AND there is also a min value specified
+            if (finder.soil_min_everywhere == embark_assist::defs::all_present_ranges::All && min != soil.cbegin()) {
+                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_all_in_range_query(
+                    embark_assist::query::multiple_indices_query_context(soil, min, max));
+                result->queries.push_back(q);
+            } else{
+                const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
+                    embark_assist::query::multiple_indices_query_context(soil, min, max));
+                result->queries.push_back(q);
+            }
+        }
+    }
+
+    // FIXME: implement freezing
+
+    // FIXME: implement blood rain
+    create_and_add_present_or_absent_query(finder.blood_rain, has_blood_rain, result);
+
+    // FIXME: implement syndrome rain
+
+    // FIXME: implement reanimation
+
+    if (finder.spire_count_min != -1 || finder.spire_count_max != -1) {
+        const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_cardinality_query(
+            embark_assist::query::multiple_indices_query_context(adamantine_level, adamantine_level.cbegin(), adamantine_level.cend(), finder.spire_count_min, finder.spire_count_max));
+        result->queries.push_back(q);
+    }
+
+    if (finder.magma_min != embark_assist::defs::magma_ranges::NA || finder.magma_max != embark_assist::defs::magma_ranges::NA) {
+        std::vector<GuardedRoaring>::const_iterator min = magma_level.cbegin();
+        if (finder.magma_min != embark_assist::defs::magma_ranges::NA) {
+            const int8_t magma_min = static_cast<uint64_t>(finder.magma_min);
+            std::advance(min, magma_min);
+        }
+
+        std::vector<GuardedRoaring>::const_iterator max = magma_level.end();
+        if (finder.magma_max != embark_assist::defs::magma_ranges::NA) {
+            const int8_t magma_max = static_cast<uint64_t>(finder.magma_max);
+            // we start at the beginning to get the proper max value
+            max = magma_level.cbegin();
+            // + 1 as we include the actually selected magma level
+            std::advance(max, magma_max + 1);
+        }
+
+        if (max > min) {
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_present_in_range_query(
+                embark_assist::query::multiple_indices_query_context(magma_level, min, max));
+            result->queries.push_back(q);
+        }
+    }
+
+    // FIXME: implement min/max biome count here => method call
+
+    if (finder.region_type_1 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_1], result);
+    }
+    // FIXME: replace with this
+    //create_and_add_region_type_query(finder.region_type_1, region_type, result);
+    //create_and_add_region_type_query(finder.region_type_2, region_type, result);
+    //create_and_add_region_type_query(finder.region_type_3, region_type, result);
+
+    if (finder.region_type_2 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_2], result);
+    }
+
+    if (finder.region_type_3 != -1) {
+        create_and_add_present_query(this->region_type[finder.region_type_3], result);
+    }
+
+    if (finder.biome_1 != -1) {
+        create_and_add_present_query(this->biome[finder.biome_1], result);
+    }
+
+    if (finder.biome_2 != -1) {
+        create_and_add_present_query(this->biome[finder.biome_2], result);
+    }
+
+    if (finder.biome_3 != -1) {
+        create_and_add_present_query(this->biome[finder.biome_3], result);
+    }
+    // FIXME: replace with this
+    //create_and_add_biome_type_query(finder.biome_1, biome, result);
+    //create_and_add_biome_type_query(finder.biome_2, biome, result);
+    //create_and_add_biome_type_query(finder.biome_3, biome, result);
+
+    if (finder.metal_1 != -1) {
+        create_and_add_present_query(*metals[finder.metal_1], result);
+    }
+    // FIXME: replace all creation of inorganics queries with this
+    //create_and_add_inorganics_query(finder.metal_1, metals, result);
+
+    if (finder.metal_2 != -1) {
+        create_and_add_present_query(*metals[finder.metal_2], result);
+    }
+
+    if (finder.metal_3 != -1) {
+        create_and_add_present_query(*metals[finder.metal_3], result);
+    }
+
+    if (finder.economic_1 != -1) {
+        create_and_add_present_query(*economics[finder.economic_1], result);
+    }
+
+    if (finder.economic_2 != -1) {
+        create_and_add_present_query(*economics[finder.economic_2], result);
+    }
+
+    if (finder.economic_3 != -1) {
+        create_and_add_present_query(*economics[finder.economic_3], result);
+    }
+
+    if (finder.mineral_1 != -1) {
+        create_and_add_present_query(*minerals[finder.mineral_1], result);
+    }
+
+    if (finder.mineral_2 != -1) {
+        create_and_add_present_query(*minerals[finder.mineral_2], result);
+    }
+
+    if (finder.mineral_3 != -1) {
+        create_and_add_present_query(*minerals[finder.mineral_3], result);
     }
 
     result->sort_queries();
