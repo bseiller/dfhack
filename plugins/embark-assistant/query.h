@@ -710,6 +710,56 @@ namespace embark_assist {
             }
         };
 
+        class multiple_indices_run_min_distinct_intersects : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    if ((*iter).intersectGuarded(embark_candidate)) {
+                        ++total_cardinality;
+                        if (total_cardinality >= context.min_results) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        };
+
+        class multiple_indices_run_max_distinct_intersects : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    if ((*iter).intersectGuarded(embark_candidate)) {
+                        ++total_cardinality;
+                        if (total_cardinality > context.max_results) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+        };
+
+        class multiple_indices_run_distinct_intersects_in_range : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    if ((*iter).intersectGuarded(embark_candidate)) {
+                        ++total_cardinality;
+                        if (total_cardinality > context.max_results) {
+                            return false;
+                        }
+                    }
+                }
+                //  no early exit possible in this case
+                if (total_cardinality >= context.min_results) {
+                    return true;
+                }
+
+                return false;
+            }
+        };
+
         class multiple_indices_count_cardinality : public multiple_indices_count_entries_strategy {
             uint32_t get_number_of_entries(const multiple_indices_query_context context) const {
                 return multiple_indices_query::get_cardinality(context);
@@ -733,6 +783,9 @@ namespace embark_assist {
             static const multiple_indices_run_min_cardinality MULTI_INDICES_RUN_MIN_CARDINALITY;
             static const multiple_indices_run_max_cardinality MULTI_INDICES_RUN_MAX_CARDINALITY;
             static const multiple_indices_run_cardinality_in_range MULTI_INDICES_RUN_CARDINALITY_IN_RANGE;
+            static const multiple_indices_run_min_distinct_intersects MULTI_INDICES_RUN_MIN_DISTINCT_INTERSECTS;
+            static const multiple_indices_run_max_distinct_intersects MULTI_INDICES_RUN_MAX_DISTINCT_INTERSECTS;
+            static const multiple_indices_run_distinct_intersects_in_range MULTI_INDICES_RUN_DISTINCT_INTERSECTS_IN_RANGE;
             static const multiple_indices_count_cardinality MULTI_INDICES_COUNT_CARDINALITY;
             static const multiple_indices_array_keys MULTI_INDICES_ARRAY_KEYS;
         };
@@ -742,6 +795,9 @@ namespace embark_assist {
         const multiple_indices_run_min_cardinality multi_indices_query_strategies::MULTI_INDICES_RUN_MIN_CARDINALITY = multiple_indices_run_min_cardinality();
         const multiple_indices_run_max_cardinality multi_indices_query_strategies::MULTI_INDICES_RUN_MAX_CARDINALITY = multiple_indices_run_max_cardinality();
         const multiple_indices_run_cardinality_in_range multi_indices_query_strategies::MULTI_INDICES_RUN_CARDINALITY_IN_RANGE = multiple_indices_run_cardinality_in_range();
+        const multiple_indices_run_min_distinct_intersects multi_indices_query_strategies::MULTI_INDICES_RUN_MIN_DISTINCT_INTERSECTS = multiple_indices_run_min_distinct_intersects();
+        const multiple_indices_run_max_distinct_intersects multi_indices_query_strategies::MULTI_INDICES_RUN_MAX_DISTINCT_INTERSECTS = multiple_indices_run_max_distinct_intersects();
+        const multiple_indices_run_distinct_intersects_in_range multi_indices_query_strategies::MULTI_INDICES_RUN_DISTINCT_INTERSECTS_IN_RANGE = multiple_indices_run_distinct_intersects_in_range();
         const multiple_indices_count_cardinality multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY = multiple_indices_count_cardinality();
         const multiple_indices_array_keys multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS = multiple_indices_array_keys();
 
@@ -771,7 +827,7 @@ namespace embark_assist {
             }
         };
 
-        const multiple_indices_run_strategy& get_multi_indices_run_strategy_for_context(const multiple_indices_query_context context) {
+        const multiple_indices_run_strategy& get_multi_indices_run_cardinality_strategy_for_context(const multiple_indices_query_context context) {
             if (context.min_results != -1) {
                 if (context.max_results != -1) {
                     return multi_indices_query_strategies::MULTI_INDICES_RUN_CARDINALITY_IN_RANGE;
@@ -790,7 +846,34 @@ namespace embark_assist {
         public:
             multiple_index_cardinality_query(const multiple_indices_query_context context)
                 : multiple_indices_query(context,
-                    get_multi_indices_run_strategy_for_context(context),
+                    get_multi_indices_run_cardinality_strategy_for_context(context),
+                    multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
+                    multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
+                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candiate
+                flag_for_keeping();
+            }
+        };
+
+        const multiple_indices_run_strategy& get_multi_indices_run_distinct_intersects_strategy_for_context(const multiple_indices_query_context context) {
+            if (context.min_results != -1) {
+                if (context.max_results != -1) {
+                    return multi_indices_query_strategies::MULTI_INDICES_RUN_DISTINCT_INTERSECTS_IN_RANGE;
+                }
+                else {
+                    return multi_indices_query_strategies::MULTI_INDICES_RUN_MIN_DISTINCT_INTERSECTS;
+                }
+            }
+            else if (context.max_results != -1) {
+                return multi_indices_query_strategies::MULTI_INDICES_RUN_MAX_DISTINCT_INTERSECTS;
+            }
+            throw std::runtime_error("multiple_indices_query_context contains neither a valid value for min_results nor for max_results");
+        }
+
+        class multiple_index_distinct_intersects_query : public multiple_indices_query {
+        public:
+            multiple_index_distinct_intersects_query(const multiple_indices_query_context context)
+                : multiple_indices_query(context,
+                    get_multi_indices_run_distinct_intersects_strategy_for_context(context),
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
                 // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candiate

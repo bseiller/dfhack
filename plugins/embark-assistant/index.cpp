@@ -199,7 +199,8 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     soil(embark_assist::defs::SOIL_DEPTH_LEVELS),
     river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
     magma_level(4),
-    adamantine_level(4) {
+    adamantine_level(4),
+    biome(embark_assist::defs::ARRAY_SIZE_FOR_BIOMES) {
 
     this->world = world;
 
@@ -1244,7 +1245,11 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
     }
 
-    // FIXME: implement min/max biome count here => method call
+    if (finder.biome_count_min != -1 || finder.biome_count_max != -1) {
+        const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_distinct_intersects_query(
+            embark_assist::query::multiple_indices_query_context(biome, biome.cbegin(), biome.cend(), finder.biome_count_min, finder.biome_count_max));
+        result->queries.push_back(q);
+    }
 
     if (finder.region_type_1 != -1) {
         create_and_add_present_query(this->region_type[finder.region_type_1], result);

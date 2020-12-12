@@ -147,7 +147,7 @@ namespace embark_assist {
             std::vector<GuardedRoaring> adamantine_level;
             std::array<GuardedRoaring, 3> savagery_level;
             std::array<GuardedRoaring, 3> evilness_level;
-            std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biome;
+            std::vector<GuardedRoaring> biome;
             std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_REGION_TYPES> region_type;
             std::array<unordered_map<uint32_t, waterfall_drop_bucket*>, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> waterfall_drops;
             std::array<uint64_t, embark_assist::defs::ARRAY_SIZE_FOR_WATERFALL_DROPS> number_of_waterfall_drops;
