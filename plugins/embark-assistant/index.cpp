@@ -198,7 +198,8 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     mineral_names(inorganics_info.get_mineral_names()),
     soil(embark_assist::defs::SOIL_DEPTH_LEVELS),
     river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
-    magma_level(4){
+    magma_level(4),
+    adamantine_level(4) {
 
     this->world = world;
 
@@ -1096,7 +1097,11 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     // FIXME: implement reanimation
 
-    // FIXME: implement min/max adamintine/spire => method call
+    if (finder.spire_count_min != -1 || finder.spire_count_max != -1) {
+        const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_cardinality_query(
+            embark_assist::query::multiple_indices_query_context(adamantine_level, adamantine_level.cbegin(), adamantine_level.cend(), finder.spire_count_min, finder.spire_count_max));
+        result->queries.push_back(q);
+    }
 
     // FIXME: put min/max magma query creation here => method call
 

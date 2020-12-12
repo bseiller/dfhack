@@ -501,10 +501,21 @@ namespace embark_assist {
             const std::vector<GuardedRoaring>::const_iterator min;
             const std::vector<GuardedRoaring>::const_iterator max;
 
+            const int8_t min_results;
+            const int8_t max_results;
+
             multiple_indices_query_context(
                 const std::vector<GuardedRoaring> &indices,
                 const std::vector<GuardedRoaring>::const_iterator min,
-                const std::vector<GuardedRoaring>::const_iterator max) : indices(indices), min(min), max(max) {
+                const std::vector<GuardedRoaring>::const_iterator max) : indices(indices), min(min), max(max), min_results(0), max_results(0) {
+            }
+
+            multiple_indices_query_context(
+                const std::vector<GuardedRoaring> &indices,
+                const std::vector<GuardedRoaring>::const_iterator min,
+                const std::vector<GuardedRoaring>::const_iterator max,
+                const uint8_t min_results,
+                const uint8_t max_results) : indices(indices), min(min), max(max), min_results(min_results), max_results(max_results) {
             }
         };
 
@@ -655,6 +666,50 @@ namespace embark_assist {
             }
         };
 
+        class multiple_indices_run_min_cardinality : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
+                    if (total_cardinality >= context.min_results) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+
+        class multiple_indices_run_max_cardinality : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
+                    if (total_cardinality > context.max_results) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        };
+
+        class multiple_indices_run_cardinality_in_range : public multiple_indices_run_strategy {
+            bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
+                uint16_t total_cardinality = 0;
+                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                    total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
+                    if (total_cardinality > context.max_results) {
+                        return false;
+                    }
+                }
+                //  no early exit possible in this case
+                if (total_cardinality >= context.min_results) {
+                    return true;
+                }
+
+                return false;
+            }
+        };
+
         class multiple_indices_count_cardinality : public multiple_indices_count_entries_strategy {
             uint32_t get_number_of_entries(const multiple_indices_query_context context) const {
                 return multiple_indices_query::get_cardinality(context);
@@ -675,12 +730,18 @@ namespace embark_assist {
         public:
             static const multiple_indices_run_intersect MULTI_INDICES_RUN_INTERSECT;
             static const multiple_indices_run_all MULTI_INDICES_RUN_ALL;
+            static const multiple_indices_run_min_cardinality MULTI_INDICES_RUN_MIN_CARDINALITY;
+            static const multiple_indices_run_max_cardinality MULTI_INDICES_RUN_MAX_CARDINALITY;
+            static const multiple_indices_run_cardinality_in_range MULTI_INDICES_RUN_CARDINALITY_IN_RANGE;
             static const multiple_indices_count_cardinality MULTI_INDICES_COUNT_CARDINALITY;
             static const multiple_indices_array_keys MULTI_INDICES_ARRAY_KEYS;
         };
 
         const multiple_indices_run_intersect multi_indices_query_strategies::MULTI_INDICES_RUN_INTERSECT = multiple_indices_run_intersect();
         const multiple_indices_run_all multi_indices_query_strategies::MULTI_INDICES_RUN_ALL = multiple_indices_run_all();
+        const multiple_indices_run_min_cardinality multi_indices_query_strategies::MULTI_INDICES_RUN_MIN_CARDINALITY = multiple_indices_run_min_cardinality();
+        const multiple_indices_run_max_cardinality multi_indices_query_strategies::MULTI_INDICES_RUN_MAX_CARDINALITY = multiple_indices_run_max_cardinality();
+        const multiple_indices_run_cardinality_in_range multi_indices_query_strategies::MULTI_INDICES_RUN_CARDINALITY_IN_RANGE = multiple_indices_run_cardinality_in_range();
         const multiple_indices_count_cardinality multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY = multiple_indices_count_cardinality();
         const multiple_indices_array_keys multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS = multiple_indices_array_keys();
 
@@ -706,6 +767,33 @@ namespace embark_assist {
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
                 // MULTI_INDICES_RUN_ALL makes it necessary to check every embark candiate
+                flag_for_keeping();
+            }
+        };
+
+        const multiple_indices_run_strategy& get_multi_indices_run_strategy_for_context(const multiple_indices_query_context context) {
+            if (context.min_results != -1) {
+                if (context.max_results != -1) {
+                    return multi_indices_query_strategies::MULTI_INDICES_RUN_CARDINALITY_IN_RANGE;
+                }
+                else {
+                    return multi_indices_query_strategies::MULTI_INDICES_RUN_MIN_CARDINALITY;
+                }
+            }
+            else if (context.max_results != -1) {
+                return multi_indices_query_strategies::MULTI_INDICES_RUN_MAX_CARDINALITY;
+            }
+            throw std::runtime_error("multiple_indices_query_context contains neither a valid value for min_results nor for max_results");
+        }
+
+        class multiple_index_cardinality_query : public multiple_indices_query {
+        public:
+            multiple_index_cardinality_query(const multiple_indices_query_context context)
+                : multiple_indices_query(context,
+                    get_multi_indices_run_strategy_for_context(context),
+                    multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
+                    multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
+                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candiate
                 flag_for_keeping();
             }
         };

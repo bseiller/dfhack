@@ -144,7 +144,7 @@ namespace embark_assist {
             std::vector<GuardedRoaring> soil;
             std::vector<GuardedRoaring> river_size;
             std::vector<GuardedRoaring> magma_level;
-            std::array<GuardedRoaring, 4> adamantine_level;
+            std::vector<GuardedRoaring> adamantine_level;
             std::array<GuardedRoaring, 3> savagery_level;
             std::array<GuardedRoaring, 3> evilness_level;
             std::array<GuardedRoaring, embark_assist::defs::ARRAY_SIZE_FOR_BIOMES> biome;
