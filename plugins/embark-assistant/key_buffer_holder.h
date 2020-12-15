@@ -30,9 +30,6 @@ namespace embark_assist {
             uint32_t fluxBuffer[256];
             uint16_t fluxBufferIndex = 0;
 
-            uint32_t bloodRainBuffer[256];
-            uint16_t bloodRainBufferIndex = 0;
-
             std::vector<uint32_t*> metal_buffers;
             std::vector<uint16_t> metal_buffer_indices;
 
@@ -133,19 +130,6 @@ namespace embark_assist {
             void get_flux_buffer(uint16_t &index, const uint32_t *&buffer) const override {
                 index = fluxBufferIndex;
                 buffer = fluxBuffer;
-            }
-
-            void add_blood_rain(const uint32_t key) {
-                bloodRainBuffer[bloodRainBufferIndex++] = key;
-                if (bloodRainBufferIndex > 256) {
-                    color_ostream_proxy out(Core::getInstance().getConsole());
-                    out.print("bloodRainBuffer buffer overflow %d\n ", bloodRainBufferIndex);
-                }
-            }
-
-            void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const override {
-                index = bloodRainBufferIndex;
-                buffer = bloodRainBuffer;
             }
 
             void add_metal(const uint32_t key, const int16_t index) {
@@ -282,7 +266,6 @@ namespace embark_assist {
                 embark_assist::key_buffer_holder::basic_key_buffer_holder<256>::reset();
                 coalBufferIndex = 0;
                 fluxBufferIndex = 0;
-                bloodRainBufferIndex = 0;
                 std::fill(metal_buffer_indices.begin(), metal_buffer_indices.end(), 0);
                 std::fill(economic_buffer_indices.begin(), economic_buffer_indices.end(), 0);
                 std::fill(mineral_buffer_indices.begin(), mineral_buffer_indices.end(), 0);

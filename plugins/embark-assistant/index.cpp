@@ -318,13 +318,6 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_a
         hasFlux.addManyGuarded(fluxBufferIndex, fluxBuffer);
     }
 
-    uint16_t blood_rain_buffer_index(0);
-    const uint32_t *blood_rain_buffer;
-    buffer_holder.get_blood_rain_buffer(blood_rain_buffer_index, blood_rain_buffer);
-    if (blood_rain_buffer_index > 0) {
-        has_blood_rain.addManyGuarded(blood_rain_buffer_index, blood_rain_buffer);
-    }
-
     const std::array<uint16_t, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> * river_indices;
     const std::array<uint32_t *, embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES> * river_buffers;
     buffer_holder.get_river_size_buffers(river_indices, river_buffers);
@@ -485,6 +478,13 @@ void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::ke
     buffer_holder.get_sand_buffer(sandBufferIndex, sandBuffer);
     if (sandBufferIndex > 0) {
         hasSand.addManyGuarded(sandBufferIndex, sandBuffer);
+    }
+
+    uint16_t blood_rain_buffer_index(0);
+    const uint32_t *blood_rain_buffer;
+    buffer_holder.get_blood_rain_buffer(blood_rain_buffer_index, blood_rain_buffer);
+    if (blood_rain_buffer_index > 0) {
+        has_blood_rain.addManyGuarded(blood_rain_buffer_index, blood_rain_buffer);
     }
 
     const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *indices;
@@ -813,6 +813,7 @@ const void embark_assist::index::Index::outputContents() const {
     // FIXME: write mapped_elevations vector to disk
 
     fprintf(outfile, "number of has_blood_rain entries: %I64d\n", has_blood_rain.cardinality());
+    this->writeCoordsToDisk(has_blood_rain, std::to_string(index_prefix) + "_has_blood_rain");
     this->writeIndexToDisk(has_blood_rain, std::to_string(index_prefix++) + "_has_blood_rain");
 
     fclose(outfile);

@@ -150,6 +150,11 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         buffer.add_sand(target_key);
     }
 
+    const bool blood_rain = rtd.blood_rain[source.biome_offset];
+    if (blood_rain) {
+        buffer.add_blood_rain(target_key);
+    }
+
     buffer.add_soil_depth(target_key, source.soil_depth);
     // FIXME: debug code, to be removed
     //if (check_index && source.soil_depth == 0 && !soil0.contains(target_key)) {

@@ -31,6 +31,9 @@ namespace embark_assist {
             uint32_t sandBuffer[N];
             uint16_t sandBufferIndex = 0;
 
+            uint32_t bloodRainBuffer[N];
+            uint16_t bloodRainBufferIndex = 0;
+
             std::array<uint32_t[N], 3> savagery_buffers;
             std::array<uint32_t*, 3> savagery_buffer_helper;
             std::array<uint16_t, 3> savagery_buffer_indices;
@@ -164,6 +167,19 @@ namespace embark_assist {
                 buffers = &soil_buffer_helper;
             }
 
+            void add_blood_rain(const uint32_t key) {
+                bloodRainBuffer[bloodRainBufferIndex++] = key;
+                if (bloodRainBufferIndex > N) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("bloodRainBuffer buffer overflow %d\n ", bloodRainBufferIndex);
+                }
+            }
+
+            void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const override {
+                index = bloodRainBufferIndex;
+                buffer = bloodRainBuffer;
+            }
+
             void add_savagery_level(const uint32_t key, const uint8_t savagery_level) {
                 savagery_buffers[savagery_level][savagery_buffer_indices[savagery_level]++] = key;
                 if (savagery_buffer_indices[savagery_level] > N) {
@@ -226,6 +242,7 @@ namespace embark_assist {
                 noAquifierBufferIndex = 0;
                 clayBufferIndex = 0;
                 sandBufferIndex = 0;
+                bloodRainBufferIndex = 0;
                 std::fill(savagery_buffer_indices.begin(), savagery_buffer_indices.end(), 0);
                 std::fill(evilness_buffer_indices.begin(), evilness_buffer_indices.end(), 0);
                 std::fill(soil_buffer_indices.begin(), soil_buffer_indices.end(), 0);
@@ -248,6 +265,7 @@ namespace embark_assist {
                 max_buffer = std::max<int>(noAquifierBufferIndex, max_buffer);
                 max_buffer = std::max<int>(clayBufferIndex, max_buffer);
                 max_buffer = std::max<int>(sandBufferIndex, max_buffer);
+                max_buffer = std::max<int>(bloodRainBufferIndex, max_buffer);
 
                 for (int index = 0; index < savagery_buffers.size(); index++) {
                     max_buffer = std::max<int>(savagery_buffer_indices[index], max_buffer);

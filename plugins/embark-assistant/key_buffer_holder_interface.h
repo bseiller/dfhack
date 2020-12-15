@@ -15,6 +15,8 @@ namespace embark_assist {
             virtual void get_clay_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_sand(const uint32_t key) = 0;
             virtual void get_sand_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
+            virtual void add_blood_rain(const uint32_t key) = 0;
+            virtual void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_soil_depth(const uint32_t key, const int8_t soil_depth) = 0;
             virtual void get_soil_depth_buffers(const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *&indices, const std::array<uint32_t *, embark_assist::defs::SOIL_DEPTH_LEVELS> *&buffers) const = 0;
             virtual void add_savagery_level(const uint32_t key, const uint8_t savagery_level) = 0;
@@ -33,7 +35,6 @@ namespace embark_assist {
         public:
             virtual void get_coal_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void get_flux_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
-            virtual void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void get_adamantine_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
             virtual void get_magma_level_buffers(const std::array<uint16_t, 4> *&indices, const std::array<uint32_t *, 4> *&buffers) const = 0;
             virtual void get_metal_buffers(const std::vector<uint16_t> *&indices, const std::vector<uint32_t*> *&buffers) const = 0;
