@@ -406,7 +406,7 @@ namespace embark_assist {
                 else {
                     process_embark_incursion(result,
                         survey_results,
-                        &region_tile_datum.south_row[i],
+                        &region_tile_datum.south_row[fetch_i],
                         finder,
                         mid_level_tile.elevation,
                         fetch_x,
@@ -438,7 +438,7 @@ namespace embark_assist {
                 else {
                     process_embark_incursion(result,
                         survey_results,
-                        &region_tile_datum.north_row[i],
+                        &region_tile_datum.north_row[fetch_i],
                         finder,
                         mid_level_tile.elevation,
                         fetch_x,
@@ -450,7 +450,7 @@ namespace embark_assist {
                 if (fetch_i < 0) {
                     process_embark_incursion(result,
                         survey_results,
-                        &region_tile_datum.east_column[k],
+                        &region_tile_datum.east_column[fetch_k],
                         finder,
                         mid_level_tile.elevation,
                         fetch_x,
@@ -460,7 +460,7 @@ namespace embark_assist {
                 else if (fetch_i > 15) {
                     process_embark_incursion(result,
                         survey_results,
-                        &region_tile_datum.west_column[k],
+                        &region_tile_datum.west_column[fetch_k],
                         finder,
                         mid_level_tile.elevation,
                         fetch_x,
