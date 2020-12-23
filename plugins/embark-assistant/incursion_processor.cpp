@@ -91,9 +91,14 @@ void write_savagery_2_incursions_to_file(const uint32_t target_key) {
 void embark_assist::incursion::incursion_processor::fill_buffer(
         embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer, const embark_assist::defs::mid_level_tile_basic &source,
         const bool is_flat,
-        const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key) {
+        const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key, const uint32_t source_key) {
 
     const bool check_index = false;
+
+    //if (source_key == 10134816 || target_key == 10134816 || source_key == 10140191 || target_key == 10140191) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - incursion from %d to %d\n", source_key, target_key);
+    //}
 
     if (!is_flat) {
         buffer.add_unflat(target_key);
@@ -150,11 +155,6 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         buffer.add_sand(target_key);
     }
 
-    const bool blood_rain = rtd.blood_rain[source.biome_offset];
-    if (blood_rain) {
-        buffer.add_blood_rain(target_key);
-    }
-
     buffer.add_soil_depth(target_key, source.soil_depth);
     // FIXME: debug code, to be removed
     //if (check_index && source.soil_depth == 0 && !soil0.contains(target_key)) {
@@ -162,6 +162,12 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
     //    out.print("embark_assist::incursion::incursion_processor::fill_buffer - to much soil0: %d\n", target_key);
     //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
     //}
+
+    const bool blood_rain = rtd.blood_rain[source.biome_offset];
+    if (blood_rain) {
+        buffer.add_blood_rain(target_key);
+    }
+
     buffer.add_savagery_level(target_key, source.savagery_level);
     //if (source.savagery_level == 2 && target_key >= 71936 && target_key <= 72191) {
     //    write_savagery_2_incursions_to_file(target_key);
@@ -207,12 +213,12 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
 void embark_assist::incursion::incursion_processor::fill_buffer(
         embark_assist::key_buffer_holder::key_buffer_holder_basic_interface  &buffer, const embark_assist::defs::mid_level_tile_basic &source, 
         const bool are_flat[3],
-        const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3]) {
+        const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3], const uint32_t source_key) {
     // FIXME: haha this is very naive solution and could be optimized by adapting the above method fill_buffer to take an array of keys and a length for the array/number of arguments...
     // but for now it works fine and fast enough...
-    fill_buffer(buffer, source, are_flat[0], rtd, target_keys[0]);
-    fill_buffer(buffer, source, are_flat[1], rtd, target_keys[1]);
-    fill_buffer(buffer, source, are_flat[2], rtd, target_keys[2]);
+    fill_buffer(buffer, source, are_flat[0], rtd, target_keys[0], source_key);
+    fill_buffer(buffer, source, are_flat[1], rtd, target_keys[1], source_key);
+    fill_buffer(buffer, source, are_flat[2], rtd, target_keys[2], source_key);
 }
 
 void embark_assist::incursion::incursion_processor::process_eastern_edge(
@@ -226,18 +232,18 @@ void embark_assist::incursion::incursion_processor::process_eastern_edge(
     const bool is_flat = current_western_tile.elevation == eastern_tile.elevation;
     if (eastern_edge == 4) {
         // the current tile provides the data => the incursion goes eastward into the next tile
-        fill_buffer(buffer, current_western_tile, is_flat, western_rtd, eastern_target_key);
+        fill_buffer(buffer, current_western_tile, is_flat, western_rtd, eastern_target_key, western_target_key);
        // log_incursion_source_target(x, y, i, k, "eastern_edge", western_target_key, western_target_key, eastern_target_key);
     }
     else if (eastern_edge == 5) {
         // the eastern tile provides the data => the incursion goes westward into the current tile
-        fill_buffer(buffer, eastern_tile, is_flat, eastern_rtd, western_target_key);
+        fill_buffer(buffer, eastern_tile, is_flat, eastern_rtd, western_target_key, eastern_target_key);
       //  log_incursion_source_target(x, y, i, k, "eastern_edge", western_target_key, eastern_target_key, western_target_key);
     }
     else {
         // ERROR!
         color_ostream_proxy out(Core::getInstance().getConsole());
-        out.print("embark_assist::incursion::incursion_processor::process_eastern_edge - invalid return value for eastern_edge %d\n", eastern_edge);
+        out.printerr("embark_assist::incursion::incursion_processor::process_eastern_edge - invalid return value for eastern_edge %d\n", eastern_edge);
     }
 }
 
@@ -252,18 +258,18 @@ void embark_assist::incursion::incursion_processor::process_southern_edge(
     const bool is_flat = current_northern_tile.elevation == southern_tile.elevation;
     if (southern_edge == 4) {
         // the current tile provides the data => the incursion goes southward into the next tile
-        fill_buffer(buffer, current_northern_tile, is_flat, northern_rtd, southern_target_key);
+        fill_buffer(buffer, current_northern_tile, is_flat, northern_rtd, southern_target_key, northern_target_key);
       //  log_incursion_source_target(x, y, i, k, "southern_edge", northern_target_key, northern_target_key, southern_target_key);
     }
     else if (southern_edge == 7) {
         // the southern tile provides the data => the incursion goes northward into the current tile
-        fill_buffer(buffer, southern_tile, is_flat, southern_rtd, northern_target_key);
+        fill_buffer(buffer, southern_tile, is_flat, southern_rtd, northern_target_key, southern_target_key);
       //  log_incursion_source_target(x, y, i, k, "southern_edge", northern_target_key, southern_target_key, northern_target_key);
     }
     else {
         // ERROR!
         color_ostream_proxy out(Core::getInstance().getConsole());
-        out.print("embark_assist::incursion::incursion_processor::process_southern_edge - invalid return value for southern_edge %d\n", southern_edge);
+        out.printerr("embark_assist::incursion::incursion_processor::process_southern_edge - invalid return value for southern_edge %d\n", southern_edge);
     }
 }
 
@@ -281,6 +287,11 @@ void embark_assist::incursion::incursion_processor::process_southern_east_corner
     uint32_t source_key;
     uint32_t target_keys[3];
     bool are_flat[3];
+
+    //if (current_tile_key == 10140191) {
+    //    color_ostream_proxy out(Core::getInstance().getConsole());
+    //    out.print("embark_assist::incursion::incursion_processor::process_southern_east_corner - current_tile_key %d x:%02d/y:%02d, i:%02d/k:%02d\n", current_tile_key, x, y, i, k);
+    //}
 
     const uint8_t south_east_corner = embark_assist::survey::translate_corner(survey_results, 8, x, y, i, k);
     if (south_east_corner == 4) {
@@ -340,12 +351,12 @@ void embark_assist::incursion::incursion_processor::process_southern_east_corner
         are_flat[2] = southern_eastern_tile.elevation == southern_tile.elevation;
     }
     else {
-        // ERROR
+        // ERROR!
         color_ostream_proxy out(Core::getInstance().getConsole());
-        out.print("embark_assist::incursion::incursion_processor::process_southern_east_corner - invalid return value for south_east_corner %d\n", south_east_corner);
+        out.printerr("embark_assist::incursion::incursion_processor::process_southern_east_corner - invalid return value for south_east_corner %d\n", south_east_corner);
         return;
     }
-    fill_buffer(buffer, *source, are_flat, *source_rtd, target_keys);
+    fill_buffer(buffer, *source, are_flat, *source_rtd, target_keys, source_key);
 
     //if (x == world->world_data->world_width - 1 && (i == 14 || i == 15)  || y == world->world_data->world_height - 1 && (k == 14 || k == 15)) {
     //    const std::string prefix = "edge_incursion_graph_data.csv";
@@ -376,6 +387,7 @@ void embark_assist::incursion::incursion_processor::process_north_east_corner(
     const embark_assist::defs::mid_level_tile_basic *source = nullptr;
     const embark_assist::defs::region_tile_datum *source_rtd;
     uint32_t target_key = 0;
+    uint32_t source_key = 0;
 
     const uint8_t north_east_corner = embark_assist::survey::translate_corner(survey_results, 5, x, y, i, k);
     const bool is_flat = current_tile.elevation == eastern_tile.elevation;
@@ -384,15 +396,17 @@ void embark_assist::incursion::incursion_processor::process_north_east_corner(
         source = &current_tile;
         source_rtd = &current_rtd;
         target_key = eastern_tile_key;
+        source_key = current_tile_key;
     }
     else if (north_east_corner == 5) {
         // the eastern tile provides the data
         source = &eastern_tile;
         source_rtd = &eastern_rtd;
         target_key = current_tile_key;
+        source_key = eastern_tile_key;
     }
 
-    fill_buffer(buffer, *source, is_flat, *source_rtd, target_key);
+    fill_buffer(buffer, *source, is_flat, *source_rtd, target_key, source_key);
 }
 
 void embark_assist::incursion::incursion_processor::process_south_west_corner(
@@ -405,6 +419,7 @@ void embark_assist::incursion::incursion_processor::process_south_west_corner(
     const embark_assist::defs::mid_level_tile_basic *source = nullptr;
     const embark_assist::defs::region_tile_datum *source_rtd;
     uint32_t target_key = 0;
+    uint32_t source_key = 0;
 
     const uint8_t south_west_corner = embark_assist::survey::translate_corner(survey_results, 7, x, y, i, k);
     const bool is_flat = current_tile.elevation == southern_tile.elevation;
@@ -413,15 +428,17 @@ void embark_assist::incursion::incursion_processor::process_south_west_corner(
         source = &current_tile;
         source_rtd = &current_rtd;
         target_key = southern_tile_key;
+        source_key = current_tile_key;
     }
     else if (south_west_corner == 7) {
         // the southern tile provides the data
         source = &southern_tile;
         source_rtd = &southern_rtd;
         target_key = current_tile_key;
+        source_key = southern_tile_key;
     }
 
-    fill_buffer(buffer, *source, is_flat, *source_rtd, target_key);
+    fill_buffer(buffer, *source, is_flat, *source_rtd, target_key, source_key);
 }
 
 // FIXME only for debugging - remove for release
@@ -774,7 +791,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &eastern_neighbour_rtd,
     const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
-    for (uint8_t k = 0; k < 15; k++) {
+    for (uint8_t k = 0; k < 16; k++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.east_column[k];
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = eastern_neighbour_rtd.west_column[k];
         const uint32_t current_tile_key = index.get_key(x, y, 15, k);
@@ -783,7 +800,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     }
 
     // process south-east corners of eastern column 
-    for (uint8_t k = 0; k < 14; k++) {
+    for (uint8_t k = 0; k < 15; k++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.east_column[k];
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = eastern_neighbour_rtd.west_column[k];
         const embark_assist::defs::mid_level_tile_basic &south_eastern_tile = eastern_neighbour_rtd.west_column[k + 1];
@@ -806,7 +823,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     const embark_assist::defs::region_tile_datum &current_rtd, const embark_assist::defs::region_tile_datum &south_rtd,
     const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
 
-    for (uint8_t i = 0; i < 15; i++) {
+    for (uint8_t i = 0; i < 16; i++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.south_row[i];
         const embark_assist::defs::mid_level_tile_basic &southern_tile = south_rtd.north_row[i];
         const uint32_t current_tile_key = index.get_key(x, y, i, 15);
@@ -817,7 +834,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     }
 
     // process south-east corners of southern row
-    for (uint8_t i = 0; i < 14; i++) {
+    for (uint8_t i = 0; i < 15; i++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.south_row[i];
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = current_rtd.south_row[i + 1];
         const embark_assist::defs::mid_level_tile_basic &south_eastern_tile = south_rtd.north_row[i + 1];
@@ -871,7 +888,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     // process southern edge to south world tile neighbour
     process_external_incursions_for_southern_row(x, y, survey_results, current_rtd, south_rtd, index, buffer);
 
-    // no need to process the south east corner of i = 15, k = 15 (as above for eastern col), we already did that while processing south-east corners of the the eastern column above
+    // no need to process the south east corner of i = 15, k = 15 (as seen above for eastern col), we already did that while processing south-east corners of the the eastern column above
 }
 
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_north_tile(
@@ -906,6 +923,7 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     process_external_incursions_for_southern_row(x, y, survey_results, current_rtd, south_rtd, index, buffer);
 }
 
+// can only be used for the south-most region/world tiles
 void embark_assist::incursion::incursion_processor::process_external_incursions_for_south_tile(
     const uint16_t x, const uint16_t y, embark_assist::defs::world_tile_data *survey_results,
     const embark_assist::defs::index_interface &index, embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer) {
@@ -918,12 +936,12 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
     // not processing i = 15 && k = 15 as it is done in process_external_incursions_for_eastern_column
     // translate_corner always returns 5 for this case (south-east corners at the southern edge of the world)
     // so this actually always results in an incursion from the eastern neighbour to the current tile 
-    for (uint8_t i = 0; i < 14; i++) {
+    for (uint8_t i = 0; i < 15; i++) {
         const embark_assist::defs::mid_level_tile_basic &current_tile = current_rtd.south_row[i];
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = current_rtd.south_row[i + 1];
         const bool is_flat = current_tile.elevation == eastern_tile.elevation;
         const uint32_t current_tile_key = index.get_key(x, y, i, 15);
-        fill_buffer(buffer, eastern_tile, is_flat, current_rtd, current_tile_key);
+        fill_buffer(buffer, eastern_tile, is_flat, current_rtd, current_tile_key, current_tile_key + 1);
     }
 
     // special case, as the eastern neighbour is actually another region_tile_datum
@@ -933,7 +951,8 @@ void embark_assist::incursion::incursion_processor::process_external_incursions_
         const embark_assist::defs::mid_level_tile_basic &eastern_tile = eastern_neighbour_rtd.south_row[0];
         const bool is_flat = current_tile.elevation == eastern_tile.elevation;
         const uint32_t current_tile_key = index.get_key(x, y, 15, 15);
-        fill_buffer(buffer, eastern_tile, is_flat, eastern_neighbour_rtd, current_tile_key);
+        const uint32_t easter_tile_key = index.get_key(x + 1, y, 0, 15);
+        fill_buffer(buffer, eastern_tile, is_flat, eastern_neighbour_rtd, current_tile_key, easter_tile_key);
     }
 }
 

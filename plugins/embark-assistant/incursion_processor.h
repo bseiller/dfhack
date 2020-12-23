@@ -10,7 +10,7 @@ namespace embark_assist {
         class incursion_processor {
         private:
             const static int size_of_internal_incursion_buffer = 
-            // during the internal incursion processing there are 2 edges (east + south) and the south-east corner for 15 * 15 tiles, 
+            // during the internal incursion processing there are 2 edges (east + south) and the south-east corner (3) for 15 * 15 tiles,
                 15 * 15 * (2 + 3)
             // + the east edges for 15 tiles (southmost row) and the south edges for 15 tiles (eastmost column)
                 + 15 + 15
@@ -21,12 +21,12 @@ namespace embark_assist {
             embark_assist::key_buffer_holder::key_buffer_holder_basic_interface *internal_buffer;
 
             const static int size_of_external_incursion_buffer = 
-                // during the external incursion processing there are 2 edges (east + south), 
-                15 + 15 
+                // during the external incursion processing there are 2 edges (east + south) with 16 tiles each,
+                16 + 16
                 // and the south - east corner for east column 15 tiles * 3 corners
-                + 15 * 3 
+                + 16 * 3
                 // and the south - east corner for south row 14 tiles * 3 corners ( 1 tile is already processed in east col
-                + 14 * 3
+                + 15 * 3
                 // and in maximal case NORTH-WEST the north-east corner of the north row + the south-west corner of the west col
                 // both only with once other sink/target tile
                 + 1 + 1;
@@ -54,12 +54,14 @@ namespace embark_assist {
             void fill_buffer(
                 embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer,
                 const embark_assist::defs::mid_level_tile_basic &source, const bool is_flat,
-                const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key);
+                const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_key,
+                const uint32_t source_key);
 
             void fill_buffer(
                 embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer,
                 const embark_assist::defs::mid_level_tile_basic &source, const bool are_flat[3],
-                const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3]);
+                const embark_assist::defs::region_tile_datum &rtd, const uint32_t target_keys[3],
+                const uint32_t source_key);
 
             void process_eastern_edge(const uint16_t x, const uint16_t y, const uint16_t i, const uint16_t k, embark_assist::defs::world_tile_data *survey_results, 
                     const embark_assist::defs::mid_level_tile_basic &western_tile, const embark_assist::defs::mid_level_tile_basic &eastern_tile,
