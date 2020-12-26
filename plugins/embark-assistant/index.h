@@ -142,6 +142,7 @@ namespace embark_assist {
             GuardedRoaring has_blood_rain;
             std::vector<uint8_t> mapped_elevations;
             std::vector<GuardedRoaring> soil;
+            std::vector<GuardedRoaring> freezing;
             std::vector<GuardedRoaring> river_size;
             std::vector<GuardedRoaring> magma_level;
             std::vector<GuardedRoaring> adamantine_level;

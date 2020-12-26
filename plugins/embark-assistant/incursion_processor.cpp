@@ -163,6 +163,20 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
     //    write_biomes_edges_to_file(target_key, world->world_data->region_details[0]->edges);
     //}
 
+    if (rtd.min_temperature[source.biome_offset] <= 0) {
+        buffer.add_temperatur_freezing(target_key, embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW);
+    }
+    else {
+        buffer.add_temperatur_freezing(target_key, embark_assist::key_buffer_holder::temperatur::MIN_ABOVE_ZERO);
+    }
+
+    if (rtd.max_temperature[source.biome_offset] <= 0) {
+        buffer.add_temperatur_freezing(target_key, embark_assist::key_buffer_holder::temperatur::MAX_ZERO_OR_BELOW);
+    }
+    else {
+        buffer.add_temperatur_freezing(target_key, embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO);
+    }
+
     const bool blood_rain = rtd.blood_rain[source.biome_offset];
     if (blood_rain) {
         buffer.add_blood_rain(target_key);

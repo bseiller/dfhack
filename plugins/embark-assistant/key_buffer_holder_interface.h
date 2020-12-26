@@ -5,6 +5,15 @@
 namespace embark_assist {
     namespace key_buffer_holder {
 
+        enum class temperatur : uint8_t {
+            MIN_ZERO_OR_BELOW,
+            MIN_ABOVE_ZERO,
+            MAX_ZERO_OR_BELOW,
+            MAX_ABOVE_ZERO
+        };
+
+        const uint8_t FREEZING_ARRAY_LENGTH = ((const uint8_t)temperatur::MAX_ABOVE_ZERO + 1);
+
         class key_buffer_holder_basic_interface {
         public:
             virtual void add_unflat(const uint32_t key) = 0;
@@ -19,6 +28,8 @@ namespace embark_assist {
             virtual void get_blood_rain_buffer(uint16_t &index, const uint32_t *&buffer) const = 0;
             virtual void add_soil_depth(const uint32_t key, const int8_t soil_depth) = 0;
             virtual void get_soil_depth_buffers(const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *&indices, const std::array<uint32_t *, embark_assist::defs::SOIL_DEPTH_LEVELS> *&buffers) const = 0;
+            virtual void add_temperatur_freezing(const uint32_t key, const temperatur temperatur) = 0;
+            virtual void get_temperatur_freezing(const std::array<uint16_t, FREEZING_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, FREEZING_ARRAY_LENGTH> *&buffers) const = 0;
             virtual void add_savagery_level(const uint32_t key, const uint8_t savagery_level) = 0;
             virtual void get_savagery_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
             virtual void add_evilness_level(const uint32_t key, const uint8_t evilness_level) = 0;

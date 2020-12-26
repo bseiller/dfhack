@@ -1580,6 +1580,20 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 buffer_holder.add_blood_rain(key);
             }
 
+            if (tile.min_temperature[mid_level_tile.biome_offset] <= 0) {
+                buffer_holder.add_temperatur_freezing(key, embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW);
+            }
+            else {
+                buffer_holder.add_temperatur_freezing(key, embark_assist::key_buffer_holder::temperatur::MIN_ABOVE_ZERO);
+            }
+
+            if (tile.max_temperature[mid_level_tile.biome_offset] <= 0) {
+                buffer_holder.add_temperatur_freezing(key, embark_assist::key_buffer_holder::temperatur::MAX_ZERO_OR_BELOW);
+            }
+            else {
+                buffer_holder.add_temperatur_freezing(key, embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO);
+            }
+
             mid_level_tile.savagery_level = region_map_entry.savagery / 33;
             if (mid_level_tile.savagery_level == 3) {
                 mid_level_tile.savagery_level = 2;
@@ -2874,7 +2888,7 @@ uint8_t embark_assist::survey::translate_ns_edge(embark_assist::defs::world_tile
             //effective_edge = survey_results->at(x).at(y + 1).northern_row_biome_x[i];
             effective_edge = survey_results->at(x).at(y + 1).biome_x[i][0];
         }
-        
+
         north_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k);
         south_region_type = embark_assist::survey::region_type_of(survey_results, x, y, i, k + 1);
     }

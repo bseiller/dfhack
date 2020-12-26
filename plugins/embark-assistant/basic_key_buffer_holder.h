@@ -46,6 +46,10 @@ namespace embark_assist {
             std::array<uint32_t*, embark_assist::defs::SOIL_DEPTH_LEVELS> soil_buffer_helper;
             std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> soil_buffer_indices;
 
+            std::array<uint32_t[N], FREEZING_ARRAY_LENGTH> freezing_buffers;
+            std::array<uint32_t*, FREEZING_ARRAY_LENGTH> freezing_buffer_helper;
+            std::array<uint16_t, FREEZING_ARRAY_LENGTH> freezing_buffer_indices;
+
             std::array<uint32_t[N], ARRAY_SIZE_FOR_BIOMES> biome_buffers;
             std::array<uint32_t*, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_helper;
             std::array<int16_t, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_indices;
@@ -70,6 +74,10 @@ namespace embark_assist {
 
                 for (int index = 0; index < soil_level_buffers.size(); index++) {
                     soil_buffer_helper[index] = soil_level_buffers[index];
+                }
+
+                for (int index = 0; index < freezing_buffers.size(); index++) {
+                    freezing_buffer_helper[index] = freezing_buffers[index];
                 }
 
                 for (int index = 0; index < biome_buffers.size(); index++) {
@@ -167,6 +175,20 @@ namespace embark_assist {
                 buffers = &soil_buffer_helper;
             }
 
+            void add_temperatur_freezing(const uint32_t key, const temperatur temperatur) {
+                const uint8_t index = (uint8_t)temperatur;
+                freezing_buffers[index][freezing_buffer_indices[index]++] = key;
+                if (freezing_buffer_indices[index] > N) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("freezing_buffers overflow value %d, index: %d\n ", freezing_buffer_indices[index], index);
+                }
+            }
+
+            void get_temperatur_freezing(const std::array<uint16_t, FREEZING_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, FREEZING_ARRAY_LENGTH> *&buffers) const override {
+                indices = &freezing_buffer_indices;
+                buffers = &freezing_buffer_helper;
+            }
+
             void add_blood_rain(const uint32_t key) {
                 bloodRainBuffer[bloodRainBufferIndex++] = key;
                 if (bloodRainBufferIndex > N) {
@@ -246,6 +268,7 @@ namespace embark_assist {
                 std::fill(savagery_buffer_indices.begin(), savagery_buffer_indices.end(), 0);
                 std::fill(evilness_buffer_indices.begin(), evilness_buffer_indices.end(), 0);
                 std::fill(soil_buffer_indices.begin(), soil_buffer_indices.end(), 0);
+                std::fill(freezing_buffer_indices.begin(), freezing_buffer_indices.end(), 0);
                 std::fill(biomes_buffer_indices.begin(), biomes_buffer_indices.end(), 0);
                 std::fill(region_type_buffer_indices.begin(), region_type_buffer_indices.end(), 0);
             }

@@ -197,6 +197,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     economic_names(inorganics_info.get_economic_names()),
     mineral_names(inorganics_info.get_mineral_names()),
     soil(embark_assist::defs::SOIL_DEPTH_LEVELS),
+    freezing(embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH),
     river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
     magma_level(4),
     adamantine_level(4),
@@ -232,6 +233,10 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     static_indices.push_back(&is_unflat_by_incursion);
 
     for (auto& index : soil) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : freezing) {
         set_capacity_and_add_to_static_indices(index, capacity, static_indices);
     }
 
@@ -480,13 +485,6 @@ void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::ke
         hasSand.addManyGuarded(sandBufferIndex, sandBuffer);
     }
 
-    uint16_t blood_rain_buffer_index(0);
-    const uint32_t *blood_rain_buffer;
-    buffer_holder.get_blood_rain_buffer(blood_rain_buffer_index, blood_rain_buffer);
-    if (blood_rain_buffer_index > 0) {
-        has_blood_rain.addManyGuarded(blood_rain_buffer_index, blood_rain_buffer);
-    }
-
     const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *indices;
     const std::array<uint32_t *, embark_assist::defs::SOIL_DEPTH_LEVELS> *buffers;
     buffer_holder.get_soil_depth_buffers(indices, buffers);
@@ -494,6 +492,22 @@ void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::ke
         if (indices->at(i) > 0) {
             soil[i].addManyGuarded(indices->at(i), buffers->at(i));
         }
+    }
+
+    const std::array<uint16_t, embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH> * freezing_indices;
+    const std::array<uint32_t *, embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH> * freezing_buffers;
+    buffer_holder.get_temperatur_freezing(freezing_indices, freezing_buffers);
+    for (int i = 0; i < embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH; i++) {
+        if (freezing_indices->at(i) > 0) {
+            freezing[i].addManyGuarded(freezing_indices->at(i), freezing_buffers->at(i));
+        }
+    }
+
+    uint16_t blood_rain_buffer_index(0);
+    const uint32_t *blood_rain_buffer;
+    buffer_holder.get_blood_rain_buffer(blood_rain_buffer_index, blood_rain_buffer);
+    if (blood_rain_buffer_index > 0) {
+        has_blood_rain.addManyGuarded(blood_rain_buffer_index, blood_rain_buffer);
     }
 
     const std::array<uint16_t, 3> *savagery_indices;
@@ -815,6 +829,13 @@ const void embark_assist::index::Index::outputContents() const {
     fprintf(outfile, "number of has_blood_rain entries: %I64d\n", has_blood_rain.cardinality());
     this->writeCoordsToDisk(has_blood_rain, std::to_string(index_prefix) + "_has_blood_rain");
     this->writeIndexToDisk(has_blood_rain, std::to_string(index_prefix++) + "_has_blood_rain");
+
+    level_post_fix = 0;
+    for (auto& index : freezing) {
+        fprintf(outfile, "number of freezing#%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_freezing_" + std::to_string(level_post_fix));
+        this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_freezing_" + std::to_string(level_post_fix++));
+    }
 
     fclose(outfile);
 
@@ -1208,9 +1229,38 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
     }
 
-    // FIXME: implement freezing
+    if (finder.freezing != embark_assist::defs::freezing_ranges::NA) {
+        // it is important to know, that for min values the smaller temperature always "wins" and for max values the higher temperature is dominant
+        // => if a tile has an entry for both MAX_ZERO_OR_BELOW and MAX_ABOVE_ZERO for most cases only the MAX_ABOVE_ZERO is relevant as it trumps over the lower temperature
+        // the same is true for MIN_ZERO_OR_BELOW and MIN_ABOVE_ZERO, just the other way around: if looking for more freezing MIN_ZERO_OR_BELOW trumps MIN_ABOVE_ZERO
+        // only for Permanent and Never this is inverted, so we filter/exclude the unwanted entries
+        if (finder.freezing == embark_assist::defs::freezing_ranges::Permanent) {
+            std::vector<const GuardedRoaring*> exclusion_indices;
+            exclusion_indices.push_back(&freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO]);
+            create_and_add_all_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MAX_ZERO_OR_BELOW], exclusion_indices, result);
+        }
+        else if (finder.freezing == embark_assist::defs::freezing_ranges::At_Least_Partial) {
+            // shares all results from Partial and also all from Permanent
+            create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW], result);
+        }
+        else if (finder.freezing == embark_assist::defs::freezing_ranges::Partial) {
+            // => partial means that the minimum is below zero and the max above zero
+            // also there currently is no query class/run strategy that implements this logic (requiring 2 intersects from two different indices), so we reuse code for now
+            // TODO: implement this as one query
+            create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW], result);
+            create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO], result);
+        }
+        else if (finder.freezing == embark_assist::defs::freezing_ranges::At_Most_Partial) {
+            // shares all results from Partial and also all from Never
+            create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO], result);
+        }
+        else if (finder.freezing == embark_assist::defs::freezing_ranges::Never) {
+            std::vector<const GuardedRoaring*> exclusion_indices;
+            exclusion_indices.push_back(&freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW]);
+            create_and_add_all_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MIN_ABOVE_ZERO], exclusion_indices, result);
+        }
+    }
 
-    // FIXME: implement blood rain
     create_and_add_present_or_absent_query(finder.blood_rain, has_blood_rain, result);
 
     // FIXME: implement syndrome rain
@@ -1782,6 +1832,12 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     }
 
     level_post_fix = 0;
+    for (auto& index : freezing) {
+        byteSize += index.getSizeInBytes();
+        fprintf(outfile, "freezing#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
+    }
+
+    level_post_fix = 0;
     for (auto& index : river_size) {
         byteSize += index.getSizeInBytes();
         fprintf(outfile, "river_size#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
@@ -1939,6 +1995,10 @@ void embark_assist::index::Index::writeIndexToDisk(const GuardedRoaring& roaring
 }
 
 void embark_assist::index::Index::writeCoordsToDisk(const GuardedRoaring& roaring, const std::string prefix) const {
+    color_ostream_proxy out(Core::getInstance().getConsole());
+    out.printerr("embark_assist::index::Index::writeCoordsToDisk is currently deactivated!\n");
+    return;
+
     const uint64_t cardinality = roaring.cardinalityGuarded();
     uint32_t* most_significant_ids = new uint32_t[cardinality];
     roaring.toUint32ArrayGuarded(most_significant_ids);
