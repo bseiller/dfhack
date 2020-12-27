@@ -1386,7 +1386,26 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         }
     }
     else {
+        // TODO: prevent search if no criteria have been selected => direct feedback to user via the UI
+        color_ostream_proxy out(Core::getInstance().getConsole());
+        out.printerr("embark_assist::index::Index::create_query_plan creating dummy search query as no search criteria have been specified!\n");
+
         result->set_most_significant_ids(new std::vector<uint32_t>(0));
+
+        /// dummy query that always returns false and returns no keys of a world tile
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([](const Roaring &embark_candidate) -> bool {
+            return false;
+        }, []() -> uint32_t {
+            return 0;
+        }, []() -> const std::vector<uint32_t>* {
+            // returning empty vector => no significant keys
+            return new std::vector<uint32_t>();
+        }, [](const uint32_t world_offset, std::vector<uint32_t> &keys) -> void {
+            // just making sure the vector is really empty
+            keys.clear();
+        });
+
+        result->queries.push_back(q);
     }
 
     return result;
