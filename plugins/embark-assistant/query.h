@@ -515,8 +515,8 @@ namespace embark_assist {
                 const std::vector<GuardedRoaring> &indices,
                 const std::vector<GuardedRoaring>::const_iterator min,
                 const std::vector<GuardedRoaring>::const_iterator max,
-                const uint8_t min_results,
-                const uint8_t max_results) : indices(indices), min(min), max(max), min_results(min_results), max_results(max_results) {
+                const int8_t min_results,
+                const int8_t max_results) : indices(indices), min(min), max(max), min_results(min_results), max_results(max_results) {
             }
         };
 
