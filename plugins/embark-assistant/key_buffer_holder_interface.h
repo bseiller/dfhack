@@ -14,6 +14,16 @@ namespace embark_assist {
 
         const uint8_t FREEZING_ARRAY_LENGTH = ((const uint8_t)temperatur::MAX_ABOVE_ZERO + 1);
 
+        enum class syndrome_rain_index : uint8_t {
+            // both positive and both negative indices are consecutive to allow easier processing with multi index queries and strategies
+            PERMANENT_SYNDROME,
+            TEMPORARY_SYNDROME,
+            NO_PERMANENT_SYNDROME,
+            NO_TEMPORARY_SYNDROME
+        };
+
+        const uint8_t SYNDROME_RAIN_ARRAY_LENGTH = ((const uint8_t)syndrome_rain_index::NO_TEMPORARY_SYNDROME + 1);
+
         class key_buffer_holder_basic_interface {
         public:
             virtual void add_unflat(const uint32_t key) = 0;
@@ -30,6 +40,8 @@ namespace embark_assist {
             virtual void get_soil_depth_buffers(const std::array<uint16_t, embark_assist::defs::SOIL_DEPTH_LEVELS> *&indices, const std::array<uint32_t *, embark_assist::defs::SOIL_DEPTH_LEVELS> *&buffers) const = 0;
             virtual void add_temperatur_freezing(const uint32_t key, const temperatur temperatur) = 0;
             virtual void get_temperatur_freezing(const std::array<uint16_t, FREEZING_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, FREEZING_ARRAY_LENGTH> *&buffers) const = 0;
+            virtual void add_syndrome_rain(const uint32_t key, const syndrome_rain_index syndrome_rain) = 0;
+            virtual void get_syndrome_rain(const std::array<uint16_t, SYNDROME_RAIN_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, SYNDROME_RAIN_ARRAY_LENGTH> *&buffers) const = 0;
             virtual void add_savagery_level(const uint32_t key, const uint8_t savagery_level) = 0;
             virtual void get_savagery_level_buffers(const std::array<uint16_t, 3> *&indices, const std::array<uint32_t *, 3> *&buffers) const = 0;
             virtual void add_evilness_level(const uint32_t key, const uint8_t evilness_level) = 0;

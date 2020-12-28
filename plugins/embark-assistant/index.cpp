@@ -198,6 +198,7 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     mineral_names(inorganics_info.get_mineral_names()),
     soil(embark_assist::defs::SOIL_DEPTH_LEVELS),
     freezing(embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH),
+    syndrome_rain(embark_assist::key_buffer_holder::SYNDROME_RAIN_ARRAY_LENGTH),
     river_size(embark_assist::defs::ARRAY_SIZE_FOR_RIVER_SIZES),
     magma_level(4),
     adamantine_level(4),
@@ -237,6 +238,10 @@ embark_assist::index::Index::Index(df::world *world, embark_assist::defs::match_
     }
 
     for (auto& index : freezing) {
+        set_capacity_and_add_to_static_indices(index, capacity, static_indices);
+    }
+
+    for (auto& index : syndrome_rain) {
         set_capacity_and_add_to_static_indices(index, capacity, static_indices);
     }
 
@@ -447,6 +452,7 @@ void embark_assist::index::Index::add(const int16_t x, const int16_t y, embark_a
     innerElapsed_seconds += innerEnd - innerStartTime;
 }
 
+// processes buffer that holds attributes that are liable to incursion processing
 void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::key_buffer_holder_basic_interface &buffer_holder) {
     // FIXME: time/profile this method, especially the parts that loop over arrays
 
@@ -500,6 +506,15 @@ void embark_assist::index::Index::add(const embark_assist::key_buffer_holder::ke
     for (int i = 0; i < embark_assist::key_buffer_holder::FREEZING_ARRAY_LENGTH; i++) {
         if (freezing_indices->at(i) > 0) {
             freezing[i].addManyGuarded(freezing_indices->at(i), freezing_buffers->at(i));
+        }
+    }
+
+    const std::array<uint16_t, embark_assist::key_buffer_holder::SYNDROME_RAIN_ARRAY_LENGTH> * syndrome_rain_indices;
+    const std::array<uint32_t *, embark_assist::key_buffer_holder::SYNDROME_RAIN_ARRAY_LENGTH> * syndrome_rain_buffers;
+    buffer_holder.get_syndrome_rain(syndrome_rain_indices, syndrome_rain_buffers);
+    for (int i = 0; i < embark_assist::key_buffer_holder::SYNDROME_RAIN_ARRAY_LENGTH; i++) {
+        if (syndrome_rain_indices->at(i) > 0) {
+            syndrome_rain[i].addManyGuarded(syndrome_rain_indices->at(i), syndrome_rain_buffers->at(i));
         }
     }
 
@@ -835,6 +850,13 @@ const void embark_assist::index::Index::outputContents() const {
         fprintf(outfile, "number of freezing#%d entries: %I64d\n", level_post_fix, index.cardinality());
         this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_freezing_" + std::to_string(level_post_fix));
         this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_freezing_" + std::to_string(level_post_fix++));
+    }
+
+    level_post_fix = 0;
+    for (auto& index : syndrome_rain) {
+        fprintf(outfile, "number of syndrome_rain#%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_syndrome_rain_" + std::to_string(level_post_fix));
+        this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_syndrome_rain_" + std::to_string(level_post_fix++));
     }
 
     fclose(outfile);
@@ -1263,12 +1285,40 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     create_and_add_present_or_absent_query(finder.blood_rain, has_blood_rain, result);
 
-    // FIXME: implement syndrome rain
+    if (finder.syndrome_rain != embark_assist::defs::syndrome_rain_ranges::NA) {
+        if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Any) {
+            // not the fastest way to implement this (using cardinality instead of intersect internally) but should be okay
+            // faster would be an variant of multiple_indices_run_intersect with AND logic (=> "&=" instead of "|=" during intersection checks
+            const std::vector<GuardedRoaring>::const_iterator max = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME;
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_cardinality_query(
+                embark_assist::query::multiple_indices_query_context(syndrome_rain, syndrome_rain.cbegin(), max, 1, -1));
+            result->queries.push_back(q);
+        }
+        else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Permanent) {
+            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::PERMANENT_SYNDROME], result);
+        }
+        else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Temporary) {
+            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::TEMPORARY_SYNDROME], result);
+        }
+        else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Not_Permanent) {
+            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME], result);
+        }
+        else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) {
+            const std::vector<GuardedRoaring>::const_iterator min = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME;
+            // as the positive indices are at the beginning (before min) they will be excluded actively, preventing hits/matches for any tile that contains a syndrome
+            // that is also the reason why we can get away with just checking if one of the two "none" indices contains a hit, as by excluding the positive "has" indices we make sure there are no syndrom rains
+            // the negative index is just used as seed to find embark candidates
+            const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_min_max_all_in_range_query(
+                embark_assist::query::multiple_indices_query_context(syndrome_rain, min, syndrome_rain.cend()));
+            result->queries.push_back(q);
+        }
+    }
 
     // FIXME: implement reanimation
 
     if (finder.spire_count_min != -1 || finder.spire_count_max != -1) {
         const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_cardinality_query(
+            // FIXFIX
             embark_assist::query::multiple_indices_query_context(adamantine_level, adamantine_level.cbegin(), adamantine_level.cend(), finder.spire_count_min, finder.spire_count_max));
         result->queries.push_back(q);
     }
@@ -1298,6 +1348,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     if (finder.biome_count_min != -1 || finder.biome_count_max != -1) {
         const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_distinct_intersects_query(
+            // FIXFIX
             embark_assist::query::multiple_indices_query_context(biome, biome.cbegin(), biome.cend(), finder.biome_count_min, finder.biome_count_max));
         result->queries.push_back(q);
     }
@@ -1854,6 +1905,12 @@ const void embark_assist::index::Index::outputSizes(const string &prefix) {
     for (auto& index : freezing) {
         byteSize += index.getSizeInBytes();
         fprintf(outfile, "freezing#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
+    }
+
+    level_post_fix = 0;
+    for (auto& index : syndrome_rain) {
+        byteSize += index.getSizeInBytes();
+        fprintf(outfile, "syndrome_rain#%d bytesize: %zd\n", level_post_fix++, index.getSizeInBytes());
     }
 
     level_post_fix = 0;

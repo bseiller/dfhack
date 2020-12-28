@@ -634,6 +634,7 @@ namespace embark_assist {
             else if (world->world_data->world_height == 129 ||
                 world->world_data->world_height == 257) {
                 divisor = (64 / steps * lat);
+                //divisor = ((lat * 64) / steps);
             }
             else {
                 return max_temperature; // Not any standard world height. No formula available
@@ -1592,6 +1593,20 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
             }
             else {
                 buffer_holder.add_temperatur_freezing(key, embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO);
+            }
+
+            if (tile.permanent_syndrome_rain[mid_level_tile.biome_offset]) {
+                buffer_holder.add_syndrome_rain(key, embark_assist::key_buffer_holder::syndrome_rain_index::PERMANENT_SYNDROME);
+            }
+            else {
+                buffer_holder.add_syndrome_rain(key, embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME);
+            }
+
+            if (tile.temporary_syndrome_rain[mid_level_tile.biome_offset]) {
+                buffer_holder.add_syndrome_rain(key, embark_assist::key_buffer_holder::syndrome_rain_index::TEMPORARY_SYNDROME);
+            }
+            else {
+                buffer_holder.add_syndrome_rain(key, embark_assist::key_buffer_holder::syndrome_rain_index::NO_TEMPORARY_SYNDROME);
             }
 
             mid_level_tile.savagery_level = region_map_entry.savagery / 33;

@@ -177,6 +177,20 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         buffer.add_temperatur_freezing(target_key, embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO);
     }
 
+    if (rtd.permanent_syndrome_rain[source.biome_offset]) {
+        buffer.add_syndrome_rain(target_key, embark_assist::key_buffer_holder::syndrome_rain_index::PERMANENT_SYNDROME);
+    }
+    else {
+        buffer.add_syndrome_rain(target_key, embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME);
+    }
+
+    if (rtd.temporary_syndrome_rain[source.biome_offset]) {
+        buffer.add_syndrome_rain(target_key, embark_assist::key_buffer_holder::syndrome_rain_index::TEMPORARY_SYNDROME);
+    }
+    else {
+        buffer.add_syndrome_rain(target_key, embark_assist::key_buffer_holder::syndrome_rain_index::NO_TEMPORARY_SYNDROME);
+    }
+
     const bool blood_rain = rtd.blood_rain[source.biome_offset];
     if (blood_rain) {
         buffer.add_blood_rain(target_key);

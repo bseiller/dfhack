@@ -50,6 +50,10 @@ namespace embark_assist {
             std::array<uint32_t*, FREEZING_ARRAY_LENGTH> freezing_buffer_helper;
             std::array<uint16_t, FREEZING_ARRAY_LENGTH> freezing_buffer_indices;
 
+            std::array<uint32_t[N], SYNDROME_RAIN_ARRAY_LENGTH> syndrome_rain_buffers;
+            std::array<uint32_t*, SYNDROME_RAIN_ARRAY_LENGTH> syndrome_rain_buffer_helper;
+            std::array<uint16_t, SYNDROME_RAIN_ARRAY_LENGTH> syndrome_rain_buffer_indices;
+
             std::array<uint32_t[N], ARRAY_SIZE_FOR_BIOMES> biome_buffers;
             std::array<uint32_t*, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_helper;
             std::array<int16_t, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_indices;
@@ -78,6 +82,10 @@ namespace embark_assist {
 
                 for (int index = 0; index < freezing_buffers.size(); index++) {
                     freezing_buffer_helper[index] = freezing_buffers[index];
+                }
+
+                for (int index = 0; index < syndrome_rain_buffers.size(); index++) {
+                    syndrome_rain_buffer_helper[index] = syndrome_rain_buffers[index];
                 }
 
                 for (int index = 0; index < biome_buffers.size(); index++) {
@@ -189,6 +197,20 @@ namespace embark_assist {
                 buffers = &freezing_buffer_helper;
             }
 
+            void add_syndrome_rain(const uint32_t key, const syndrome_rain_index syndrome_rain) override {
+                const uint8_t index = (uint8_t)syndrome_rain;
+                syndrome_rain_buffers[index][syndrome_rain_buffer_indices[index]++] = key;
+                if (syndrome_rain_buffer_indices[index] > N) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("syndrome_rain_buffers overflow value %d, index: %d\n ", syndrome_rain_buffer_indices[index], index);
+                }
+            }
+
+            void get_syndrome_rain(const std::array<uint16_t, SYNDROME_RAIN_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, SYNDROME_RAIN_ARRAY_LENGTH> *&buffers) const override{
+                indices = &syndrome_rain_buffer_indices;
+                buffers = &syndrome_rain_buffer_helper;
+            }
+
             void add_blood_rain(const uint32_t key) {
                 bloodRainBuffer[bloodRainBufferIndex++] = key;
                 if (bloodRainBufferIndex > N) {
@@ -269,6 +291,7 @@ namespace embark_assist {
                 std::fill(evilness_buffer_indices.begin(), evilness_buffer_indices.end(), 0);
                 std::fill(soil_buffer_indices.begin(), soil_buffer_indices.end(), 0);
                 std::fill(freezing_buffer_indices.begin(), freezing_buffer_indices.end(), 0);
+                std::fill(syndrome_rain_buffer_indices.begin(), syndrome_rain_buffer_indices.end(), 0);
                 std::fill(biomes_buffer_indices.begin(), biomes_buffer_indices.end(), 0);
                 std::fill(region_type_buffer_indices.begin(), region_type_buffer_indices.end(), 0);
             }
@@ -300,6 +323,14 @@ namespace embark_assist {
 
                 for (int index = 0; index < soil_level_buffers.size(); index++) {
                     max_buffer = std::max<int>(soil_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < freezing_buffers.size(); index++) {
+                    max_buffer = std::max<int>(freezing_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < syndrome_rain_buffers.size(); index++) {
+                    max_buffer = std::max<int>(syndrome_rain_buffer_indices[index], max_buffer);
                 }
 
                 for (int index = 0; index < biome_buffers.size(); index++) {

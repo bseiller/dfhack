@@ -495,6 +495,7 @@ namespace embark_assist {
             }
         };
 
+
         class multiple_indices_query_context {
         public:
             const std::vector<GuardedRoaring> &indices;
@@ -547,7 +548,7 @@ namespace embark_assist {
                 const multiple_indices_get_keys_strategy &keys_strategy) : context(context), run_strategy(run_strategy), count_strategy(count_strategy), keys_strategy(keys_strategy) {
             }
 
-            // yes this might count tiles more than once, if they are in multiple indices but thats fine
+            // yes this might count embark tile matches more than once, if they are in multiple indices but thats fine as this is just a rough estimate that helps improve performance
             static const uint32_t get_cardinality(const multiple_indices_query_context context) {
                 uint32_t cardinality = 0;
 
@@ -630,6 +631,7 @@ namespace embark_assist {
                 for (auto iter = context.min; iter != context.max && !intersects; ++iter) {
                     intersects |= (*iter).intersectGuarded(embark_candidate);
                 }
+
                 if (intersects && context.max != context.indices.cend()) {
                     for (auto iter = context.max; iter != context.indices.cend() && intersects; ++iter) {
                         // mustn't intersect, otherwise there is a hit beyond max
@@ -640,13 +642,14 @@ namespace embark_assist {
             }
         };
 
-        // doing it differntly here than in single_index_run_all
+        // doing it differently here than in single_index_run_all
         // instead of using cardinality and compare to embark_size we just make sure that there are no matches outside of the allowed range...
         class multiple_indices_run_all : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 bool intersects = false;
 
                 // making sure there are no matches below the specified min level
+                // TODO: find a more performant way to do this, that "knows" if there are exclusions?
                 for (std::vector<GuardedRoaring>::const_iterator possible_exclusion_index = context.indices.cbegin(); possible_exclusion_index < context.min; std::advance(possible_exclusion_index, 1)) {
                     if (possible_exclusion_index->intersectGuarded(embark_candidate)) {
                         return false;
@@ -656,6 +659,7 @@ namespace embark_assist {
                 for (auto iter = context.min; iter != context.max && !intersects; ++iter) {
                     intersects |= (*iter).intersectGuarded(embark_candidate);
                 }
+
                 if (intersects && context.max != context.indices.cend()) {
                     for (auto iter = context.max; iter != context.indices.cend() && intersects; ++iter) {
                         // mustn't intersect, otherwise there is a hit beyond max
@@ -669,7 +673,7 @@ namespace embark_assist {
         class multiple_indices_run_min_cardinality : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality >= context.min_results) {
                         return true;
@@ -682,6 +686,7 @@ namespace embark_assist {
         class multiple_indices_run_max_cardinality : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
+                // FIXFIX context.min/context.max
                 for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
@@ -695,6 +700,7 @@ namespace embark_assist {
         class multiple_indices_run_cardinality_in_range : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
+                // FIXFIX context.min/context.max
                 for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
@@ -713,6 +719,7 @@ namespace embark_assist {
         class multiple_indices_run_min_distinct_intersects : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
+                // FIXFIX context.min/context.max
                 for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
@@ -728,6 +735,7 @@ namespace embark_assist {
         class multiple_indices_run_max_distinct_intersects : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
+                // FIXFIX context.min/context.max
                 for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
@@ -743,6 +751,7 @@ namespace embark_assist {
         class multiple_indices_run_distinct_intersects_in_range : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
+                // FIXFIX context.min/context.max
                 for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
@@ -822,7 +831,7 @@ namespace embark_assist {
                     multi_indices_query_strategies::MULTI_INDICES_RUN_ALL,
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
-                // MULTI_INDICES_RUN_ALL makes it necessary to check every embark candiate
+                // MULTI_INDICES_RUN_ALL makes it necessary to check every embark candidate
                 flag_for_keeping();
             }
         };
@@ -849,7 +858,7 @@ namespace embark_assist {
                     get_multi_indices_run_cardinality_strategy_for_context(context),
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
-                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candiate
+                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candidate
                 flag_for_keeping();
             }
         };
@@ -876,7 +885,7 @@ namespace embark_assist {
                     get_multi_indices_run_distinct_intersects_strategy_for_context(context),
                     multi_indices_query_strategies::MULTI_INDICES_COUNT_CARDINALITY,
                     multi_indices_query_strategies::MULTI_INDICES_ARRAY_KEYS) {
-                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candiate
+                // all 3 MULTI_INDICES_RUN_*CARDINALITY_* make it necessary to check every embark candidate
                 flag_for_keeping();
             }
         };
