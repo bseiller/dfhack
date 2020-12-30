@@ -687,7 +687,7 @@ namespace embark_assist {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
                 // FIXFIX context.min/context.max
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
                         return false;
@@ -701,7 +701,7 @@ namespace embark_assist {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
                 // FIXFIX context.min/context.max
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
                         return false;
@@ -720,7 +720,7 @@ namespace embark_assist {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
                 // FIXFIX context.min/context.max
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
                         if (total_cardinality >= context.min_results) {
@@ -736,7 +736,7 @@ namespace embark_assist {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
                 // FIXFIX context.min/context.max
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
                         if (total_cardinality > context.max_results) {
@@ -752,7 +752,7 @@ namespace embark_assist {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
                 // FIXFIX context.min/context.max
-                for (auto iter = context.indices.cbegin(); iter != context.indices.cend(); ++iter) {
+                for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
                         if (total_cardinality > context.max_results) {
