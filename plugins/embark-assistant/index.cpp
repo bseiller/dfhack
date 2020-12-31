@@ -744,6 +744,7 @@ const void embark_assist::index::Index::outputContents() const {
     level_post_fix = 0;
     for (auto& index : adamantine_level) {
         fprintf(outfile, "number of adamantine_level#%d entries: %I64d\n", level_post_fix, index.cardinality());
+        this->writeCoordsToDisk(index, std::to_string(index_prefix) + "_adamantine_level_" + std::to_string(level_post_fix));
         this->writeIndexToDisk(index, std::to_string(index_prefix++) + "_adamantine_level_" + std::to_string(level_post_fix++));
     }
 
@@ -1423,9 +1424,31 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         create_and_add_present_query(*minerals[finder.mineral_3], result);
     }
 
-    result->sort_queries();
+    if (!result->queries.empty()) {
+        result->sort_queries();
+    }
+    else {
+        // TODO: prevent search if no criteria have been selected => direct feedback to user via the UI
+        color_ostream_proxy out(Core::getInstance().getConsole());
+        out.printerr("embark_assist::index::Index::create_query_plan creating dummy search query as no search criteria have been specified!\n");
 
-    if (init_most_significant_ids && !result->queries.empty()) {
+        /// dummy query that always returns false and returns no keys of a world tile
+        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([](const Roaring &embark_candidate) -> bool {
+            return false;
+        }, []() -> uint32_t {
+            return 0;
+        }, []() -> const std::vector<uint32_t>* {
+            // returning empty vector => no significant keys
+            return new std::vector<uint32_t>(0);
+        }, [](const uint32_t world_offset, std::vector<uint32_t> &keys) -> void {
+            // just making sure the vector is really empty
+            keys.clear();
+        });
+
+        result->queries.push_back(q);
+    }
+
+    if (init_most_significant_ids) {
         const embark_assist::query::query_interface* first_query = result->queries[0];
         result->set_most_significant_ids(first_query->get_keys());
 
@@ -1435,28 +1458,6 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             result->queries.erase(result->queries.begin());
             delete first_query;
         }
-    }
-    else {
-        // TODO: prevent search if no criteria have been selected => direct feedback to user via the UI
-        color_ostream_proxy out(Core::getInstance().getConsole());
-        out.printerr("embark_assist::index::Index::create_query_plan creating dummy search query as no search criteria have been specified!\n");
-
-        result->set_most_significant_ids(new std::vector<uint32_t>(0));
-
-        /// dummy query that always returns false and returns no keys of a world tile
-        const embark_assist::query::query_interface *q = embark_assist::query::make_myclass([](const Roaring &embark_candidate) -> bool {
-            return false;
-        }, []() -> uint32_t {
-            return 0;
-        }, []() -> const std::vector<uint32_t>* {
-            // returning empty vector => no significant keys
-            return new std::vector<uint32_t>();
-        }, [](const uint32_t world_offset, std::vector<uint32_t> &keys) -> void {
-            // just making sure the vector is really empty
-            keys.clear();
-        });
-
-        result->queries.push_back(q);
     }
 
     return result;
