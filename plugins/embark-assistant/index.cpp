@@ -1290,7 +1290,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
         else if (finder.freezing == embark_assist::defs::freezing_ranges::Partial) {
             // => partial means that the minimum is below zero and the max above zero
             // also there currently is no query class/run strategy that implements this logic (requiring 2 intersects from two different indices), so we reuse code for now
-            // TODO: implement this as one query
+            // TODO: implement this as one query - variant of single_index_multiple_exclusions_all_query?
             create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MIN_ZERO_OR_BELOW], result);
             create_and_add_present_query(freezing[(uint8_t)embark_assist::key_buffer_holder::temperatur::MAX_ABOVE_ZERO], result);
         }
@@ -1323,7 +1323,8 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
             create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::TEMPORARY_SYNDROME], result);
         }
         else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::Not_Permanent) {
-            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME], result);
+            // as syndrdome rain is eligible to being processed during incursions the use of the index "NO_PERMANENT_SYNDROME" is not possible, as we there still might be a permanent syndrome incursion
+            create_and_add_absent_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::PERMANENT_SYNDROME], result);
         }
         else if (finder.syndrome_rain == embark_assist::defs::syndrome_rain_ranges::None) {
             const std::vector<GuardedRoaring>::const_iterator min = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::syndrome_rain_index::NO_PERMANENT_SYNDROME;
