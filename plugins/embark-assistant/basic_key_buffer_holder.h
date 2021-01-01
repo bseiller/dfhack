@@ -314,6 +314,7 @@ namespace embark_assist {
                 std::fill(soil_buffer_indices.begin(), soil_buffer_indices.end(), 0);
                 std::fill(freezing_buffer_indices.begin(), freezing_buffer_indices.end(), 0);
                 std::fill(syndrome_rain_buffer_indices.begin(), syndrome_rain_buffer_indices.end(), 0);
+                std::fill(reanimation_thralling_buffer_indices.begin(), reanimation_thralling_buffer_indices.end(), 0);
                 std::fill(biomes_buffer_indices.begin(), biomes_buffer_indices.end(), 0);
                 std::fill(region_type_buffer_indices.begin(), region_type_buffer_indices.end(), 0);
             }
