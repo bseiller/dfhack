@@ -686,7 +686,6 @@ namespace embark_assist {
         class multiple_indices_run_max_cardinality : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                // FIXFIX context.min/context.max
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
@@ -700,7 +699,6 @@ namespace embark_assist {
         class multiple_indices_run_cardinality_in_range : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                // FIXFIX context.min/context.max
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     total_cardinality += (*iter).and_cardinalityGuarded(embark_candidate);
                     if (total_cardinality > context.max_results) {
@@ -719,7 +717,6 @@ namespace embark_assist {
         class multiple_indices_run_min_distinct_intersects : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                // FIXFIX context.min/context.max
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
@@ -735,7 +732,6 @@ namespace embark_assist {
         class multiple_indices_run_max_distinct_intersects : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                // FIXFIX context.min/context.max
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;
@@ -751,7 +747,6 @@ namespace embark_assist {
         class multiple_indices_run_distinct_intersects_in_range : public multiple_indices_run_strategy {
             bool run(const multiple_indices_query_context context, const Roaring &embark_candidate) const {
                 uint16_t total_cardinality = 0;
-                // FIXFIX context.min/context.max
                 for (auto iter = context.min; iter != context.max; ++iter) {
                     if ((*iter).intersectGuarded(embark_candidate)) {
                         ++total_cardinality;

@@ -1609,6 +1609,18 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
                 buffer_holder.add_syndrome_rain(key, embark_assist::key_buffer_holder::syndrome_rain_index::NO_TEMPORARY_SYNDROME);
             }
 
+            const embark_assist::key_buffer_holder::reanimation_thralling_index reanimation 
+                = tile.reanimating[mid_level_tile.biome_offset] 
+                ? embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION 
+                : embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
+            buffer_holder.add_reanimation_thralling(key, reanimation);
+
+            embark_assist::key_buffer_holder::reanimation_thralling_index thralling = embark_assist::key_buffer_holder::reanimation_thralling_index::NO_THRALLING;
+            if (tile.thralling[mid_level_tile.biome_offset]) {
+                thralling = embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING;
+            }
+            buffer_holder.add_reanimation_thralling(key, thralling);
+
             mid_level_tile.savagery_level = region_map_entry.savagery / 33;
             if (mid_level_tile.savagery_level == 3) {
                 mid_level_tile.savagery_level = 2;

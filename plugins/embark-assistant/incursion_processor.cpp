@@ -196,6 +196,18 @@ void embark_assist::incursion::incursion_processor::fill_buffer(
         buffer.add_blood_rain(target_key);
     }
 
+    const embark_assist::key_buffer_holder::reanimation_thralling_index reanimation
+        = rtd.reanimating[source.biome_offset] 
+        ? embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION 
+        : embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
+    buffer.add_reanimation_thralling(target_key, reanimation);
+
+    embark_assist::key_buffer_holder::reanimation_thralling_index thralling = embark_assist::key_buffer_holder::reanimation_thralling_index::NO_THRALLING;
+    if (rtd.thralling[source.biome_offset]) {
+        thralling = embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING;
+    }
+    buffer.add_reanimation_thralling(target_key, thralling);
+
     buffer.add_savagery_level(target_key, source.savagery_level);
     //if (source.savagery_level == 2 && target_key >= 71936 && target_key <= 72191) {
     //    write_savagery_2_incursions_to_file(target_key);

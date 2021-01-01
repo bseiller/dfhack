@@ -54,6 +54,10 @@ namespace embark_assist {
             std::array<uint32_t*, SYNDROME_RAIN_ARRAY_LENGTH> syndrome_rain_buffer_helper;
             std::array<uint16_t, SYNDROME_RAIN_ARRAY_LENGTH> syndrome_rain_buffer_indices;
 
+            std::array<uint32_t[N], REANIMATION_THRALLING_ARRAY_LENGTH>reanimation_thralling_buffers;
+            std::array<uint32_t*, REANIMATION_THRALLING_ARRAY_LENGTH> reanimation_thralling_buffer_helper;
+            std::array<uint16_t, REANIMATION_THRALLING_ARRAY_LENGTH> reanimation_thralling_buffer_indices;
+
             std::array<uint32_t[N], ARRAY_SIZE_FOR_BIOMES> biome_buffers;
             std::array<uint32_t*, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_helper;
             std::array<int16_t, ARRAY_SIZE_FOR_BIOMES> biomes_buffer_indices;
@@ -86,6 +90,10 @@ namespace embark_assist {
 
                 for (int index = 0; index < syndrome_rain_buffers.size(); index++) {
                     syndrome_rain_buffer_helper[index] = syndrome_rain_buffers[index];
+                }
+
+                for (int index = 0; index < reanimation_thralling_buffers.size(); index++) {
+                    reanimation_thralling_buffer_helper[index] = reanimation_thralling_buffers[index];
                 }
 
                 for (int index = 0; index < biome_buffers.size(); index++) {
@@ -211,6 +219,20 @@ namespace embark_assist {
                 buffers = &syndrome_rain_buffer_helper;
             }
 
+            void add_reanimation_thralling(const uint32_t key, const reanimation_thralling_index reanimation_thralling) override {
+                const uint8_t index = (uint8_t)reanimation_thralling;
+                reanimation_thralling_buffers[index][reanimation_thralling_buffer_indices[index]++] = key;
+                if (reanimation_thralling_buffer_indices[index] > N) {
+                    color_ostream_proxy out(Core::getInstance().getConsole());
+                    out.print("reanimation_thralling_buffers overflow value %d, index: %d\n ", reanimation_thralling_buffer_indices[index], index);
+                }
+            }
+
+            void get_reanimation_thralling(const std::array<uint16_t, REANIMATION_THRALLING_ARRAY_LENGTH> *&indices, const std::array<uint32_t *, REANIMATION_THRALLING_ARRAY_LENGTH> *&buffers) const override {
+                indices = &reanimation_thralling_buffer_indices;
+                buffers = &reanimation_thralling_buffer_helper;
+            }
+
             void add_blood_rain(const uint32_t key) {
                 bloodRainBuffer[bloodRainBufferIndex++] = key;
                 if (bloodRainBufferIndex > N) {
@@ -331,6 +353,10 @@ namespace embark_assist {
 
                 for (int index = 0; index < syndrome_rain_buffers.size(); index++) {
                     max_buffer = std::max<int>(syndrome_rain_buffer_indices[index], max_buffer);
+                }
+
+                for (int index = 0; index < reanimation_thralling_buffers.size(); index++) {
+                    max_buffer = std::max<int>(reanimation_thralling_buffer_indices[index], max_buffer);
                 }
 
                 for (int index = 0; index < biome_buffers.size(); index++) {
