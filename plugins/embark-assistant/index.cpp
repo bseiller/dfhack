@@ -1341,34 +1341,34 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
     if (finder.reanimation != embark_assist::defs::reanimation_ranges::NA) {
         if (finder.reanimation != embark_assist::defs::reanimation_ranges::Both) {
             // 2 distinct (1 from each index) are required => Reanimation AND Thralling
-            const std::vector<GuardedRoaring>::const_iterator cend = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
+            const std::vector<GuardedRoaring>::const_iterator cend = reanimation_thralling.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
             const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_distinct_intersects_query(
                 embark_assist::query::multiple_indices_query_context(reanimation_thralling, reanimation_thralling.cbegin(), cend, 2, -1));
             result->queries.push_back(q);
         }
         else if (finder.reanimation == embark_assist::defs::reanimation_ranges::Any) {
             // 1 distinct (1 from either of the two indices) is => Reanimation OR Thralling
-            const std::vector<GuardedRoaring>::const_iterator cend = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
+            const std::vector<GuardedRoaring>::const_iterator cend = reanimation_thralling.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
             const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_distinct_intersects_query(
                 embark_assist::query::multiple_indices_query_context(reanimation_thralling, reanimation_thralling.cbegin(), cend, 1, 1));
             result->queries.push_back(q);
         }
         else if (finder.reanimation == embark_assist::defs::reanimation_ranges::Thralling) {
             // TODO: implement this as one query - variant of single_index_multiple_exclusions_all_query?
-            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
-            create_and_add_absent_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION], result);
+            create_and_add_present_query(reanimation_thralling[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
+            create_and_add_absent_query(reanimation_thralling[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION], result);
         }
         else if (finder.reanimation == embark_assist::defs::reanimation_ranges::Reanimation) {
             // TODO: implement this as one query - variant of single_index_multiple_exclusions_all_query?
-            create_and_add_present_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION], result);
-            create_and_add_absent_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
+            create_and_add_present_query(reanimation_thralling[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::REANIMATION], result);
+            create_and_add_absent_query(reanimation_thralling[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
         }
         else if (finder.reanimation == embark_assist::defs::reanimation_ranges::Not_Thralling) {
             // as reanimation is eligible to being processed during incursions the use of the index "NO_THRALLING" is not possible, as we there still might be a thralling incursion
-            create_and_add_absent_query(syndrome_rain[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
+            create_and_add_absent_query(reanimation_thralling[(uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::THRALLING], result);
         }
         else if (finder.reanimation == embark_assist::defs::reanimation_ranges::None) {
-            const std::vector<GuardedRoaring>::const_iterator cbegin = syndrome_rain.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
+            const std::vector<GuardedRoaring>::const_iterator cbegin = reanimation_thralling.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
             // as the positive indices are at the beginning (before min) they will be excluded actively, preventing hits/matches for any tile that contains a reanimation/thralling
             // that is also the reason why we can get away with just checking if one of the two "none" indices contains a hit, as by excluding the positive "has" indices we make sure there are no reanimation/thralling
             // the negative index is just used as seed to find embark candidates
