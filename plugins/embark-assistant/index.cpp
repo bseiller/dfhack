@@ -1339,7 +1339,7 @@ const embark_assist::index::query_plan_interface* embark_assist::index::Index::c
 
     // FIXME: implement reanimation
     if (finder.reanimation != embark_assist::defs::reanimation_ranges::NA) {
-        if (finder.reanimation != embark_assist::defs::reanimation_ranges::Both) {
+        if (finder.reanimation == embark_assist::defs::reanimation_ranges::Both) {
             // 2 distinct (1 from each index) are required => Reanimation AND Thralling
             const std::vector<GuardedRoaring>::const_iterator cend = reanimation_thralling.cbegin() + (uint8_t)embark_assist::key_buffer_holder::reanimation_thralling_index::NO_REANIMATION;
             const embark_assist::query::query_interface *q = new embark_assist::query::multiple_index_distinct_intersects_query(
