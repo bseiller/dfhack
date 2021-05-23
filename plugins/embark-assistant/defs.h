@@ -39,6 +39,9 @@ namespace embark_assist {
         // 1-9 drops + everything > 9 => == 9, index 0 is never used
         static const uint8_t ARRAY_SIZE_FOR_WATERFALL_DROPS = 10;
 
+        static const bool COMPARE_MATCHER_AND_INDEX = false;
+        static const bool COMPARE_INDEX_ITERATIVE_AND_FULL = false;
+
         //  Survey types
         //
         enum class river_sizes {
@@ -69,9 +72,9 @@ namespace embark_assist {
         // contains all attributes, used for regular survey/matching => 120 Bytes
         // also ordered members by size, which again might lead to a smaller memory footprint, by better alignment
         struct mid_level_tile : public mid_level_tile_basic {
-            std::vector<bool> metals;
-            std::vector<bool> economics;
-            std::vector<bool> minerals;
+            std::vector<uint8_t> metals;
+            std::vector<uint8_t> economics;
+            std::vector<uint8_t> minerals;
             int16_t river_elevation = 100;
 
             int8_t adamantine_level;  // -1 = none, 0 .. 3 = cavern 1 .. magma sea. Currently not used beyond present/absent.

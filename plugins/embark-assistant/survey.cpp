@@ -1507,13 +1507,11 @@ void embark_assist::survey::survey_mid_level_tile(embark_assist::defs::geo_data 
         for (uint8_t i = 0; i < 16; i++) {
             for (uint8_t k = 0; k < 16; k++) {
                 embark_assist::defs::mid_level_tile &mid_level_tile = mlt->at(i).at(k);
-                //mid_level_tile.metals.assign(state->max_inorganic, false);
-                // FIXME: profile performance difference between assign and fill
-                std::fill(mid_level_tile.metals.begin(), mid_level_tile.metals.end(), false);
-                //mid_level_tile.economics.assign(state->max_inorganic, false);
-                std::fill(mid_level_tile.economics.begin(), mid_level_tile.economics.end(), false);
-                //mid_level_tile.minerals.assign(state->max_inorganic, false);
-                std::fill(mid_level_tile.minerals.begin(), mid_level_tile.minerals.end(), false);
+                // std::memset is much faster than std::fill and also faster than direct assignment - also std::fill might be compiled into std::memset but is not guaranteed to happen
+                // have a look here for why: https://travisdowns.github.io/blog/2020/01/20/zero.html
+                std::memset(&mid_level_tile.metals[0], false, mid_level_tile.metals.size() * sizeof(mid_level_tile.metals[0]));
+                std::memset(&mid_level_tile.economics[0], false, mid_level_tile.economics.size() * sizeof(mid_level_tile.economics[0]));
+                std::memset(&mid_level_tile.minerals[0], false, mid_level_tile.minerals.size() * sizeof(mid_level_tile.minerals[0]));
             }
         }
     } else {
